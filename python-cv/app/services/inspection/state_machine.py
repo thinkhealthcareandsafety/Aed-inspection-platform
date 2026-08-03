@@ -309,14 +309,25 @@ class InspectionStateMachine:
 # ------------------------------------------------------------------
 
 def _derive_result(data: InspectionData) -> str:
-    """Derive overall pass/fail from gathered data."""
-    if data.status_indicator == "fault":
+    """Derive overall pass/fail from gathered data.
+
+    Expired consumables fail the inspection outright, regardless of what the
+    status indicator shows — a healthy-looking status light doesn't override
+    an expired pad or battery. PASS requires both expiry dates to have been
+    captured and be unexpired; missing data means REVIEW, never PASS, since
+    this is life-safety equipment.
+    """
+    from app.utils.date_parser import is_expired
+
+    pads_expired = bool(data.pads_expiry) and is_expired(data.pads_expiry)
+    battery_expired = bool(data.battery_expiry) and is_expired(data.battery_expiry)
+
+    if data.status_indicator == "fault" or pads_expired or battery_expired:
         return "FAIL"
-    if data.status_indicator in ("healthy", "ready"):
+    if (
+        data.status_indicator in ("healthy", "ready")
+        and data.pads_expiry
+        and data.battery_expiry
+    ):
         return "PASS"
-    # Check expiry
-    if data.pads_expiry:
-        from app.utils.date_parser import is_expired
-        if is_expired(data.pads_expiry):
-            return "FAIL"
     return "REVIEW"

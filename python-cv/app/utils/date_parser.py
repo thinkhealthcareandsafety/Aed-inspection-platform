@@ -8,18 +8,21 @@ import re
 from datetime import date, datetime
 from typing import Optional
 
-# Ordered list of patterns, most-specific first
+# Ordered list of patterns, most-specific first. Full Y-M-D / M-D-Y dates
+# MUST be tried before the bare Y-M / M-Y patterns below, otherwise the
+# shorter pattern matches the leading "2025/06" of "2025/06/15" and the day
+# is silently dropped.
 _PATTERNS = [
+    # 2025-06-15  |  2025/06/15
+    (r"\b(20\d{2})[-/\.](0[1-9]|1[0-2])[-/\.](\d{1,2})\b", "%Y-%m-%d"),
+    # 06/15/2025  |  06-15-2025
+    (r"\b(0[1-9]|1[0-2])[-/\.](\d{1,2})[-/\.](20\d{2})\b", "%m-%d-%Y"),
     # 2025-06  |  2025/06  |  2025.06
     (r"\b(20\d{2})[-/\.](0[1-9]|1[0-2])\b", "%Y-%m"),
     # 06/2025  |  06-2025  |  06.2025
     (r"\b(0[1-9]|1[0-2])[-/\.](20\d{2})\b", "%m-%Y"),
     # JUN 2025  |  Jun-2025  |  JUN/2025
     (r"\b([A-Za-z]{3})[-/ ]*(20\d{2})\b", "%b %Y"),
-    # 2025-06-15  |  2025/06/15
-    (r"\b(20\d{2})[-/\.](0[1-9]|1[0-2])[-/\.](\d{1,2})\b", "%Y-%m-%d"),
-    # 06/15/2025  |  06-15-2025
-    (r"\b(0[1-9]|1[0-2])[-/\.](\d{1,2})[-/\.](20\d{2})\b", "%m-%d-%Y"),
     # USE BY 2025-06
     (r"[Uu][Ss][Ee][\s]+[Bb][Yy][\s]+(20\d{2})[-/\.](0[1-9]|1[0-2])", "%Y-%m"),
     # EXP 2025-06

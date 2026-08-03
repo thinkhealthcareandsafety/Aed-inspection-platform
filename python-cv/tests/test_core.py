@@ -292,6 +292,8 @@ class TestStateMachine:
         session = InspectionSession(session_id="test-006", inspector_id="inspector-001")
         session.current_state = InspectionState.REPORT
         session.data.status_indicator = "healthy"
+        session.data.pads_expiry = "2099-01"
+        session.data.battery_expiry = "2099-01"
         machine = InspectionStateMachine(session)
 
         with patch.object(
@@ -302,6 +304,36 @@ class TestStateMachine:
         assert result.status == InspectionStatus.COMPLETE
         assert session.data.inspection_result == "PASS"
         assert session.current_state == InspectionState.COMPLETE
+
+    @pytest.mark.asyncio
+    async def test_report_step_fails_on_expired_battery_despite_healthy_status(self):
+        session = InspectionSession(session_id="test-006b", inspector_id="inspector-001")
+        session.current_state = InspectionState.REPORT
+        session.data.status_indicator = "healthy"
+        session.data.pads_expiry = "2099-01"
+        session.data.battery_expiry = "2020-01"
+        machine = InspectionStateMachine(session)
+
+        with patch.object(
+            gemini_service, "analyze_inspection_frame", new=AsyncMock(side_effect=AssertionError("should not be called"))
+        ):
+            await machine.process_frame(b"fake-jpeg")
+
+        assert session.data.inspection_result == "FAIL"
+
+    @pytest.mark.asyncio
+    async def test_report_step_reviews_when_expiry_data_missing(self):
+        session = InspectionSession(session_id="test-006c", inspector_id="inspector-001")
+        session.current_state = InspectionState.REPORT
+        session.data.status_indicator = "healthy"
+        machine = InspectionStateMachine(session)
+
+        with patch.object(
+            gemini_service, "analyze_inspection_frame", new=AsyncMock(side_effect=AssertionError("should not be called"))
+        ):
+            await machine.process_frame(b"fake-jpeg")
+
+        assert session.data.inspection_result == "REVIEW"
 
     @pytest.mark.asyncio
     async def test_gemini_failure_returns_error_result(self):
