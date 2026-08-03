@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 222 47% 13%;
+    --secondary-foreground: 210 40% 85%;
+    --muted: 222 47% 12%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 222 47% 6%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 47% 15%;
+    --input: 222 47% 13%;
+    --ring: 199 89% 48%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
+}
+
+@layer components {
+  /* Camera viewfinder corners */
+  .viewfinder-corner {
+    @apply absolute w-6 h-6 border-primary;
+    border-width: 2px;
+  }
+  .viewfinder-corner-tl {
+    @apply top-0 left-0 border-r-0 border-b-0;
+  }
+  .viewfinder-corner-tr {
+    @apply top-0 right-0 border-l-0 border-b-0;
+  }
+  .viewfinder-corner-bl {
+    @apply bottom-0 left-0 border-r-0 border-t-0;
+  }
+  .viewfinder-corner-br {
+    @apply bottom-0 right-0 border-l-0 border-t-0;
+  }
+
+  /* Scan line animation overlay */
+  .scan-overlay {
+    @apply absolute inset-0 pointer-events-none overflow-hidden;
+  }
+  .scan-line-element {
+    @apply absolute left-0 right-0 h-px bg-primary/40;
+    animation: scan-line 2.5s linear infinite;
+  }
+
+  /* Status badge variants */
+  .badge-pass {
+    @apply bg-green-500/15 text-green-400 border border-green-500/30;
+  }
+  .badge-fail {
+    @apply bg-red-500/15 text-red-400 border border-red-500/30;
+  }
+  .badge-review {
+    @apply bg-amber-500/15 text-amber-400 border border-amber-500/30;
+  }
+  .badge-incomplete {
+    @apply bg-slate-500/15 text-slate-400 border border-slate-500/30;
+  }
+
+  /* Glass card */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg;
+  }
+}
+
+/* Camera video fill */
+video.camera-feed {
+  object-fit: cover;
+  /* Not mirrored: this is the rear/environment-facing camera pointed at the
+     AED, not a front-facing selfie camera — mirroring it makes aiming the
+     camera at a physical object disorienting (left/right reversed). */
+}
+
+/* BBox overlay canvas */
+canvas.bbox-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}

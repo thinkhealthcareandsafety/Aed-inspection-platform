@@ -1,0 +1,116 @@
+services:
+  # ── MongoDB ──────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: aed-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: aed
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-aed_secure_pwd_2024}
+      MONGO_INITDB_DATABASE: aed_inspection
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    ports:
+      - "27017:27017"
+    networks:
+      - aed-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Python CV Microservice ────────────────────────────────────────────────
+  cv-service:
+    build:
+      context: ./python-cv
+      dockerfile: Dockerfile
+    container_name: aed-cv-service
+    restart: unless-stopped
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8001"
+      LOG_LEVEL: "INFO"
+      DEBUG: "false"
+      MONGODB_URL: "mongodb://aed:${MONGO_PASSWORD:-aed_secure_pwd_2024}@mongodb:27017/aed_inspection?authSource=admin"
+      MONGODB_DB: "aed_inspection"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:?GEMINI_API_KEY must be set in .env}"
+      CORS_ORIGINS: '["http://localhost:3000","http://frontend:3000","http://192.168.1.90:3000","https://rice-bay-approval-because.trycloudflare.com"]'
+      SECRET_KEY: "${SECRET_KEY:-change-me-in-production}"
+    volumes:
+      - cv_frames:/tmp/aed_frames
+      - cv_uploads:/tmp/aed_uploads
+    ports:
+      - "8001:8001"
+    networks:
+      - aed-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8001/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # ── Node.js Backend ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aed-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      MONGODB_URI: "mongodb://aed:${MONGO_PASSWORD:-aed_secure_pwd_2024}@mongodb:27017/aed_inspection?authSource=admin"
+      JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-change-in-production-!!}"
+      JWT_EXPIRES_IN: "7d"
+      CV_SERVICE_URL: "http://cv-service:8001"
+      CV_WS_URL: "ws://cv-service:8001"
+      CORS_ORIGINS: "http://localhost:3000,http://frontend:3000,http://192.168.1.90:3000,https://rice-bay-approval-because.trycloudflare.com"
+      BCRYPT_ROUNDS: "12"
+    ports:
+      - "3001:3001"
+    networks:
+      - aed-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      cv-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_URL: "http://localhost:3001"
+    container_name: aed-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: "http://localhost:3001"
+    ports:
+      - "3000:3000"
+    networks:
+      - aed-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+  cv_frames:
+  cv_uploads:
+
+networks:
+  aed-network:
+    driver: bridge
