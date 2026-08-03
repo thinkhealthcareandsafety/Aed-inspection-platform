@@ -7,6 +7,7 @@ multimodal call per analysed frame.
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Optional
 
 import structlog
@@ -19,6 +20,10 @@ from app.core.config import settings
 logger = structlog.get_logger(__name__)
 
 GEMINI_MODEL = "gemini-3.1-flash-lite"
+
+# A hung call must not freeze the inspection session indefinitely — better
+# to surface a timeout as a retryable error than to block forever.
+REQUEST_TIMEOUT_SECONDS = 20.0
 
 # Steps understood by the prompt. WAIT covers the initial "locate the
 # machine" phase; the remaining five map 1:1 onto the inspection state
@@ -109,18 +114,26 @@ async def analyze_inspection_frame(
     """
     client = _get_client()
 
-    response = await client.aio.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-            _build_prompt(current_step),
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=GeminiAnalysisResult,
-            temperature=0.1,
-        ),
-    )
+    try:
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                    _build_prompt(current_step),
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=GeminiAnalysisResult,
+                    temperature=0.1,
+                ),
+            ),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        raise TimeoutError(
+            f"Gemini call for step={current_step} exceeded {REQUEST_TIMEOUT_SECONDS}s"
+        ) from exc
 
     parsed = response.parsed
     if isinstance(parsed, GeminiAnalysisResult):

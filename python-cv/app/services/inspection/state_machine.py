@@ -55,6 +55,12 @@ _GEMINI_STEP: Dict[InspectionState, str] = {
 # Battery label isn't always present — give up and move on after this long.
 BATTERY_CHECK_TIMEOUT_SECONDS = 45.0
 
+# After this many consecutive Gemini failures for the same step, stop
+# implying "just hold on" and tell the inspector something is actually
+# wrong (bad API key, exhausted quota, network outage) so they don't sit
+# there indefinitely waiting on a call that will never succeed.
+CONSECUTIVE_ERROR_ESCALATION_THRESHOLD = 3
+
 # A state is "locked" once its required field(s) are confidently known —
 # further frames skip Gemini entirely unless the scene changes enough to
 # suggest a new device/angle (see `frame_diff.SCENE_CHANGE_THRESHOLD`).
@@ -130,6 +136,12 @@ class InspectionSession:
     # state is locked (see `_LOCK_FIELD` / `_locked_output_data`).
     lock_signature: Optional[np.ndarray] = None
 
+    # Consecutive Gemini call failures for the current step — reset on any
+    # success, used to escalate the error message so a persistent outage
+    # (bad key, exhausted quota, network down) doesn't read as a silent
+    # infinite "retrying" loop to the inspector.
+    consecutive_errors: int = 0
+
 
 class InspectionStateMachine:
     """
@@ -173,16 +185,31 @@ class InspectionStateMachine:
         try:
             result = await gemini_service.analyze_inspection_frame(image_bytes, gemini_step)
         except Exception as exc:
-            logger.exception("state_machine.gemini_error", state=state.value, error=str(exc))
+            session.consecutive_errors += 1
+            logger.exception(
+                "state_machine.gemini_error",
+                state=state.value,
+                error=str(exc),
+                consecutive_errors=session.consecutive_errors,
+            )
+            escalated = session.consecutive_errors >= CONSECUTIVE_ERROR_ESCALATION_THRESHOLD
+            instruction = (
+                "The AI service isn't responding after several attempts — check your "
+                "internet connection or try again later. If this keeps happening, the "
+                "service may be misconfigured."
+                if escalated
+                else "AI analysis is temporarily unavailable. Hold steady, retrying…"
+            )
             return StateResult(
                 step=state.value,
                 progress=session.progress,
-                instruction="AI analysis is temporarily unavailable. Hold steady, retrying…",
+                instruction=instruction,
                 completed=False,
                 status=InspectionStatus.ERROR,
                 error=str(exc),
             )
 
+        session.consecutive_errors = 0
         self._merge_data(state, result)
         session.progress = max(session.progress, result.progress)
 
