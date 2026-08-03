@@ -13,8 +13,8 @@ const STATUS_CONFIG: Record<
 > = {
   waiting: {
     icon: <Loader2 className="w-4 h-4 animate-spin" />,
-    color: 'text-slate-400',
-    bg: 'bg-slate-500/10 border-slate-500/20',
+    color: 'text-slate-600 dark:text-slate-400',
+    bg: 'bg-slate-100 border-slate-200 dark:bg-slate-500/10 dark:border-slate-500/20',
   },
   in_progress: {
     icon: <Loader2 className="w-4 h-4 animate-spin" />,
@@ -23,18 +23,18 @@ const STATUS_CONFIG: Record<
   },
   complete: {
     icon: <CheckCircle2 className="w-4 h-4" />,
-    color: 'text-green-400',
-    bg: 'bg-green-500/10 border-green-500/20',
+    color: 'text-green-600 dark:text-green-400',
+    bg: 'bg-green-50 border-green-200 dark:bg-green-500/10 dark:border-green-500/20',
   },
   error: {
     icon: <AlertCircle className="w-4 h-4" />,
-    color: 'text-red-400',
-    bg: 'bg-red-500/10 border-red-500/20',
+    color: 'text-red-600 dark:text-red-400',
+    bg: 'bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/20',
   },
   paused: {
     icon: null,
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10 border-amber-500/20',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20',
   },
 };
 

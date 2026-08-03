@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -80,6 +81,7 @@ export function Sidebar() {
               <p className="text-xs font-medium truncate">{user?.name ?? 'Inspector'}</p>
               <p className="text-xs text-muted-foreground truncate capitalize">{user?.role}</p>
             </div>
+            <ThemeToggle />
             <button
               onClick={clearAuth}
               className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -109,6 +111,9 @@ export function Sidebar() {
             </Link>
           );
         })}
+        <div className="flex-1 flex items-center justify-center">
+          <ThemeToggle />
+        </div>
         <button
           onClick={clearAuth}
           className="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] text-muted-foreground"

@@ -50,7 +50,7 @@ export function InspectionTimeline() {
             {/* Step icon / state indicator */}
             <div className="shrink-0">
               {isCompleted ? (
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
               ) : isCurrent ? (
                 <Loader2 className="w-4 h-4 text-primary animate-spin" />
               ) : (

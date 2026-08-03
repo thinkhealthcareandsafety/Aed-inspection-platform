@@ -25,9 +25,9 @@ function DataRow({ label, value, mono, highlight }: DataRowProps) {
             className={cn(
               'text-xs font-medium truncate max-w-[60%] text-right',
               mono && 'font-mono',
-              highlight === 'pass' && 'text-green-400',
-              highlight === 'fail' && 'text-red-400',
-              highlight === 'warn' && 'text-amber-400',
+              highlight === 'pass' && 'text-green-600 dark:text-green-400',
+              highlight === 'fail' && 'text-red-600 dark:text-red-400',
+              highlight === 'warn' && 'text-amber-600 dark:text-amber-400',
               !highlight && 'text-foreground',
             )}
           >

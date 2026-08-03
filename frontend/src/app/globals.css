@@ -5,33 +5,67 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
+  /* Light theme (default) — enterprise SaaS: white cards on a soft neutral
+     page background, restrained indigo-blue accent, crisp low-contrast
+     borders. Kept as the default `:root` so it's also the no-JS fallback. */
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 6%;
-    --secondary: 222 47% 13%;
-    --secondary-foreground: 210 40% 85%;
-    --muted: 222 47% 12%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 199 89% 48%;
-    --accent-foreground: 222 47% 6%;
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 95%;
+    --secondary-foreground: 222 47% 20%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 221 83% 53%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 222 47% 15%;
-    --input: 222 47% 13%;
-    --ring: 199 89% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 20% 88%;
+    --input: 214 20% 91%;
+    --ring: 221 83% 53%;
     --radius: 0.625rem;
+  }
+
+  /* Dark theme — deep neutral navy (not pure black) with the same
+     indigo-blue accent lifted for contrast. */
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 20% 98%;
+    --card: 222 40% 10%;
+    --card-foreground: 210 20% 98%;
+    --popover: 222 40% 10%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 222 30% 15%;
+    --secondary-foreground: 210 20% 90%;
+    --muted: 222 30% 14%;
+    --muted-foreground: 215 20% 60%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 222 47% 8%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 222 30% 18%;
+    --input: 222 30% 16%;
+    --ring: 217 91% 60%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
   }
 
   body {
@@ -83,18 +117,24 @@
     animation: scan-line 2.5s linear infinite;
   }
 
-  /* Status badge variants */
+  /* Status badge variants — light-mode tints use a solid pale background
+     with dark text for contrast on white cards; dark mode keeps the
+     translucent-on-navy treatment. */
   .badge-pass {
-    @apply bg-green-500/15 text-green-400 border border-green-500/30;
+    @apply bg-green-50 text-green-700 border border-green-200;
+    @apply dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/30;
   }
   .badge-fail {
-    @apply bg-red-500/15 text-red-400 border border-red-500/30;
+    @apply bg-red-50 text-red-700 border border-red-200;
+    @apply dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30;
   }
   .badge-review {
-    @apply bg-amber-500/15 text-amber-400 border border-amber-500/30;
+    @apply bg-amber-50 text-amber-700 border border-amber-200;
+    @apply dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30;
   }
   .badge-incomplete {
-    @apply bg-slate-500/15 text-slate-400 border border-slate-500/30;
+    @apply bg-slate-100 text-slate-600 border border-slate-200;
+    @apply dark:bg-slate-500/15 dark:text-slate-400 dark:border-slate-500/30;
   }
 
   /* Glass card */
