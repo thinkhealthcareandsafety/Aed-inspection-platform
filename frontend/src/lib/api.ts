@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
-const BASE_URL =
+export const BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
 
 export const apiClient = axios.create({
@@ -80,12 +80,48 @@ export const api = {
 
     stats: () =>
       apiClient.get<import('@/types').InspectionStats>('/inspections/stats/summary'),
+
+    complete: (id: string) =>
+      apiClient.post<{ inspection: import('@/types').Inspection }>(`/inspections/${id}/complete`),
+  },
+
+  checklist: {
+    upload: (inspectionId: string, itemId: string, file: File | Blob, filename: string) => {
+      const form = new FormData();
+      form.append('file', file, filename);
+      return apiClient.post<{
+        item: import('@/types').ChecklistItemResult;
+        inspectionResult: import('@/types').InspectionResult;
+      }>(`/inspections/${inspectionId}/checklist/${itemId}`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 45_000,
+      });
+    },
+
+    skip: (inspectionId: string, itemId: string) =>
+      apiClient.post<{ item: import('@/types').ChecklistItemResult }>(
+        `/inspections/${inspectionId}/checklist/${itemId}/skip`,
+      ),
   },
 
   reports: {
-    pdf: (inspectionId: string) =>
-      `${BASE_URL}/api/v1/reports/${inspectionId}/pdf`,
     json: (inspectionId: string) =>
       apiClient.get(`/reports/${inspectionId}/json`),
+
+    // The PDF route requires a Bearer token, so a plain `<a href>` (no JS,
+    // no auth header) 401s — especially on mobile browsers navigating
+    // straight to the URL. Fetch it as an authenticated blob instead and
+    // hand the browser a local object URL to download.
+    downloadPdf: async (inspectionId: string) => {
+      const res = await apiClient.get(`/reports/${inspectionId}/pdf`, { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(res.data as Blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `aed-inspection-${inspectionId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    },
   },
 };

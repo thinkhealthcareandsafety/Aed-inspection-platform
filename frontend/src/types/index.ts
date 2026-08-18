@@ -1,3 +1,55 @@
+// ── Checklist types (10-item, 3-section inspection flow) ───────────────────────
+
+export type ChecklistItemId =
+  | 'serial_number'
+  | 'pads_expiry'
+  | 'battery_expiry'
+  | 'battery_attached'
+  | 'pads_connected'
+  | 'readiness_indicator'
+  | 'child_key_pad'
+  | 'aed_cabinet'
+  | 'first_response_kit'
+  | 'emergency_contacts';
+
+export type ChecklistMediaType = 'image' | 'video';
+
+export type ChecklistItemStatus =
+  | 'pending'
+  | 'uploaded'
+  | 'analyzing'
+  | 'pass'
+  | 'fail'
+  | 'skipped'
+  | 'error';
+
+export interface ChecklistAiData {
+  passed: boolean;
+  confidence: number;
+  notes: string;
+  serial_number?: string | null;
+  expiry_date?: string | null;
+  expiry_raw_text?: string | null;
+  lot_number?: string | null;
+  battery_serial_number?: string | null;
+  present?: boolean | null;
+  status?: string | null;
+}
+
+export interface ChecklistItemResult {
+  itemId: ChecklistItemId;
+  section: 1 | 2 | 3;
+  required: boolean;
+  status: ChecklistItemStatus;
+  mediaUrl?: string;
+  mediaType?: ChecklistMediaType;
+  confidence?: number;
+  notes?: string;
+  aiData?: ChecklistAiData;
+  uploadedAt?: string;
+  analyzedAt?: string;
+}
+
 // ── Inspection types ──────────────────────────────────────────────────────────
 
 export type InspectionStep =
@@ -93,9 +145,12 @@ export interface Inspection {
   batteryExpiry?: string;
   statusIndicator?: string;
   statusConfidence?: number;
+  batteryLot?: string;
+  batterySerialNumber?: string;
   inspectionResult: InspectionResult;
   inspectionStatus: 'in_progress' | 'complete' | 'error';
   capturedImages: string[];
+  checklist: ChecklistItemResult[];
   notes?: string;
   createdAt: string;
 }

@@ -1,10 +1,13 @@
 /**
- * AED Inspection Platform — Express + Socket.IO Server
+ * AED Inspection Platform — Express Server
+ *
+ * The inspection flow is a discrete photo/video upload per checklist item
+ * (see api/routes/checklist.ts), not a continuous video stream, so there is
+ * no WebSocket/Socket.IO layer here.
  */
 import 'dotenv/config';
 import http from 'http';
 import { createApp } from './app';
-import { createSocketServer } from './websocket/socket-server';
 import { connectDatabase } from './config/database';
 import { logger } from './utils/logger';
 import { config } from './config/env';
@@ -18,9 +21,6 @@ async function bootstrap() {
     // Express app
     const app = createApp();
     const httpServer = http.createServer(app);
-
-    // Socket.IO
-    createSocketServer(httpServer);
 
     httpServer.listen(config.PORT, () => {
       logger.info(`Server running on port ${config.PORT}`, {

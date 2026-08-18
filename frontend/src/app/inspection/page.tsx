@@ -1,71 +1,85 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Camera, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PlayCircle, CheckCircle2, Download, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
-import { useInspection } from '@/hooks/useInspection';
-import { useInspectionStore } from '@/stores/inspection-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
+import { ChecklistItemCard } from '@/components/inspection/ChecklistItemCard';
+import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
-import { InspectionCamera } from '@/components/inspection/InspectionCamera';
-import { InspectionTimeline } from '@/components/inspection/InspectionTimeline';
-import { InspectionProgress } from '@/components/inspection/InspectionProgress';
-import { AIGuidance } from '@/components/inspection/AIGuidance';
-import { InspectionDataPanel } from '@/components/inspection/InspectionDataPanel';
-import { InspectionResultCard } from '@/components/inspection/InspectionResultCard';
-
-type Phase = 'idle' | 'camera' | 'inspecting' | 'complete';
+const RESULT_STYLES: Record<InspectionResult, { label: string; className: string }> = {
+  PASS: { label: 'PASS', className: 'text-emerald-500 border-emerald-500/40 bg-emerald-500/10' },
+  FAIL: { label: 'FAIL', className: 'text-destructive border-destructive/40 bg-destructive/10' },
+  REVIEW: { label: 'NEEDS REVIEW', className: 'text-amber-500 border-amber-500/40 bg-amber-500/10' },
+  INCOMPLETE: { label: 'INCOMPLETE', className: 'text-muted-foreground border-border/40 bg-secondary/40' },
+};
 
 export default function InspectionPage() {
-  const [phase, setPhase] = useState<Phase>('idle');
-  const { videoRef, canvasRef, openCamera, startInspection, stopInspection } = useInspection();
-  const { session, isCameraActive, reset } = useInspectionStore();
   const { user } = useAuthStore();
+  const [inspection, setInspection] = useState<Inspection | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [completing, setCompleting] = useState(false);
 
-  const handleOpenCamera = useCallback(async () => {
-    await openCamera();
-    setPhase('camera');
-  }, [openCamera]);
+  const requiredResolvedCount = useMemo(() => {
+    if (!inspection) return 0;
+    return inspection.checklist.filter(
+      (c) => REQUIRED_ITEM_IDS.includes(c.itemId) && (c.status === 'pass' || c.status === 'fail'),
+    ).length;
+  }, [inspection]);
+
+  const allRequiredResolved = requiredResolvedCount === REQUIRED_ITEM_IDS.length;
+  const progressPct = Math.round((requiredResolvedCount / REQUIRED_ITEM_IDS.length) * 100);
+  const isComplete = inspection?.inspectionStatus === 'complete';
 
   const handleStart = useCallback(async () => {
     if (!user) {
       toast.error('Please log in to start an inspection');
       return;
     }
+    setStarting(true);
     try {
       const res = await api.inspections.create({});
-      const { inspection } = res.data;
-      await startInspection(inspection.inspectionId, inspection.sessionId);
-      setPhase('inspecting');
+      setInspection(res.data.inspection);
     } catch {
-      toast.error('Could not start inspection session');
+      toast.error('Could not start inspection');
+    } finally {
+      setStarting(false);
     }
-  }, [user, startInspection]);
+  }, [user]);
 
-  const handleStop = useCallback(() => {
-    stopInspection();
-    setPhase('idle');
-    reset();
-  }, [stopInspection, reset]);
+  const handleItemChange = useCallback((result: ChecklistItemResult) => {
+    setInspection((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        checklist: prev.checklist.map((c) => (c.itemId === result.itemId ? result : c)),
+      };
+    });
+  }, []);
 
-  const handleNewInspection = useCallback(() => {
-    stopInspection();
-    reset();
-    setPhase('idle');
-  }, [stopInspection, reset]);
+  const handleComplete = useCallback(async () => {
+    if (!inspection) return;
+    setCompleting(true);
+    try {
+      const res = await api.inspections.complete(inspection.inspectionId);
+      setInspection(res.data.inspection);
+    } catch {
+      toast.error('Could not finalize inspection');
+    } finally {
+      setCompleting(false);
+    }
+  }, [inspection]);
 
-  // Auto-advance to complete phase
-  if (phase === 'inspecting' && session?.status === 'complete' && session?.step === 'complete') {
-    setPhase('complete');
-  }
+  const handleReset = useCallback(() => setInspection(null), []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="border-b border-border/50 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -76,103 +90,135 @@ export default function InspectionPage() {
             Dashboard
           </Link>
           <span className="text-border">/</span>
-          <span className="text-sm font-medium">Live Inspection</span>
+          <span className="text-sm font-medium">AED Inspection Checklist</span>
         </div>
-
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          {user?.name ?? 'Inspector'}
-        </div>
+        <div className="text-xs text-muted-foreground">{user?.name ?? 'Inspector'}</div>
       </header>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col md:flex-row gap-0 overflow-y-auto md:overflow-hidden">
-        {/* Left column: camera + guidance + progress */}
-        <div className="flex-1 flex flex-col p-4 md:p-6 gap-4 min-w-0">
-          {/* Camera */}
-          <InspectionCamera
-            videoRef={videoRef}
-            canvasRef={canvasRef}
-            className="md:flex-1 min-h-0"
-            style={{ minHeight: '320px', maxHeight: '520px' }}
-          />
+      <div className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-8 flex flex-col gap-6">
+        {!inspection && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-20">
+            <h1 className="text-2xl font-semibold">Philips FRx / HS1 Inspection</h1>
+            <p className="text-muted-foreground max-w-md text-sm">
+              10 checks across 3 sections. Capture or upload a photo (or short video) for each item —
+              Gemini analyses it instantly.
+            </p>
+            <button
+              onClick={handleStart}
+              disabled={starting}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/25 transition-all disabled:opacity-60"
+            >
+              <PlayCircle className="w-5 h-5" />
+              {starting ? 'Starting…' : 'Start Inspection'}
+            </button>
+          </div>
+        )}
 
-          {/* Progress bar */}
-          <InspectionProgress />
+        {inspection && (
+          <>
+            {/* Progress */}
+            <div className="glass-card p-4">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="font-medium">Required items</span>
+                <span className="text-muted-foreground">
+                  {requiredResolvedCount}/{REQUIRED_ITEM_IDS.length}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-secondary/50 overflow-hidden">
+                <motion.div
+                  className="h-full bg-primary"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPct}%` }}
+                  transition={{ ease: 'easeOut' }}
+                />
+              </div>
+            </div>
 
-          {/* AI Guidance */}
-          <AIGuidance />
-
-          {/* Action buttons */}
-          <div className="flex gap-3">
-            <AnimatePresence mode="wait">
-              {phase === 'idle' && (
-                <motion.button
-                  key="open-camera"
-                  initial={{ opacity: 0, y: 4 }}
+            <AnimatePresence>
+              {isComplete && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  onClick={handleOpenCamera}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground font-medium transition-colors"
+                  className={cn('glass-card p-5 border flex items-center justify-between gap-4', RESULT_STYLES[inspection.inspectionResult].className)}
                 >
-                  <Camera className="w-5 h-5" />
-                  Open Camera
-                </motion.button>
-              )}
-
-              {phase === 'camera' && (
-                <motion.button
-                  key="start"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  onClick={handleStart}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg transition-all shadow-lg shadow-primary/25 animate-pulse-ring"
-                >
-                  <Play className="w-5 h-5 fill-current" />
-                  Start Inspection
-                </motion.button>
-              )}
-
-              {phase === 'inspecting' && (
-                <motion.button
-                  key="stop"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  onClick={handleStop}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30 font-medium transition-colors"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                  Stop
-                </motion.button>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-6 h-6" />
+                    <div>
+                      <div className="font-bold text-lg">{RESULT_STYLES[inspection.inspectionResult].label}</div>
+                      <div className="text-xs opacity-80">Inspection complete</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => api.reports.downloadPdf(inspection.inspectionId)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      PDF
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      New
+                    </button>
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </div>
 
-        {/* Right sidebar: timeline + data */}
-        <div className="w-full md:w-80 shrink-0 border-t md:border-t-0 md:border-l border-border/50 flex flex-col gap-4 p-4 md:p-5 md:overflow-y-auto">
-          {/* Result card (when complete) */}
-          <AnimatePresence>
-            {phase === 'complete' && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
+            {/* Sections */}
+            {CHECKLIST_SECTIONS.map((section) => (
+              <div key={section.section} className="flex flex-col gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-xs flex items-center justify-center font-bold">
+                      {section.section}
+                    </span>
+                    {section.title}
+                  </h2>
+                  <p className="text-xs text-muted-foreground ml-7">{section.subtitle}</p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {section.items.map((item) => {
+                    const result = inspection.checklist.find((c) => c.itemId === item.id);
+                    if (!result) return null;
+                    return (
+                      <ChecklistItemCard
+                        key={item.id}
+                        item={item}
+                        result={result}
+                        inspectionId={inspection.inspectionId}
+                        onChange={handleItemChange}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {!isComplete && (
+              <button
+                onClick={handleComplete}
+                disabled={completing}
+                className={cn(
+                  'flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-60',
+                  allRequiredResolved
+                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25'
+                    : 'bg-secondary/60 hover:bg-secondary text-foreground',
+                )}
               >
-                <InspectionResultCard onStartNew={handleNewInspection} />
-              </motion.div>
+                <CheckCircle2 className="w-5 h-5" />
+                {completing
+                  ? 'Finalizing…'
+                  : allRequiredResolved
+                    ? 'Finish Inspection'
+                    : `Finish Inspection (${REQUIRED_ITEM_IDS.length - requiredResolvedCount} required item(s) left)`}
+              </button>
             )}
-          </AnimatePresence>
-
-          {/* Timeline */}
-          <div className="glass-card p-4">
-            <InspectionTimeline />
-          </div>
-
-          {/* Data panel */}
-          <InspectionDataPanel />
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

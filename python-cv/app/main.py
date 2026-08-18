@@ -1,6 +1,10 @@
 """
 AED Inspection CV Microservice — FastAPI entry point.
-Handles live frame relaying and the Gemini-driven inspection state machine.
+
+Serves one Gemini-driven analysis endpoint per checklist item (see
+app/services/checklist_items.py) — a discrete photo/video upload in,
+one structured verdict out. No live video streaming or session state
+machine; each call is independent.
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -10,8 +14,7 @@ import structlog
 
 from app.core.config import settings
 from app.core.logger import configure_logging, get_logger
-from app.api.routes import frames, inspection, health
-from app.api.websockets import inspection_ws
+from app.api.routes import checklist, health
 
 configure_logging()
 logger = get_logger(__name__)
@@ -51,11 +54,7 @@ def create_app() -> FastAPI:
 
     # REST routes
     app.include_router(health.router, prefix="/health", tags=["health"])
-    app.include_router(frames.router, prefix="/api/v1/frames", tags=["frames"])
-    app.include_router(inspection.router, prefix="/api/v1/inspection", tags=["inspection"])
-
-    # WebSocket
-    app.include_router(inspection_ws.router, prefix="/ws", tags=["websocket"])
+    app.include_router(checklist.router, prefix="/api/v1/checklist", tags=["checklist"])
 
     return app
 

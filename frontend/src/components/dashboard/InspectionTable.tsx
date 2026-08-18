@@ -137,15 +137,13 @@ export function InspectionTable() {
                       {insp.inspector?.name ?? '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <a
-                        href={api.reports.pdf(insp.inspectionId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => api.reports.downloadPdf(insp.inspectionId)}
                         className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors inline-flex"
                         title="Download PDF"
                       >
                         <Download className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
                     </td>
                   </motion.tr>
                 ))}

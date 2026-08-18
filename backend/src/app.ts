@@ -13,6 +13,7 @@ import { authMiddleware } from './api/middleware/auth';
 // Routes
 import authRouter from './api/routes/auth';
 import inspectionRouter from './api/routes/inspections';
+import checklistRouter from './api/routes/checklist';
 import reportRouter from './api/routes/reports';
 import deviceRouter from './api/routes/devices';
 import userRouter from './api/routes/users';
@@ -64,9 +65,13 @@ export function createApp(): Application {
     res.json({ status: 'ok', service: 'aed-backend', version: '1.0.0' });
   });
 
+  // ── Uploaded checklist media (photos/videos captured during inspection) ─
+  app.use('/uploads', express.static(config.UPLOAD_DIR));
+
   // ── API routes ────────────────────────────────────────────────────────
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/inspections', authMiddleware, inspectionRouter);
+  app.use('/api/v1/inspections', authMiddleware, checklistRouter);
   app.use('/api/v1/reports', authMiddleware, reportRouter);
   app.use('/api/v1/devices', authMiddleware, deviceRouter);
   app.use('/api/v1/users', authMiddleware, userRouter);
