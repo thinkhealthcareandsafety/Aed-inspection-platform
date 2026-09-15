@@ -33,8 +33,8 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     { src: '/reference/child-key.jpg', caption: 'Infant/child key — paediatric dose attenuator', kind: 'neutral' },
   ],
   battery_attached: [
-    { src: '/reference/battery-compartment.jpg', caption: 'Battery cells correctly seated in the compartment', kind: 'good' },
-    { src: '/reference/battery-rear.jpg', caption: 'Battery pack fully fitted to the rear panel', kind: 'good' },
+    { src: '/reference/battery-rear.jpg', caption: 'Sealed battery pack properly installed', kind: 'good' },
+    { src: '/reference/battery-compartment.jpg', caption: 'Battery pack missing — exposed cells, not connected', kind: 'bad' },
   ],
   pads_connected: [
     { src: '/reference/pads-connected.jpg', caption: 'Connected — pads cable plugged into the unit', kind: 'good' },
