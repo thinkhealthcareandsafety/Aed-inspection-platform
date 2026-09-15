@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, HeartPulse, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
 
@@ -15,16 +15,22 @@ interface Props {
 export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      className="w-full max-w-md mx-auto"
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+      className="w-full max-w-sm mx-auto"
     >
-      <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold tracking-tight">Which AED are<br />you inspecting?</h1>
+      <div className="mb-7 px-1">
+        <h1 className="text-display text-foreground">
+          Which AED are<br />you inspecting?
+        </h1>
+        <p className="text-body text-muted-foreground mt-3">
+          We tailor the checks and the reference photos to your exact machine.
+        </p>
       </div>
 
-      <div className="glass-card p-4 space-y-2.5">
+      <div className="surface-group">
         {AED_MODEL_OPTIONS.map((model) => {
           const isSelected = selected === model.id;
           const isBusy = starting && isSelected;
@@ -35,35 +41,31 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
               disabled={starting}
               onClick={() => onSelect(model.id)}
               className={cn(
-                'w-full flex items-center gap-3.5 px-4 py-4 rounded-2xl border text-left transition-all disabled:opacity-60',
-                isSelected
-                  ? 'border-primary ring-1 ring-primary shadow-sm'
-                  : 'border-border bg-card hover:border-primary/40 hover:bg-secondary/40',
+                'surface-row w-full flex items-center gap-3 px-4 py-4 text-left',
+                'transition-colors hover:bg-secondary/50 active:bg-secondary disabled:opacity-60',
+                isSelected && 'bg-secondary/60',
               )}
             >
-              <div className="w-[42px] h-[42px] rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <HeartPulse className="w-[21px] h-[21px]" strokeWidth={1.8} />
-              </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-sm">{model.brand} {model.name}</div>
-                <div className="text-xs text-muted-foreground">{model.id}</div>
+                <div className="text-headline text-foreground">
+                  {model.brand} {model.name}
+                </div>
               </div>
               {isBusy ? (
-                <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
+                <Loader2 className="w-[18px] h-[18px] text-muted-foreground animate-spin shrink-0" />
               ) : isSelected ? (
-                <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-              ) : null}
+                <Check className="w-[18px] h-[18px] text-primary shrink-0" strokeWidth={2.5} />
+              ) : (
+                <ChevronRight className="w-[18px] h-[18px] text-muted-foreground/40 shrink-0" strokeWidth={2} />
+              )}
             </button>
           );
         })}
 
-        <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-dashed border-border/40 opacity-50 cursor-not-allowed">
-          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <HeartPulse className="w-5 h-5 text-muted-foreground" />
-          </div>
+        <div className="surface-row flex items-center gap-3 px-4 py-4 opacity-45">
           <div className="min-w-0 flex-1">
-            <div className="font-medium text-sm">Other models</div>
-            <div className="text-xs text-muted-foreground">Coming soon</div>
+            <div className="text-headline text-foreground">Other models</div>
+            <div className="text-footnote text-muted-foreground mt-0.5">Coming soon</div>
           </div>
         </div>
       </div>
@@ -72,9 +74,9 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
         type="button"
         onClick={onBack}
         disabled={starting}
-        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm mt-4 mx-auto disabled:opacity-50"
+        className="flex items-center gap-1.5 text-callout text-muted-foreground hover:text-foreground transition-colors mt-6 mx-auto disabled:opacity-50"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-4 h-4" strokeWidth={2} />
         Back
       </button>
     </motion.div>

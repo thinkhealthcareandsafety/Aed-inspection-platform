@@ -83,23 +83,20 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
 
   return (
     <div ref={rootRef} className="relative">
-      <div
-        className={cn(
-          'flex items-stretch rounded-lg border bg-secondary transition-colors focus-within:ring-1 focus-within:ring-primary',
-          error || touchedInvalid ? 'border-destructive' : 'border-border/50 focus-within:border-primary',
-        )}
-      >
+      <div className="flex items-center gap-2">
         <button
           type="button"
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 pl-3 pr-2.5 py-2.5 text-sm shrink-0 border-r border-border/50 hover:bg-secondary/60 transition-colors rounded-l-lg disabled:opacity-60"
+          className="flex items-center gap-1 shrink-0 -ml-0.5 px-1 py-0.5 rounded-md text-body hover:bg-secondary transition-colors disabled:opacity-60"
           aria-label="Select country"
         >
-          <span className="text-base leading-none">{flagEmoji(country.iso2)}</span>
-          <span className="font-mono text-xs font-medium text-muted-foreground">+{country.dialCode}</span>
-          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[15px] leading-none">{flagEmoji(country.iso2)}</span>
+          <span className="font-mono text-callout text-muted-foreground">+{country.dialCode}</span>
+          <ChevronDown className="w-3 h-3 text-muted-foreground/70" strokeWidth={2} />
         </button>
+
+        <span className="w-px h-4 bg-border shrink-0" aria-hidden />
 
         <input
           type="tel"
@@ -110,14 +107,14 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
           onChange={(e) => handleDigitsChange(e.target.value)}
           onBlur={onBlur}
           placeholder={country.example ?? '0'.repeat(country.minLength)}
-          className="flex-1 min-w-0 px-3 py-2.5 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-60"
+          className="flex-1 min-w-0 bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none disabled:opacity-60"
         />
       </div>
 
       {error ? (
-        <p className="text-xs text-destructive mt-1">{error}</p>
+        <p className="text-footnote text-destructive mt-1">{error}</p>
       ) : touchedInvalid ? (
-        <p className="text-xs text-destructive mt-1">
+        <p className="text-footnote text-destructive mt-1">
           {country.name} numbers need {lengthHint} ({digits.length} so far)
         </p>
       ) : null}

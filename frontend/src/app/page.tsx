@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Download, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Download, Loader2, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
@@ -65,6 +65,18 @@ export default function PublicInspectionPage() {
     return inspection.checklist.filter(
       (c) => REQUIRED_ITEM_IDS.includes(c.itemId) && (c.status === 'pass' || c.status === 'fail'),
     ).length;
+  }, [inspection]);
+
+  /** The single item the inspector should tackle next: required items first,
+   *  in order, then optional ones. Drives the one filled button on screen. */
+  const nextItemId = useMemo(() => {
+    if (!inspection) return undefined;
+    const needsAction = (id: string) => {
+      const entry = inspection.checklist.find((c) => c.itemId === id);
+      return entry?.status === 'pending' || entry?.status === 'error';
+    };
+    const ordered = CHECKLIST_SECTIONS.flatMap((s) => s.items.map((i) => i.id));
+    return ordered.find((id) => REQUIRED_ITEM_IDS.includes(id) && needsAction(id)) ?? ordered.find(needsAction);
   }, [inspection]);
 
   const allRequiredResolved = requiredResolvedCount === REQUIRED_ITEM_IDS.length;
@@ -133,23 +145,16 @@ export default function PublicInspectionPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-[30px] h-[30px] rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <PulseLogo className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <div className="leading-none">
-            <span className="font-display block text-[15px] font-bold tracking-tight">AED Inspect</span>
-            <span className="block text-[10px] font-semibold text-primary tracking-wide mt-0.5">AI-AUTOMATED</span>
-          </div>
-        </div>
+      <header className="px-5 pt-5 pb-4 flex items-center gap-2.5">
+        <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
+        <span className="text-headline text-foreground">AED Inspect</span>
       </header>
 
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-6">
         <StepIndicator current={stepIndex} />
       </div>
 
-      <div className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-8 pt-2 flex flex-col gap-6 justify-center">
+      <div className="flex-1 max-w-3xl w-full mx-auto px-4 pb-8 md:px-8 flex flex-col gap-6 justify-center">
         <AnimatePresence mode="wait">
           {step === 'contact' && (
             <ContactForm key="contact" defaultValues={contact ?? undefined} onSubmit={handleContactSubmit} />
@@ -168,28 +173,27 @@ export default function PublicInspectionPage() {
 
         {step === 'inspecting' && inspection && (
           <>
-            <div className="text-center">
-              <h1 className="font-display text-xl font-bold tracking-tight">{inspection.aedModel} Inspection</h1>
-              <p className="text-muted-foreground text-sm mt-1.5">
-                10 checks across 3 sections. Capture a photo (or short video) for each item — AI analyses it
-                instantly.
+            <div className="px-1">
+              <h1 className="text-title text-foreground">{inspection.aedModel}</h1>
+              <p className="text-body text-muted-foreground mt-1.5">
+                Ten checks across three sections. Capture each one — the AI reads it instantly.
               </p>
             </div>
 
             {/* Progress */}
-            <div className="glass-card p-4">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="font-medium">Required items</span>
-                <span className="text-muted-foreground">
+            <div className="px-1">
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-callout text-muted-foreground">Required items</span>
+                <span className="text-callout font-mono text-foreground">
                   {requiredResolvedCount}/{REQUIRED_ITEM_IDS.length}
                 </span>
               </div>
-              <div className="h-2 rounded-full bg-secondary/50 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-border overflow-hidden">
                 <motion.div
-                  className="h-full bg-primary"
+                  className="h-full bg-foreground rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPct}%` }}
-                  transition={{ ease: 'easeOut' }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 30 }}
                 />
               </div>
             </div>
@@ -199,56 +203,50 @@ export default function PublicInspectionPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={cn('glass-card border p-6 flex flex-col items-center text-center gap-5', RESULT_STYLES[inspection.inspectionResult].ring)}
+                  transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                  className="surface-group p-7 flex flex-col items-center text-center"
                 >
                   <div
                     className={cn(
-                      'w-14 h-14 rounded-full border flex items-center justify-center',
+                      'w-16 h-16 rounded-full flex items-center justify-center',
                       RESULT_STYLES[inspection.inspectionResult].iconWrap,
                     )}
                   >
                     {(() => {
                       const ResultIcon = RESULT_STYLES[inspection.inspectionResult].icon;
-                      return <ResultIcon className="w-7 h-7" strokeWidth={2.25} />;
+                      return <ResultIcon className="w-8 h-8" strokeWidth={2} />;
                     })()}
                   </div>
 
-                  <div className="flex flex-col items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-flex items-center px-3.5 py-1 rounded-full border text-xs font-bold font-mono tracking-wide',
-                        RESULT_STYLES[inspection.inspectionResult].badge,
-                      )}
-                    >
-                      {RESULT_STYLES[inspection.inspectionResult].label}
-                    </span>
-                    <h3 className="font-display text-lg font-bold">Inspection complete</h3>
-                  </div>
+                  <h3 className="text-title text-foreground mt-5">
+                    {RESULT_STYLES[inspection.inspectionResult].label}
+                  </h3>
+                  <p className="text-body text-muted-foreground mt-1.5">
+                    {inspection.aedModel} · {requiredResolvedCount} of {REQUIRED_ITEM_IDS.length} required checks
+                  </p>
 
                   {emailStatus && (
-                    <div className="w-full flex items-start gap-2.5 bg-primary/5 rounded-xl px-4 py-3 text-left">
-                      <Mail className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <p className="text-xs text-foreground/80 leading-relaxed">
-                        {emailStatus.sent
-                          ? <><span className="font-semibold text-foreground">Report emailed. </span>Sent to {emailStatus.recipients.join(' and ')}.</>
-                          : 'Report email could not be sent — use the PDF button below.'}
-                      </p>
-                    </div>
+                    <p className="text-footnote text-muted-foreground mt-5 flex items-start gap-1.5 text-left">
+                      <Mail className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.8} />
+                      {emailStatus.sent
+                        ? `Report emailed to ${emailStatus.recipients.join(' and ')}.`
+                        : 'Report email could not be sent — download the PDF below.'}
+                    </p>
                   )}
 
-                  <div className="w-full flex flex-col gap-2.5">
+                  <div className="w-full flex flex-col gap-2.5 mt-7">
                     <button
                       onClick={() => api.public.downloadPdf(inspection.inspectionId)}
-                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                      className="pressable w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground text-callout font-medium hover:bg-primary/92 transition-colors"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4" strokeWidth={2} />
                       Download PDF report
                     </button>
                     <button
                       onClick={handleReset}
-                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card hover:bg-secondary/60 text-sm font-semibold transition-colors"
+                      className="pressable w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-secondary hover:bg-secondary/80 text-callout font-medium transition-colors"
                     >
-                      <RotateCcw className="w-4 h-4" />
+                      <RotateCcw className="w-4 h-4" strokeWidth={2} />
                       Start new inspection
                     </button>
                   </div>
@@ -258,17 +256,9 @@ export default function PublicInspectionPage() {
 
             {/* Sections */}
             {CHECKLIST_SECTIONS.map((section) => (
-              <div key={section.section} className="flex flex-col gap-3">
-                <div>
-                  <h2 className="text-sm font-semibold flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-xs flex items-center justify-center font-bold">
-                      {section.section}
-                    </span>
-                    {section.title}
-                  </h2>
-                  <p className="text-xs text-muted-foreground ml-7">{section.subtitle}</p>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-3">
+              <div key={section.section}>
+                <div className="group-label">{section.title}</div>
+                <div className="surface-group">
                   {section.items.map((item) => {
                     const result = inspection.checklist.find((c) => c.itemId === item.id);
                     if (!result) return null;
@@ -282,6 +272,7 @@ export default function PublicInspectionPage() {
                         uploadFn={api.public.checklist.upload}
                         skipFn={api.public.checklist.skip}
                         aedModel={inspection.aedModel}
+                        isNext={item.id === nextItemId}
                       />
                     );
                   })}
@@ -294,18 +285,20 @@ export default function PublicInspectionPage() {
                 onClick={handleComplete}
                 disabled={completing}
                 className={cn(
-                  'flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-60',
+                  'pressable flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline transition-colors disabled:opacity-50',
                   allRequiredResolved
-                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25'
-                    : 'bg-secondary/60 hover:bg-secondary text-foreground',
+                    ? 'bg-primary hover:bg-primary/92 text-primary-foreground'
+                    : 'bg-secondary hover:bg-secondary/80 text-muted-foreground',
                 )}
               >
-                <CheckCircle2 className="w-5 h-5" />
+                {completing && <Loader2 className="w-4 h-4 animate-spin" />}
                 {completing
-                  ? 'Finalizing…'
+                  ? 'Finishing…'
                   : allRequiredResolved
-                    ? 'Finish Inspection & Email Report'
-                    : `Finish Inspection (${REQUIRED_ITEM_IDS.length - requiredResolvedCount} required item(s) left)`}
+                    ? 'Finish & email report'
+                    : `${REQUIRED_ITEM_IDS.length - requiredResolvedCount} required ${
+                        REQUIRED_ITEM_IDS.length - requiredResolvedCount === 1 ? 'item' : 'items'
+                      } left`}
               </button>
             )}
           </>

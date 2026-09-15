@@ -33,19 +33,21 @@ interface Props {
   skipFn?: typeof api.checklist.skip;
   /** Narrows the reference example photo to the actual unit being inspected. */
   aedModel?: string;
+  /** The one item the inspector should do next — gets the filled button so
+   *  there's a single obvious focal point rather than ten competing ones. */
+  isNext?: boolean;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: 'border-border/50 bg-card/40',
-  analyzing: 'border-primary/40 bg-primary/5',
-  pass: 'border-emerald-500/40 bg-emerald-500/5',
-  fail: 'border-destructive/40 bg-destructive/5',
-  skipped: 'border-border/30 bg-muted/20 opacity-70',
-  error: 'border-destructive/40 bg-destructive/5',
-  uploaded: 'border-primary/40 bg-primary/5',
-};
-
-export function ChecklistItemCard({ item, result, inspectionId, onChange, uploadFn, skipFn, aedModel }: Props) {
+export function ChecklistItemCard({
+  item,
+  result,
+  inspectionId,
+  onChange,
+  uploadFn,
+  skipFn,
+  aedModel,
+  isNext,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -109,35 +111,28 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
   }
 
   return (
-    <motion.div
-      layout
-      className={cn('rounded-xl border p-4 flex flex-col gap-3 transition-colors', STATUS_STYLES[result.status])}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-secondary/70 text-muted-foreground flex items-center justify-center shrink-0 mt-0.5">
-            <ChecklistIcon name={item.icon} className="w-[18px] h-[18px]" />
+    <motion.div layout className="surface-row px-4 py-3.5 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <ChecklistIcon
+          name={item.icon}
+          className="w-[18px] h-[18px] text-muted-foreground/70 shrink-0 mt-[3px]"
+          strokeWidth={1.7}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-1.5">
+            <h4 className="text-headline text-foreground truncate">{item.title}</h4>
+            {!item.required && <span className="text-caption text-muted-foreground/70 shrink-0">Optional</span>}
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h4 className="font-semibold text-sm truncate">{item.title}</h4>
-              {!item.required && (
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-secondary/60 px-1.5 py-0.5 rounded">
-                  optional
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-            <div className="mt-1.5">
-              <ReferenceExample itemId={item.id} itemTitle={item.title} aedModel={aedModel} />
-            </div>
+          <p className="text-footnote text-muted-foreground mt-0.5">{item.description}</p>
+          <div className="mt-1.5">
+            <ReferenceExample itemId={item.id} itemTitle={item.title} aedModel={aedModel} />
           </div>
         </div>
         <StatusBadge status={result.status} />
       </div>
 
       {result.mediaUrl && (
-        <div className="rounded-lg overflow-hidden border border-border/40 bg-black/20 max-h-40">
+        <div className="rounded-xl overflow-hidden bg-secondary max-h-40">
           {result.mediaType === 'video' ? (
             <video src={`${BASE_URL}${result.mediaUrl}`} controls className="w-full max-h-40 object-contain" />
           ) : (
@@ -154,13 +149,15 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
       {result.notes && (result.status === 'fail' || result.status === 'error' || result.status === 'pass') && (
         <p
           className={cn(
-            'text-xs rounded-md px-2 py-1.5',
-            result.status === 'pass' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive',
+            'text-footnote rounded-xl px-3 py-2',
+            result.status === 'pass'
+              ? 'bg-emerald-500/8 text-emerald-700 dark:text-emerald-400'
+              : 'bg-destructive/8 text-destructive',
           )}
         >
           {result.notes}
           {typeof result.confidence === 'number' && (
-            <span className="opacity-70"> · {Math.round(result.confidence * 100)}% confidence</span>
+            <span className="opacity-60"> · {Math.round(result.confidence * 100)}% confidence</span>
           )}
         </p>
       )}
@@ -179,24 +176,24 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
           disabled={isBusy}
           onClick={() => inputRef.current?.click()}
           className={cn(
-            'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
-            isDone
-              ? 'bg-secondary/60 hover:bg-secondary text-foreground'
-              : 'bg-primary hover:bg-primary/90 text-primary-foreground',
+            'pressable flex-1 flex items-center justify-center gap-1.5 h-11 rounded-xl text-callout font-medium transition-colors',
+            isNext && !isDone
+              ? 'bg-primary hover:bg-primary/92 text-primary-foreground'
+              : 'bg-secondary hover:bg-secondary/80 text-foreground',
             isBusy && 'opacity-60 pointer-events-none',
           )}
         >
           {isBusy ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : isDone ? (
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" strokeWidth={2} />
           ) : item.mediaType === 'video' ? (
-            <Video className="w-3.5 h-3.5" />
+            <Video className="w-4 h-4" strokeWidth={2} />
           ) : (
-            <Camera className="w-3.5 h-3.5" />
+            <Camera className="w-4 h-4" strokeWidth={2} />
           )}
           {isBusy
-            ? 'Analyzing…'
+            ? 'Analysing…'
             : isDone
               ? 'Retake'
               : item.mediaType === 'video'
@@ -209,9 +206,9 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
             type="button"
             disabled={isBusy}
             onClick={handleSkip}
-            className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground border border-border/50 hover:bg-secondary/40 transition-colors"
+            className="pressable flex items-center justify-center gap-1 h-11 px-4 rounded-xl text-callout text-muted-foreground hover:text-foreground bg-secondary/60 hover:bg-secondary transition-colors"
           >
-            <SkipForward className="w-3.5 h-3.5" />
+            <SkipForward className="w-4 h-4" strokeWidth={2} />
             Skip
           </button>
         )}

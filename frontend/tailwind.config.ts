@@ -52,6 +52,19 @@ const config: Config = {
         display: ['var(--font-sans)', 'Geist', 'sans-serif'],
         mono: ['var(--font-mono)', 'Geist Mono', 'monospace'],
       },
+      /* One type scale for the whole product. Optical tracking tightens as
+         size grows, the way a type designer would set it — ad-hoc sizes
+         (10.5, 11.5, 12.5…) are what made the old UI read as unpolished. */
+      fontSize: {
+        caption: ['0.6875rem', { lineHeight: '1.35', letterSpacing: '0.005em', fontWeight: '500' }],
+        footnote: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0em' }],
+        callout: ['0.8125rem', { lineHeight: '1.45', letterSpacing: '-0.003em' }],
+        body: ['0.9375rem', { lineHeight: '1.5', letterSpacing: '-0.01em' }],
+        headline: ['1.0625rem', { lineHeight: '1.35', letterSpacing: '-0.016em', fontWeight: '600' }],
+        title: ['1.375rem', { lineHeight: '1.25', letterSpacing: '-0.021em', fontWeight: '600' }],
+        display: ['1.75rem', { lineHeight: '1.15', letterSpacing: '-0.026em', fontWeight: '600' }],
+        'display-lg': ['2.125rem', { lineHeight: '1.08', letterSpacing: '-0.03em', fontWeight: '600' }],
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

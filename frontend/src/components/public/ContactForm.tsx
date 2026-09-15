@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
@@ -48,90 +48,94 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
       className="w-full max-w-sm mx-auto"
     >
-      <div className="mb-6">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary/10 rounded-full px-2.5 py-1 tracking-wide mb-3.5">
-          <Sparkles className="w-3 h-3" strokeWidth={2.5} />
-          AUTOMATED AI INSPECTION
-        </span>
-        <h1 className="font-display text-[26px] leading-[1.15] font-bold tracking-tight">
+      <div className="mb-7 px-1">
+        <p className="text-caption uppercase text-muted-foreground mb-2.5" style={{ letterSpacing: '0.08em' }}>
+          Automated AI inspection
+        </p>
+        <h1 className="text-display text-foreground">
           Let&apos;s verify<br />your AED.
         </h1>
-        <p className="text-muted-foreground text-sm mt-2.5 max-w-[300px]">
-          Point your camera at each part — AI checks it instantly. No manual paperwork, a signed report lands in your inbox the moment you finish.
+        <p className="text-body text-muted-foreground mt-3">
+          Point your camera at each part — AI checks it instantly. A signed report lands in your inbox the moment
+          you finish.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-6 space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Full name</label>
-          <input
-            {...register('name')}
-            autoComplete="name"
-            placeholder="Jane Doe"
-            className={cn(
-              'w-full px-3 py-2.5 rounded-lg bg-secondary border text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary transition-colors',
-              errors.name ? 'border-destructive' : 'border-border/50',
-            )}
-          />
-          {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="surface-group">
+          <div className="surface-row px-4 pt-2.5 pb-3">
+            <label htmlFor="name" className="block text-caption text-muted-foreground mb-0.5">
+              Full name
+            </label>
+            <input
+              {...register('name')}
+              id="name"
+              autoComplete="name"
+              placeholder="Jane Doe"
+              className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+            />
+          </div>
+
+          <div className="surface-row px-4 pt-2.5 pb-3">
+            <label htmlFor="email" className="block text-caption text-muted-foreground mb-0.5">
+              Email address
+            </label>
+            <input
+              {...register('email')}
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@organisation.com"
+              className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+            />
+          </div>
+
+          <div className="surface-row px-4 pt-2.5 pb-3">
+            <label className="block text-caption text-muted-foreground mb-0.5">Mobile number</label>
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} />
+              )}
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email address</label>
-          <input
-            {...register('email')}
-            type="email"
-            autoComplete="email"
-            placeholder="you@organisation.com"
-            className={cn(
-              'w-full px-3 py-2.5 rounded-lg bg-secondary border text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary transition-colors',
-              errors.email ? 'border-destructive' : 'border-border/50',
-            )}
-          />
-          {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
-          <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
-            <Mail className="w-3 h-3 shrink-0" />
-            Your signed report is sent here
+        {(errors.name || errors.email || errors.phone) && (
+          <p className="text-footnote text-destructive mt-2.5 px-1">
+            {errors.name?.message ?? errors.email?.message ?? errors.phone?.message}
           </p>
-        </div>
+        )}
 
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Mobile number</label>
-          <Controller
-            name="phone"
-            control={control}
-            render={({ field }) => (
-              <PhoneInput
-                value={field.value ?? ''}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                error={errors.phone?.message}
-              />
-            )}
-          />
-        </div>
+        <p className="text-footnote text-muted-foreground mt-2.5 px-1">
+          Your signed report is sent to this email address.
+        </p>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2 h-[52px] rounded-xl bg-primary text-primary-foreground font-semibold text-[15px] hover:bg-primary/90 transition-all disabled:opacity-60 shadow-lg shadow-primary/25"
+          className={cn(
+            'pressable w-full flex items-center justify-center gap-2 h-[52px] mt-6 rounded-2xl',
+            'bg-primary text-primary-foreground text-headline',
+            'hover:bg-primary/92 disabled:opacity-50 transition-colors',
+          )}
         >
-          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
           Continue
-          {!isSubmitting && <ArrowRight className="w-[17px] h-[17px]" strokeWidth={2.25} />}
+          {!isSubmitting && <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.2} />}
         </button>
       </form>
 
-      <div className="flex items-center justify-center gap-1.5 mt-4">
-        <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
-        <span className="text-[11.5px] text-muted-foreground/70">
-          Verified by AI in seconds, reviewed on request
-        </span>
+      <div className="flex items-center justify-center gap-1.5 mt-5">
+        <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" strokeWidth={1.8} />
+        <span className="text-footnote text-muted-foreground/80">Verified by AI in seconds, reviewed on request</span>
       </div>
     </motion.div>
   );

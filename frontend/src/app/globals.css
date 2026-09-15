@@ -3,54 +3,56 @@
 @tailwind utilities;
 
 @layer base {
-  /* Light theme (default) — a warm off-white ground, deep confident
-     indigo accent (not the washed-out pastel of a default shadcn theme),
-     and ink-black text instead of default grays. Kept as the default
-     `:root` so it's also the no-JS fallback. */
+  /* Light theme (default).
+     Neutral-first: the interface is greyscale, and colour is reserved for
+     meaning — the single primary action, and pass/fail status. Ink and
+     surfaces carry a faint cool cast rather than being pure grey, which
+     reads as intentional instead of default. Kept as the default `:root`
+     so it's also the no-JS fallback. */
   :root {
-    --background: 40 23% 97%;
-    --foreground: 228 17% 12%;
+    --background: 240 20% 97%;
+    --foreground: 240 8% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 228 17% 12%;
+    --card-foreground: 240 8% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 228 17% 12%;
+    --popover-foreground: 240 8% 9%;
     --primary: 233 51% 41%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 40 15% 94%;
-    --secondary-foreground: 228 17% 20%;
-    --muted: 40 15% 94%;
-    --muted-foreground: 228 12% 40%;
+    --secondary: 240 12% 94%;
+    --secondary-foreground: 240 8% 18%;
+    --muted: 240 12% 95%;
+    --muted-foreground: 240 5% 45%;
     --accent: 233 51% 41%;
     --accent-foreground: 0 0% 100%;
     --destructive: 357 66% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 40 11% 89%;
-    --input: 40 11% 87%;
+    /* Separators are hairlines, not outlines — low contrast on purpose. */
+    --border: 240 10% 90%;
+    --input: 240 10% 88%;
     --ring: 233 51% 41%;
     --radius: 0.75rem;
   }
 
-  /* Dark theme — deep navy ground carrying the same indigo hue family,
-     primary lifted for contrast. */
+  /* Dark theme — near-black neutral ground, primary lifted for contrast. */
   .dark {
-    --background: 228 22% 8%;
-    --foreground: 40 12% 95%;
-    --card: 228 20% 11%;
-    --card-foreground: 40 12% 95%;
-    --popover: 228 20% 11%;
-    --popover-foreground: 40 12% 95%;
+    --background: 240 8% 7%;
+    --foreground: 240 10% 96%;
+    --card: 240 8% 11%;
+    --card-foreground: 240 10% 96%;
+    --popover: 240 8% 11%;
+    --popover-foreground: 240 10% 96%;
     --primary: 231 68% 66%;
-    --primary-foreground: 228 30% 11%;
-    --secondary: 228 16% 16%;
-    --secondary-foreground: 40 10% 90%;
-    --muted: 228 16% 15%;
-    --muted-foreground: 228 10% 64%;
+    --primary-foreground: 240 15% 10%;
+    --secondary: 240 7% 16%;
+    --secondary-foreground: 240 8% 90%;
+    --muted: 240 7% 15%;
+    --muted-foreground: 240 6% 62%;
     --accent: 231 68% 66%;
-    --accent-foreground: 228 30% 11%;
+    --accent-foreground: 240 15% 10%;
     --destructive: 357 70% 60%;
-    --destructive-foreground: 228 22% 8%;
-    --border: 228 15% 19%;
-    --input: 228 15% 20%;
+    --destructive-foreground: 240 8% 7%;
+    --border: 240 7% 19%;
+    --input: 240 7% 20%;
     --ring: 231 68% 66%;
   }
 }
@@ -148,6 +150,29 @@
   /* Glass card */
   .glass-card {
     @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg;
+  }
+
+  /* Grouped list — one surface, hairline dividers between rows, the way a
+     native settings list is built. Replaces stacks of individually bordered
+     cards, which read as boxes inside boxes. The outer hairline is a
+     box-shadow so it never doubles up with the row dividers. */
+  .surface-group {
+    @apply bg-card rounded-2xl overflow-hidden;
+    box-shadow: 0 0 0 1px hsl(var(--border) / 0.9);
+  }
+  .surface-row + .surface-row {
+    border-top: 1px solid hsl(var(--border) / 0.75);
+  }
+
+  /* Section caption above a grouped list. */
+  .group-label {
+    @apply text-caption uppercase text-muted-foreground px-1 pb-2;
+    letter-spacing: 0.06em;
+  }
+
+  /* Pressable: the subtle physical response Apple puts on every control. */
+  .pressable {
+    @apply transition-transform duration-150 ease-out active:scale-[0.98];
   }
 }
 
