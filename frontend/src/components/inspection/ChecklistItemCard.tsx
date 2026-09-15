@@ -14,6 +14,9 @@ interface Props {
   result: ChecklistItemResult;
   inspectionId: string;
   onChange: (result: ChecklistItemResult) => void;
+  /** Override the upload/skip calls — used by the public (unauthenticated) inspection wizard. */
+  uploadFn?: typeof api.checklist.upload;
+  skipFn?: typeof api.checklist.skip;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -26,7 +29,7 @@ const STATUS_STYLES: Record<string, string> = {
   uploaded: 'border-primary/40 bg-primary/5',
 };
 
-export function ChecklistItemCard({ item, result, inspectionId, onChange }: Props) {
+export function ChecklistItemCard({ item, result, inspectionId, onChange, uploadFn, skipFn }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -41,7 +44,7 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange }: Prop
     setBusy(true);
     onChange({ ...result, status: 'analyzing' });
     try {
-      const res = await api.checklist.upload(inspectionId, item.id, file, file.name);
+      const res = await (uploadFn ?? api.checklist.upload)(inspectionId, item.id, file, file.name);
       onChange(res.data.item);
       if (res.data.item.status === 'pass') {
         toast.success(`${item.title}: passed`);
@@ -58,7 +61,7 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange }: Prop
   async function handleSkip() {
     setBusy(true);
     try {
-      const res = await api.checklist.skip(inspectionId, item.id);
+      const res = await (skipFn ?? api.checklist.skip)(inspectionId, item.id);
       onChange(res.data.item);
     } catch {
       // toast handled globally by api client

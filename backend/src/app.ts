@@ -17,6 +17,7 @@ import checklistRouter from './api/routes/checklist';
 import reportRouter from './api/routes/reports';
 import deviceRouter from './api/routes/devices';
 import userRouter from './api/routes/users';
+import publicRouter from './api/routes/public';
 
 export function createApp(): Application {
   const app = express();
@@ -47,6 +48,17 @@ export function createApp(): Application {
   });
   app.use('/api', limiter);
 
+  // Public (unauthenticated) inspection flow gets its own, tighter limit —
+  // it's open to anyone on the internet, unlike the staff API above.
+  const publicLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: config.PUBLIC_RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  });
+  app.use('/api/v1/public', publicLimiter);
+
   // ── Parsing & compression ─────────────────────────────────────────────
   app.use(compression());
   app.use(express.json({ limit: '10mb' }));
@@ -69,6 +81,7 @@ export function createApp(): Application {
   app.use('/uploads', express.static(config.UPLOAD_DIR));
 
   // ── API routes ────────────────────────────────────────────────────────
+  app.use('/api/v1/public', publicRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/inspections', authMiddleware, inspectionRouter);
   app.use('/api/v1/inspections', authMiddleware, checklistRouter);

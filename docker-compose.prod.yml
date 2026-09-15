@@ -1,0 +1,43 @@
+# Production overlay for the BACKEND stack (Node API + Python CV + MongoDB),
+# fronted by Caddy with automatic HTTPS on an API subdomain (e.g.
+# api.aedsmartx.com). The frontend is deployed separately on Vercel and
+# talks to this over the public internet, so it isn't part of this overlay.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build backend cv-service mongodb caddy
+#
+# Requires DNS: an A record for $DOMAIN (e.g. api.aedsmartx.com) pointing at
+# this server's public IP, and ports 80/443 open. Set CORS_ORIGINS in .env to
+# your Vercel frontend's URL(s), e.g. https://inspector.aedsmartx.com.
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: aed-caddy
+    restart: unless-stopped
+    environment:
+      DOMAIN: "${DOMAIN:?Set DOMAIN to your API subdomain, e.g. api.aedsmartx.com}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - aed-network
+    depends_on:
+      - backend
+
+  mongodb:
+    ports: !reset []
+
+  cv-service:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+    environment:
+      CORS_ORIGINS: "${CORS_ORIGINS:?Set CORS_ORIGINS to your Vercel frontend URL, e.g. https://inspector.aedsmartx.com}"
+
+volumes:
+  caddy_data:
+  caddy_config:

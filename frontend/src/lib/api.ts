@@ -124,4 +124,49 @@ export const api = {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     },
   },
+
+  // Public, unauthenticated walk-up inspection flow (inspector.aedsmartx.com landing page).
+  public: {
+    createInspection: (data: { name: string; email: string; phone: string; aedModel: string }) =>
+      apiClient.post<{ inspection: import('@/types').Inspection }>('/public/inspections', data),
+
+    get: (id: string) =>
+      apiClient.get<{ inspection: import('@/types').Inspection }>(`/public/inspections/${id}`),
+
+    checklist: {
+      upload: (inspectionId: string, itemId: string, file: File | Blob, filename: string) => {
+        const form = new FormData();
+        form.append('file', file, filename);
+        return apiClient.post<{
+          item: import('@/types').ChecklistItemResult;
+          inspectionResult: import('@/types').InspectionResult;
+        }>(`/public/inspections/${inspectionId}/checklist/${itemId}`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 45_000,
+        });
+      },
+      skip: (inspectionId: string, itemId: string) =>
+        apiClient.post<{ item: import('@/types').ChecklistItemResult }>(
+          `/public/inspections/${inspectionId}/checklist/${itemId}/skip`,
+        ),
+    },
+
+    complete: (id: string) =>
+      apiClient.post<{
+        inspection: import('@/types').Inspection;
+        email: { sent: boolean; recipients: string[]; reason?: string };
+      }>(`/public/inspections/${id}/complete`),
+
+    downloadPdf: async (inspectionId: string) => {
+      const res = await apiClient.get(`/public/inspections/${inspectionId}/report/pdf`, { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(res.data as Blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `aed-inspection-${inspectionId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    },
+  },
 };

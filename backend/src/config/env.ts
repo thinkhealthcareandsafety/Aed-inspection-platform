@@ -17,6 +17,16 @@ const envSchema = z.object({
   BCRYPT_ROUNDS: z.coerce.number().default(12),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(500),
+  PUBLIC_RATE_LIMIT_MAX: z.coerce.number().default(120),
+
+  // ── Outbound email (inspection report delivery) ────────────────────────
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  REPORT_BCC_EMAIL: z.string().default('aedsmartx@gmail.com'),
 });
 
 const parsed = envSchema.safeParse(process.env);

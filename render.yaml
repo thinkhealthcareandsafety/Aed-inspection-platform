@@ -1,0 +1,116 @@
+# Render Blueprint — deploys the whole platform (MongoDB, Python CV service,
+# Node API, Next.js frontend) as one unit.
+#
+# Deploy: Render dashboard → New → Blueprint → pick this repo → Apply.
+# A few values are intentionally left for you to paste in by hand after the
+# first deploy (marked "sync: false" below) — Render doesn't let a Blueprint
+# string secrets together automatically, so:
+#
+#   1. Open the aed-mongodb service → Environment tab → copy the generated
+#      MONGO_INITDB_ROOT_PASSWORD value.
+#   2. Open aed-backend → Environment → set:
+#        MONGODB_URI = mongodb://aed:<that password>@aed-mongodb:27017/aed_inspection?authSource=admin
+#        GEMINI_API_KEY = <your Gemini key>
+#        SMTP_HOST = smtp.gmail.com
+#        SMTP_PORT = 587
+#        SMTP_USER = <the Gmail address sending reports>
+#        SMTP_PASS = <its Gmail App Password, from myaccount.google.com/apppasswords>
+#      (REPORT_BCC_EMAIL already defaults to aedsmartx@gmail.com.)
+#   3. Open aed-cv-service → Environment → set GEMINI_API_KEY = <same key>.
+#   4. Once aed-backend has deployed, note its onrender.com URL (or attach
+#      your own custom domain, e.g. api.aedsmartx.com, under its Settings).
+#      Open aed-frontend → Environment → set NEXT_PUBLIC_BACKEND_URL to that
+#      URL, then attach inspector.aedsmartx.com as its custom domain.
+#   5. Back on aed-backend, set CORS_ORIGINS to https://inspector.aedsmartx.com
+#      (comma-separate additional origins, e.g. the temporary onrender.com
+#      frontend URL, while testing before DNS cuts over).
+#
+# Each manual env var change triggers an automatic redeploy of that service.
+
+services:
+  - type: pserv
+    name: aed-mongodb
+    runtime: image
+    plan: starter
+    image:
+      url: docker.io/library/mongo:7.0
+    disk:
+      name: mongo-data
+      mountPath: /data/db
+      sizeGB: 10
+    envVars:
+      - key: MONGO_INITDB_ROOT_USERNAME
+        value: aed
+      - key: MONGO_INITDB_ROOT_PASSWORD
+        generateValue: true
+      - key: MONGO_INITDB_DATABASE
+        value: aed_inspection
+
+  - type: pserv
+    name: aed-cv-service
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./python-cv/Dockerfile
+    dockerContext: ./python-cv
+    envVars:
+      - key: PORT
+        value: "8001"
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://inspector.aedsmartx.com"]'
+
+  - type: web
+    name: aed-backend
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    disk:
+      name: uploads
+      mountPath: /data/uploads
+      sizeGB: 10
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      - key: CV_SERVICE_URL
+        value: http://aed-cv-service:8001
+      - key: CV_WS_URL
+        value: ws://aed-cv-service:8001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REPORT_BCC_EMAIL
+        value: aedsmartx@gmail.com
+      - key: CORS_ORIGINS
+        value: https://inspector.aedsmartx.com
+      - key: MONGODB_URI
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+  - type: web
+    name: aed-frontend
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        sync: false

@@ -36,6 +36,8 @@ USER cvuser
 EXPOSE 8001
 
 HEALTHCHECK --interval=15s --timeout=10s --start-period=90s --retries=5 \
-    CMD curl -f http://127.0.0.1:8001/health || exit 1
+    CMD curl -f http://127.0.0.1:${PORT:-8001}/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "2", "--loop", "uvloop"]
+# Shell form (not exec-form JSON array) so $PORT expands — hosts like Render
+# assign their own port via this env var and expect the process to bind to it.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001} --workers 2 --loop uvloop

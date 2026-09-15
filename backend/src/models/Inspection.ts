@@ -23,10 +23,17 @@ export interface IChecklistItemResult {
   analyzedAt?: Date;
 }
 
+export type InspectionSource = 'staff' | 'public';
+
 export interface IInspection extends Document {
   inspectionId: string;
   sessionId: string;
-  inspector: mongoose.Types.ObjectId;
+  inspector?: mongoose.Types.ObjectId;
+  source: InspectionSource;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  emailSentAt?: Date;
   locationId?: string;
   startedAt: Date;
   completedAt?: Date;
@@ -88,7 +95,12 @@ const InspectionSchema = new Schema<IInspection>(
   {
     inspectionId: { type: String, required: true, unique: true, index: true },
     sessionId: { type: String, required: true, index: true },
-    inspector: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    inspector: { type: Schema.Types.ObjectId, ref: 'User' },
+    source: { type: String, enum: ['staff', 'public'], default: 'staff' },
+    guestName: { type: String, trim: true },
+    guestEmail: { type: String, trim: true, lowercase: true },
+    guestPhone: { type: String, trim: true },
+    emailSentAt: { type: Date },
     locationId: { type: String },
     startedAt: { type: Date, required: true, default: Date.now },
     completedAt: { type: Date },

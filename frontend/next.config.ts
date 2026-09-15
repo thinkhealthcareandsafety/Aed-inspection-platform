@@ -1,7 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // 'standalone' is for the self-hosted Docker build (backend/VPS deploys).
+  // Vercel sets its own VERCEL env var and manages build output itself —
+  // 'standalone' isn't needed there and can interfere with its build.
+  output: process.env.VERCEL ? undefined : 'standalone',
   reactStrictMode: true,
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts'],

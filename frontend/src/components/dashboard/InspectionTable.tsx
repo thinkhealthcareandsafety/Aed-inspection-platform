@@ -120,7 +120,7 @@ export function InspectionTable() {
                         : '—'}
                     </td>
                     <td className="px-4 py-3 font-medium">{insp.manufacturer ?? '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{insp.model ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{insp.aedModel ?? insp.model ?? '—'}</td>
                     <td className="px-4 py-3 font-mono">{insp.serialNumber ?? '—'}</td>
                     <td className="px-4 py-3 font-mono">{insp.padsExpiry ?? '—'}</td>
                     <td className="px-4 py-3">
@@ -134,7 +134,7 @@ export function InspectionTable() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {insp.inspector?.name ?? '—'}
+                      {insp.inspector?.name ?? (insp.guestName ? `${insp.guestName} (public)` : '—')}
                     </td>
                     <td className="px-4 py-3">
                       <button

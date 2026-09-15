@@ -70,8 +70,15 @@ services:
       JWT_EXPIRES_IN: "7d"
       CV_SERVICE_URL: "http://cv-service:8001"
       CV_WS_URL: "ws://cv-service:8001"
-      CORS_ORIGINS: "http://localhost:3000,http://frontend:3000,http://192.168.1.90:3000"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://frontend:3000,http://192.168.1.90:3000}"
       BCRYPT_ROUNDS: "12"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_SECURE: "${SMTP_SECURE:-false}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      EMAIL_FROM: "${EMAIL_FROM:-}"
+      REPORT_BCC_EMAIL: "${REPORT_BCC_EMAIL:-aedsmartx@gmail.com}"
     ports:
       - "3001:3001"
     networks:
