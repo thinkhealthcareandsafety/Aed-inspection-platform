@@ -281,6 +281,7 @@ export default function PublicInspectionPage() {
                         onChange={handleItemChange}
                         uploadFn={api.public.checklist.upload}
                         skipFn={api.public.checklist.skip}
+                        aedModel={inspection.aedModel}
                       />
                     );
                   })}

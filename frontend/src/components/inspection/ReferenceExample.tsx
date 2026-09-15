@@ -13,8 +13,16 @@ const KIND_BADGE: Record<'good' | 'bad' | 'neutral', { label: string; className:
   neutral: { label: 'Where to look', className: 'bg-secondary text-muted-foreground border-border' },
 };
 
-export function ReferenceExample({ itemId, itemTitle }: { itemId: ChecklistItemId; itemTitle: string }) {
-  const examples = getReferenceExamples(itemId);
+export function ReferenceExample({
+  itemId,
+  itemTitle,
+  aedModel,
+}: {
+  itemId: ChecklistItemId;
+  itemTitle: string;
+  aedModel?: string;
+}) {
+  const examples = getReferenceExamples(itemId, aedModel);
   if (!examples?.length) return null;
 
   return (
@@ -28,7 +36,7 @@ export function ReferenceExample({ itemId, itemTitle }: { itemId: ChecklistItemI
           See example photo
         </button>
       </DialogTrigger>
-      <DialogContent title={itemTitle}>
+      <DialogContent title={examples.length === 1 && examples[0].model ? `${itemTitle} — ${examples[0].model}` : itemTitle}>
         <div className={cn('grid gap-4', examples.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1')}>
           {examples.map((ex) => {
             const badge = KIND_BADGE[ex.kind];

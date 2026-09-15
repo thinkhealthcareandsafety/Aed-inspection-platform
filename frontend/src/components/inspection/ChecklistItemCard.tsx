@@ -30,6 +30,8 @@ interface Props {
   /** Override the upload/skip calls — used by the public (unauthenticated) inspection wizard. */
   uploadFn?: typeof api.checklist.upload;
   skipFn?: typeof api.checklist.skip;
+  /** Narrows the reference example photo to the actual unit being inspected. */
+  aedModel?: string;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -42,7 +44,7 @@ const STATUS_STYLES: Record<string, string> = {
   uploaded: 'border-primary/40 bg-primary/5',
 };
 
-export function ChecklistItemCard({ item, result, inspectionId, onChange, uploadFn, skipFn }: Props) {
+export function ChecklistItemCard({ item, result, inspectionId, onChange, uploadFn, skipFn, aedModel }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -122,7 +124,7 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
             <div className="mt-1.5">
-              <ReferenceExample itemId={item.id} itemTitle={item.title} />
+              <ReferenceExample itemId={item.id} itemTitle={item.title} aedModel={aedModel} />
             </div>
           </div>
         </div>
