@@ -16,7 +16,7 @@ from typing import List, Optional
 import cv2
 import structlog
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -34,7 +34,16 @@ logger = structlog.get_logger(__name__)
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-lite"
 GEMINI_VIDEO_MODEL = "gemini-3.5-flash"
 
-REQUEST_TIMEOUT_SECONDS = 40.0
+# Google's own SDK retries internally, but has been observed giving up
+# within a few seconds even on a transient "model experiencing high
+# demand" 503 — too eager for a spike that usually clears in seconds. A
+# few extra attempts with short backoff, bounded well under the frontend
+# upload's 45s timeout, absorb that without surfacing a failure to the
+# inspector mid-checklist. Only retried for Google-side (5xx) errors —
+# a bad request or auth failure (4xx) won't fix itself by retrying.
+MAX_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = (1.0, 2.5)
+OVERALL_TIMEOUT_SECONDS = 35.0
 
 # Gemini's native video ingestion samples at roughly 1 frame/second. A
 # quick LED flash (a few hundred ms) blinking every 4-5s can fall entirely
@@ -174,22 +183,40 @@ async def analyze_checklist_item(
         ]
         model = GEMINI_VIDEO_MODEL if item.media_type == "video" else GEMINI_IMAGE_MODEL
 
-    try:
-        response = await asyncio.wait_for(
-            client.aio.models.generate_content(
-                model=model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=ChecklistAnalysisResult,
-                    temperature=0.1,
-                ),
+    async def _call_once():
+        return await client.aio.models.generate_content(
+            model=model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ChecklistAnalysisResult,
+                temperature=0.1,
             ),
-            timeout=REQUEST_TIMEOUT_SECONDS,
         )
+
+    async def _call_with_retry():
+        last_error: Optional[errors.ServerError] = None
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                return await _call_once()
+            except errors.ServerError as exc:
+                last_error = exc
+                logger.warning(
+                    "checklist.gemini_server_error_retrying",
+                    item_id=item_id,
+                    attempt=attempt + 1,
+                    max_attempts=MAX_ATTEMPTS,
+                    error=str(exc),
+                )
+                if attempt < MAX_ATTEMPTS - 1:
+                    await asyncio.sleep(RETRY_BACKOFF_SECONDS[attempt])
+        raise last_error  # type: ignore[misc]
+
+    try:
+        response = await asyncio.wait_for(_call_with_retry(), timeout=OVERALL_TIMEOUT_SECONDS)
     except asyncio.TimeoutError as exc:
         raise TimeoutError(
-            f"Gemini call for checklist item={item_id} exceeded {REQUEST_TIMEOUT_SECONDS}s"
+            f"Gemini call for checklist item={item_id} exceeded {OVERALL_TIMEOUT_SECONDS}s"
         ) from exc
 
     parsed = response.parsed
