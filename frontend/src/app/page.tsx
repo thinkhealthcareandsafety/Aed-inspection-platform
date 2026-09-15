@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Download, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
-import Link from 'next/link';
 import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
@@ -138,11 +137,11 @@ export default function PublicInspectionPage() {
           <div className="w-[30px] h-[30px] rounded-lg bg-primary flex items-center justify-center shrink-0">
             <PulseLogo className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display text-[15px] font-bold tracking-tight">AED Inspect</span>
+          <div className="leading-none">
+            <span className="font-display block text-[15px] font-bold tracking-tight">AED Inspect</span>
+            <span className="block text-[10px] font-semibold text-primary tracking-wide mt-0.5">AI-AUTOMATED</span>
+          </div>
         </div>
-        <Link href="/login" className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
-          Staff sign in
-        </Link>
       </header>
 
       <div className="px-5 pb-5">

@@ -48,9 +48,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'Space Grotesk', 'sans-serif'],
-        mono: ['var(--font-mono)', 'JetBrains Mono', 'monospace'],
+        sans: ['var(--font-sans)', 'Geist', 'system-ui', 'sans-serif'],
+        display: ['var(--font-sans)', 'Geist', 'sans-serif'],
+        mono: ['var(--font-mono)', 'Geist Mono', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',

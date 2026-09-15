@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Loader2, Mail, ShieldCheck, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
@@ -39,11 +39,15 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
       className="w-full max-w-sm mx-auto"
     >
       <div className="mb-6">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary/10 rounded-full px-2.5 py-1 tracking-wide mb-3.5">
+          <Sparkles className="w-3 h-3" strokeWidth={2.5} />
+          AUTOMATED AI INSPECTION
+        </span>
         <h1 className="font-display text-[26px] leading-[1.15] font-bold tracking-tight">
           Let&apos;s verify<br />your AED.
         </h1>
         <p className="text-muted-foreground text-sm mt-2.5 max-w-[300px]">
-          Takes about five minutes. We&apos;ll email a signed inspection report the moment you finish.
+          Point your camera at each part — AI checks it instantly. No manual paperwork, a signed report lands in your inbox the moment you finish.
         </p>
       </div>
 

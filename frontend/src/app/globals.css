@@ -72,8 +72,13 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
+  /* Headings use the same Geist family as body text, at heavier weight and
+     tighter tracking — the "one excellent font, used deliberately" system
+     premium products (Stripe, Linear, Vercel) lean on, rather than pairing
+     in a second, quirkier display face. */
   .font-display {
-    font-family: var(--font-display), 'Space Grotesk', sans-serif;
+    font-family: var(--font-sans), 'Geist', sans-serif;
+    letter-spacing: -0.02em;
   }
 
   /* Scrollbar styling */
