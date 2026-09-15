@@ -9,10 +9,10 @@ const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono', disp
 
 export const metadata: Metadata = {
   title: {
-    default: 'AED Inspection Platform',
-    template: '%s | AED Inspection Platform',
+    default: 'AED Inspect — Automated AED Inspection',
+    template: '%s | AED Inspect',
   },
-  description: 'AI-powered automated AED inspection with live camera guidance.',
+  description: 'AI-automated AED inspection with instant photo verification and signed reports. Powered by Think Healthcare and Safety.',
   icons: { icon: '/favicon.ico' },
 };
 

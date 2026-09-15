@@ -12,6 +12,7 @@ import { ChecklistItemCard } from '@/components/inspection/ChecklistItemCard';
 import { ContactForm, type ContactFormData } from '@/components/public/ContactForm';
 import { ModelSelect } from '@/components/public/ModelSelect';
 import { StepIndicator } from '@/components/public/StepIndicator';
+import { BrandFooter } from '@/components/public/BrandFooter';
 import { PulseLogo } from '@/components/icons';
 import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
@@ -309,6 +310,8 @@ export default function PublicInspectionPage() {
           </>
         )}
       </div>
+
+      <BrandFooter />
     </div>
   );
 }

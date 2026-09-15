@@ -77,6 +77,9 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
           <p><strong>Result:</strong> ${resultLabel}</p>
           <p><strong>Inspection ID:</strong> ${params.inspectionId}</p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">The full report is attached as a PDF.</p>
+          <p style="color: #aaa; font-size: 11px; margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">
+            Powered by Think Healthcare and Safety &middot; inspector.aedsmartx.com
+          </p>
         </div>
       `,
       attachments: [

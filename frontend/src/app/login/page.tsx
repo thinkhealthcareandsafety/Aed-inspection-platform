@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
 import { PulseLogo } from '@/components/icons';
+import { BrandFooter } from '@/components/public/BrandFooter';
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -121,6 +122,7 @@ export default function LoginPage() {
         <p className="text-center text-xs text-muted-foreground mt-4">
           Enterprise AED compliance platform. Contact your administrator to create an account.
         </p>
+        <BrandFooter />
       </motion.div>
     </div>
   );
