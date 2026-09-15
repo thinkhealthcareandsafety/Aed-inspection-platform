@@ -4,6 +4,14 @@ import { toast } from 'sonner';
 export const BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    /** Suppress the global error toast — for requests whose failure is an
+     *  expected outcome the caller handles itself, not something to report. */
+    skipErrorToast?: boolean;
+  }
+}
+
 export const apiClient = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
   timeout: 15_000,
@@ -31,9 +39,11 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
-    const message =
-      err.response?.data?.error?.message ?? err.message ?? 'Request failed';
-    toast.error(message);
+    if (!err.config?.skipErrorToast) {
+      const message =
+        err.response?.data?.error?.message ?? err.message ?? 'Request failed';
+      toast.error(message);
+    }
     return Promise.reject(err);
   },
 );
@@ -130,8 +140,10 @@ export const api = {
     createInspection: (data: { name: string; email: string; phone: string; aedModel: string }) =>
       apiClient.post<{ inspection: import('@/types').Inspection }>('/public/inspections', data),
 
-    get: (id: string) =>
-      apiClient.get<{ inspection: import('@/types').Inspection }>(`/public/inspections/${id}`),
+    get: (id: string, opts?: { skipErrorToast?: boolean }) =>
+      apiClient.get<{ inspection: import('@/types').Inspection }>(`/public/inspections/${id}`, {
+        skipErrorToast: opts?.skipErrorToast,
+      }),
 
     checklist: {
       upload: (inspectionId: string, itemId: string, file: File | Blob, filename: string) => {

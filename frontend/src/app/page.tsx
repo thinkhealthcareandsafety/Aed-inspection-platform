@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Download, Loader2, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,6 +18,33 @@ import { springSnappy, springSoft } from '@/lib/motion';
 import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
 type Step = 'contact' | 'model' | 'inspecting';
+
+/**
+ * Inspections are done on a phone, in a stairwell, often one-handed — tabs get
+ * backgrounded and killed, and a stray refresh shouldn't cost someone eight
+ * analysed photos. Only the id is kept locally: the inspection itself (photos,
+ * verdicts, contact details) already lives on the server, so recovery is a
+ * re-fetch rather than a client-side copy of someone's personal data.
+ */
+const ACTIVE_INSPECTION_KEY = 'aed_active_inspection';
+/** Past this, resuming is more confusing than helpful. */
+const MAX_RESUME_AGE_MS = 24 * 60 * 60 * 1000;
+
+function rememberInspection(id: string) {
+  try {
+    localStorage.setItem(ACTIVE_INSPECTION_KEY, id);
+  } catch {
+    // Private mode or storage disabled — resume just won't be available.
+  }
+}
+
+function forgetInspection() {
+  try {
+    localStorage.removeItem(ACTIVE_INSPECTION_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}
 
 const RESULT_STYLES: Record<
   InspectionResult,
@@ -60,6 +87,56 @@ export default function PublicInspectionPage() {
   const [inspection, setInspection] = useState<Inspection | null>(null);
   const [completing, setCompleting] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; recipients: string[] } | null>(null);
+  /** 'checking' is a single frame reading localStorage; it exists so a stored
+   *  inspection doesn't flash the empty contact form before restoring. */
+  const [resume, setResume] = useState<'checking' | 'restoring' | 'done'>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    let storedId: string | null = null;
+    try {
+      storedId = localStorage.getItem(ACTIVE_INSPECTION_KEY);
+    } catch {
+      storedId = null;
+    }
+    if (!storedId) {
+      setResume('done');
+      return;
+    }
+
+    setResume('restoring');
+    api.public
+      // A missing or expired inspection is an ordinary outcome here, not
+      // something to interrupt the inspector with.
+      .get(storedId, { skipErrorToast: true })
+      .then((res) => {
+        if (cancelled) return;
+        const restored = res.data.inspection;
+        const age = Date.now() - new Date(restored.startedAt).getTime();
+        if (Number.isFinite(age) && age > MAX_RESUME_AGE_MS) {
+          forgetInspection();
+          return;
+        }
+        setInspection(restored);
+        setContact({
+          name: restored.guestName ?? '',
+          email: restored.guestEmail ?? '',
+          phone: restored.guestPhone ?? '',
+        });
+        setStep('inspecting');
+      })
+      .catch(() => {
+        forgetInspection();
+      })
+      .finally(() => {
+        if (!cancelled) setResume('done');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const requiredResolvedCount = useMemo(() => {
     if (!inspection) return 0;
@@ -95,6 +172,7 @@ export default function PublicInspectionPage() {
       setStarting(true);
       try {
         const res = await api.public.createInspection({ ...contact, aedModel });
+        rememberInspection(res.data.inspection.inspectionId);
         setInspection(res.data.inspection);
         setStep('inspecting');
       } catch {
@@ -136,6 +214,7 @@ export default function PublicInspectionPage() {
   }, [inspection]);
 
   const handleReset = useCallback(() => {
+    forgetInspection();
     setStep('contact');
     setContact(null);
     setInspection(null);
@@ -143,6 +222,14 @@ export default function PublicInspectionPage() {
   }, []);
 
   const stepIndex: 0 | 1 | 2 = step === 'contact' ? 0 : step === 'model' ? 1 : 2;
+
+  /** After a refresh the live send-result is gone, but the inspection records
+   *  whether the report was emailed — enough to keep the confirmation true. */
+  const emailSummary =
+    emailStatus ??
+    (inspection?.emailSentAt && inspection.guestEmail
+      ? { sent: true, recipients: [inspection.guestEmail] }
+      : null);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -156,8 +243,17 @@ export default function PublicInspectionPage() {
       </div>
 
       <div className="flex-1 max-w-3xl w-full mx-auto px-4 pb-8 md:px-8 flex flex-col gap-6 justify-center">
+        {resume !== 'done' && (
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+            {resume === 'restoring' && (
+              <p className="text-callout text-muted-foreground">Picking up where you left off…</p>
+            )}
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
-          {step === 'contact' && (
+          {resume === 'done' && step === 'contact' && (
             <ContactForm key="contact" defaultValues={contact ?? undefined} onSubmit={handleContactSubmit} />
           )}
 
@@ -226,11 +322,11 @@ export default function PublicInspectionPage() {
                     {inspection.aedModel} · {requiredResolvedCount} of {REQUIRED_ITEM_IDS.length} required checks
                   </p>
 
-                  {emailStatus && (
+                  {emailSummary && (
                     <p className="text-footnote text-muted-foreground mt-5 flex items-start gap-1.5 text-left">
                       <Mail className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.8} />
-                      {emailStatus.sent
-                        ? `Report emailed to ${emailStatus.recipients.join(' and ')}.`
+                      {emailSummary.sent
+                        ? `Report emailed to ${emailSummary.recipients.join(' and ')}.`
                         : 'Report email could not be sent — download the PDF below.'}
                     </p>
                   )}
