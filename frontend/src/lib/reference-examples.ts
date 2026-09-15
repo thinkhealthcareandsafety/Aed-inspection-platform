@@ -21,6 +21,11 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     { src: '/reference/serial-philips-hs1.jpg', caption: 'Philips HS1 — serial number on the rear label', kind: 'neutral', model: 'Philips HS1' },
     { src: '/reference/serial-zoll-aed-plus.jpg', caption: 'Zoll AED Plus — serial number on the rear label', kind: 'neutral', model: 'Zoll AED Plus' },
   ],
+  pads_expiry: [
+    { src: '/reference/pads-philips-frx.jpg', caption: 'Philips FRx — expiry date on the pads pouch', kind: 'neutral', model: 'Philips FRx' },
+    { src: '/reference/pads-philips-hs1.jpg', caption: 'Philips HS1 — expiry date on the Smart Pads II cartridge', kind: 'neutral', model: 'Philips HS1' },
+    { src: '/reference/pads-zoll-aed-plus.jpg', caption: 'Zoll AED Plus — expiry date on the CPR-D-padz box', kind: 'neutral', model: 'Zoll AED Plus' },
+  ],
   battery_expiry: [
     { src: '/reference/battery-philips.jpg', caption: 'Expiry date is printed on the battery label', kind: 'neutral' },
   ],
