@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { api, BASE_URL } from '@/lib/api';
 import { ChecklistIcon } from '@/components/icons';
+import { compressImage } from '@/lib/compress-image';
 import { ReferenceExample } from './ReferenceExample';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
@@ -61,9 +62,13 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
     setBusy(true);
     onChange({ ...result, status: 'analyzing' });
     try {
+      // Shrink before sending — field connections are the bottleneck, not the
+      // AI. Falls back to the original file if anything goes wrong.
+      const prepared = await compressImage(file);
+
       let res;
       try {
-        res = await upload(inspectionId, item.id, file, file.name);
+        res = await upload(inspectionId, item.id, prepared, prepared.name);
       } catch (err) {
         const { retryable } = extractApiError(err);
         if (!retryable) throw err;
@@ -71,7 +76,7 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
         // silent retry before bothering the inspector with an error.
         onChange({ ...result, status: 'analyzing', notes: 'AI service is busy — retrying…' });
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        res = await upload(inspectionId, item.id, file, file.name);
+        res = await upload(inspectionId, item.id, prepared, prepared.name);
       }
       onChange(res.data.item);
       if (res.data.item.status === 'pass') {

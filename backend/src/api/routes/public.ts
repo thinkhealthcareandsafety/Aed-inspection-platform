@@ -8,14 +8,13 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import PDFDocument from 'pdfkit';
 import { Inspection } from '../../models/Inspection';
 import { createError } from '../middleware/error-handler';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { isPublicAedModel, PUBLIC_AED_MODELS } from '../../config/aed-models';
 import { analyzeChecklistItem, skipChecklistItem, completeInspection } from '../../services/checklistService';
-import { renderInspectionPdf, generateInspectionPdfBuffer } from '../../services/reportService';
+import { createReportDoc, renderInspectionPdf, generateInspectionPdfBuffer } from '../../services/reportService';
 import { sendInspectionReportEmail } from '../../services/emailService';
 
 const router = Router();
@@ -142,7 +141,7 @@ router.get('/inspections/:id/report/pdf', async (req: Request, res: Response, ne
   try {
     const inspection = await loadPublicInspection(req.params.id);
 
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const doc = createReportDoc();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="aed-inspection-${inspection.inspectionId}.pdf"`);
     doc.pipe(res);

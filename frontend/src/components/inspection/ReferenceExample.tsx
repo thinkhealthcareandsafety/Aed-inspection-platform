@@ -36,7 +36,13 @@ export function ReferenceExample({
           See example photo
         </button>
       </DialogTrigger>
-      <DialogContent title={examples.length === 1 && examples[0].model ? `${itemTitle} — ${examples[0].model}` : itemTitle}>
+      <DialogContent
+        title={
+          examples.length === 1 && examples[0].models?.length === 1
+            ? `${itemTitle} — ${examples[0].models[0]}`
+            : itemTitle
+        }
+      >
         <div className={cn('grid gap-4', examples.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1')}>
           {examples.map((ex) => {
             const badge = KIND_BADGE[ex.kind];

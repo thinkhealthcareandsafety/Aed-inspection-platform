@@ -1,8 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import PDFDocument from 'pdfkit';
 import { Inspection } from '../../models/Inspection';
 import { createError } from '../middleware/error-handler';
-import { renderInspectionPdf } from '../../services/reportService';
+import { createReportDoc, renderInspectionPdf } from '../../services/reportService';
 
 const router = Router();
 
@@ -15,7 +14,7 @@ router.get('/:inspectionId/pdf', async (req: Request, res: Response, next: NextF
 
     if (!inspection) throw createError('Inspection not found', 404, 'NOT_FOUND');
 
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const doc = createReportDoc();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
