@@ -1,51 +1,38 @@
-# Render Blueprint — deploys the whole platform (MongoDB, Python CV service,
-# Node API, Next.js frontend) as one unit.
+# Render Blueprint — deploys the platform (Python CV service, Node API,
+# Next.js frontend) as one unit. MongoDB is NOT part of this Blueprint — it
+# runs on MongoDB Atlas's free tier instead of a paid Render service with a
+# persistent disk, to avoid that ongoing cost. Set aed-backend's MONGODB_URI
+# to your Atlas connection string (see below).
 #
 # Deploy: Render dashboard → New → Blueprint → pick this repo → Apply.
 # A few values are intentionally left for you to paste in by hand after the
 # first deploy (marked "sync: false" below) — Render doesn't let a Blueprint
 # string secrets together automatically, so:
 #
-#   1. Open the aed-mongodb service → Environment tab → copy the generated
-#      MONGO_INITDB_ROOT_PASSWORD value.
-#   2. Open aed-backend → Environment → set:
-#        MONGODB_URI = mongodb://aed:<that password>@aed-mongodb:27017/aed_inspection?authSource=admin
+#   1. Open aed-backend → Environment → set:
+#        MONGODB_URI = mongodb+srv://<user>:<password>@<your-cluster>.mongodb.net/aed_inspection?retryWrites=true&w=majority
+#          (from MongoDB Atlas: Database Access → add a user scoped to
+#          readWrite on the aed_inspection database only, not admin-wide;
+#          Network Access → allow 0.0.0.0/0, since Render has no static IP;
+#          Clusters → Connect → Drivers → Node.js for the connection string)
 #        GEMINI_API_KEY = <your Gemini key>
 #        SMTP_HOST = smtp.gmail.com
 #        SMTP_PORT = 587
 #        SMTP_USER = <the Gmail address sending reports>
 #        SMTP_PASS = <its Gmail App Password, from myaccount.google.com/apppasswords>
 #      (REPORT_BCC_EMAIL already defaults to aedsmartx@gmail.com.)
-#   3. Open aed-cv-service → Environment → set GEMINI_API_KEY = <same key>.
-#   4. Once aed-backend has deployed, note its onrender.com URL (or attach
+#   2. Open aed-cv-service → Environment → set GEMINI_API_KEY = <same key>.
+#   3. Once aed-backend has deployed, note its onrender.com URL (or attach
 #      your own custom domain, e.g. api.aedsmartx.com, under its Settings).
 #      Open aed-frontend → Environment → set NEXT_PUBLIC_BACKEND_URL to that
 #      URL, then attach inspector.aedsmartx.com as its custom domain.
-#   5. Back on aed-backend, set CORS_ORIGINS to https://inspector.aedsmartx.com
+#   4. Back on aed-backend, set CORS_ORIGINS to https://inspector.aedsmartx.com
 #      (comma-separate additional origins, e.g. the temporary onrender.com
 #      frontend URL, while testing before DNS cuts over).
 #
 # Each manual env var change triggers an automatic redeploy of that service.
 
 services:
-  - type: pserv
-    name: aed-mongodb
-    runtime: image
-    plan: starter
-    image:
-      url: docker.io/library/mongo:7.0
-    disk:
-      name: mongo-data
-      mountPath: /data/db
-      sizeGB: 10
-    envVars:
-      - key: MONGO_INITDB_ROOT_USERNAME
-        value: aed
-      - key: MONGO_INITDB_ROOT_PASSWORD
-        generateValue: true
-      - key: MONGO_INITDB_DATABASE
-        value: aed_inspection
-
   - type: pserv
     name: aed-cv-service
     runtime: docker
