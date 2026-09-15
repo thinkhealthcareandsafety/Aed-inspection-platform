@@ -1,8 +1,11 @@
-# Render Blueprint — deploys the platform (Python CV service, Node API,
-# Next.js frontend) as one unit. MongoDB is NOT part of this Blueprint — it
-# runs on MongoDB Atlas's free tier instead of a paid Render service with a
-# persistent disk, to avoid that ongoing cost. Set aed-backend's MONGODB_URI
-# to your Atlas connection string (see below).
+# Render Blueprint — deploys the backend (Python CV service + Node API).
+# Two pieces deliberately live OUTSIDE this Blueprint, both to avoid Render
+# costs that have free alternatives elsewhere:
+#   - MongoDB runs on MongoDB Atlas's free tier, not a paid Render service
+#     with a persistent disk. Set aed-backend's MONGODB_URI below.
+#   - The Next.js frontend is deployed on Vercel (vercel.com), not Render —
+#     see its own project there, imported from this repo with Root
+#     Directory set to "frontend".
 #
 # Deploy: Render dashboard → New → Blueprint → pick this repo → Apply.
 # A few values are intentionally left for you to paste in by hand after the
@@ -24,11 +27,12 @@
 #   2. Open aed-cv-service → Environment → set GEMINI_API_KEY = <same key>.
 #   3. Once aed-backend has deployed, note its onrender.com URL (or attach
 #      your own custom domain, e.g. api.aedsmartx.com, under its Settings).
-#      Open aed-frontend → Environment → set NEXT_PUBLIC_BACKEND_URL to that
-#      URL, then attach inspector.aedsmartx.com as its custom domain.
-#   4. Back on aed-backend, set CORS_ORIGINS to https://inspector.aedsmartx.com
-#      (comma-separate additional origins, e.g. the temporary onrender.com
-#      frontend URL, while testing before DNS cuts over).
+#      On the Vercel project → Environment Variables → set
+#      NEXT_PUBLIC_BACKEND_URL to that URL, then attach inspector.aedsmartx.com
+#      as its custom domain in Vercel's own domain settings.
+#   4. Back on aed-backend, set CORS_ORIGINS to include every origin the
+#      frontend is actually served from (inspector.aedsmartx.com, the
+#      Vercel *.vercel.app preview URL, etc. — comma-separated).
 #
 # Each manual env var change triggers an automatic redeploy of that service.
 
@@ -76,7 +80,7 @@ services:
       - key: REPORT_BCC_EMAIL
         value: aedsmartx@gmail.com
       - key: CORS_ORIGINS
-        value: https://inspector.aedsmartx.com
+        value: https://inspector.aedsmartx.com,https://aed-inspection-platform.vercel.app
       - key: MONGODB_URI
         sync: false
       - key: GEMINI_API_KEY
@@ -90,14 +94,4 @@ services:
       - key: SMTP_PASS
         sync: false
       - key: EMAIL_FROM
-        sync: false
-
-  - type: web
-    name: aed-frontend
-    runtime: docker
-    plan: starter
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    envVars:
-      - key: NEXT_PUBLIC_BACKEND_URL
         sync: false
