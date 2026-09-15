@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
+import { screenTransition } from '@/lib/motion';
 
 interface Props {
   selected: string | null;
@@ -15,10 +16,7 @@ interface Props {
 export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+      {...screenTransition}
       className="w-full max-w-sm mx-auto"
     >
       <div className="mb-7 px-1">

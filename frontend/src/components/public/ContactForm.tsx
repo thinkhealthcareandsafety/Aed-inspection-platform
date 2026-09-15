@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
 import { isValidEmail } from '@/lib/validators';
+import { screenTransition } from '@/lib/motion';
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Enter your full name'),
@@ -48,10 +49,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+      {...screenTransition}
       className="w-full max-w-sm mx-auto"
     >
       <div className="mb-7 px-1">

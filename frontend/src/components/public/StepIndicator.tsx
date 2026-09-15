@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { springSoft } from '@/lib/motion';
 
 const STEPS = ['Details', 'Model', 'Inspect'] as const;
 
@@ -21,7 +22,7 @@ export function StepIndicator({ current }: Props) {
               initial={false}
               animate={{ scaleX: i <= current ? 1 : 0 }}
               style={{ originX: 0 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              transition={springSoft}
             />
           </div>
         ))}

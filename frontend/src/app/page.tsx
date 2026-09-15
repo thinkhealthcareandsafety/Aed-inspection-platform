@@ -14,6 +14,7 @@ import { ModelSelect } from '@/components/public/ModelSelect';
 import { StepIndicator } from '@/components/public/StepIndicator';
 import { BrandFooter } from '@/components/public/BrandFooter';
 import { PulseLogo } from '@/components/icons';
+import { springSnappy, springSoft } from '@/lib/motion';
 import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
 type Step = 'contact' | 'model' | 'inspecting';
@@ -193,7 +194,7 @@ export default function PublicInspectionPage() {
                   className="h-full bg-foreground rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPct}%` }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 30 }}
+                  transition={springSoft}
                 />
               </div>
             </div>
@@ -203,7 +204,7 @@ export default function PublicInspectionPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                  transition={springSnappy}
                   className="surface-group p-7 flex flex-col items-center text-center"
                 >
                   <div

@@ -172,7 +172,42 @@
 
   /* Pressable: the subtle physical response Apple puts on every control. */
   .pressable {
-    @apply transition-transform duration-150 ease-out active:scale-[0.98];
+    transition: transform 0.15s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .pressable:active {
+    transform: scale(0.98);
+  }
+
+  /* Sheet presentation — same easing as the JS motion tokens so a dialog
+     feels like the rest of the app rather than a separate component. */
+  .sheet-in {
+    animation: sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .fade-in {
+    animation: fade-in 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Anyone who asked the OS for less motion gets none of it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Camera, Video, CheckCircle2, XCircle, Loader2, SkipForward, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -111,7 +110,7 @@ export function ChecklistItemCard({
   }
 
   return (
-    <motion.div layout className="surface-row px-4 py-3.5 flex flex-col gap-3">
+    <div className="surface-row px-4 py-3.5 flex flex-col gap-3">
       <div className="flex items-start gap-3">
         <ChecklistIcon
           name={item.icon}
@@ -213,7 +212,7 @@ export function ChecklistItemCard({
           </button>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

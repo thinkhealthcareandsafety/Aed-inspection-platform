@@ -18,10 +18,10 @@ export function DialogContent({
 }) {
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in" />
+      <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm fade-in" />
       <RadixDialog.Content
         className={cn(
-          'fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl focus:outline-none animate-slide-up',
+          'fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-card shadow-2xl focus:outline-none sheet-in',
           className,
         )}
       >

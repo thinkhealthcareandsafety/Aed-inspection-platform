@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Image from 'next/image';
 import { ImageIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,19 @@ export function ReferenceExample({
   aedModel?: string;
 }) {
   const examples = getReferenceExamples(itemId, aedModel);
+
+  // Warm the cache as soon as the checklist renders. Without this the photo
+  // is only requested when the dialog opens, so on a field connection the
+  // sheet appears empty and fills in a beat later — it reads as broken.
+  // These are pre-optimised files (30-70KB each), so this is cheap.
+  useEffect(() => {
+    if (!examples?.length) return;
+    for (const ex of examples) {
+      const img = new window.Image();
+      img.src = ex.src;
+    }
+  }, [examples]);
+
   if (!examples?.length) return null;
 
   return (
@@ -50,7 +64,17 @@ export function ReferenceExample({
             return (
               <div key={ex.src} className="flex flex-col gap-2">
                 <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-border bg-secondary">
-                  <Image src={ex.src} alt={ex.caption} fill sizes="(max-width: 640px) 90vw, 400px" className="object-cover" />
+                  {/* unoptimized: these are already resized and compressed at
+                      build time, so routing them through the on-demand image
+                      optimiser only adds a cold-start round trip. */}
+                  <Image
+                    src={ex.src}
+                    alt={ex.caption}
+                    fill
+                    unoptimized
+                    sizes="(max-width: 640px) 90vw, 400px"
+                    className="object-cover"
+                  />
                 </div>
                 <div className="flex items-start gap-1.5">
                   <span
