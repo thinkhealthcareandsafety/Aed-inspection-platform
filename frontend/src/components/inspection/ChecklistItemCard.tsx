@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { api, BASE_URL } from '@/lib/api';
 import { ChecklistIcon } from '@/components/icons';
+import { ReferenceExample } from './ReferenceExample';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
 
@@ -120,6 +121,9 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+            <div className="mt-1.5">
+              <ReferenceExample itemId={item.id} itemTitle={item.title} />
+            </div>
           </div>
         </div>
         <StatusBadge status={result.status} />
