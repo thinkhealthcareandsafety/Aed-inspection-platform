@@ -6,6 +6,7 @@ import { Camera, Video, CheckCircle2, XCircle, Loader2, SkipForward, RotateCcw }
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { api, BASE_URL } from '@/lib/api';
+import { ChecklistIcon } from '@/components/icons';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
 
@@ -76,11 +77,13 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
       className={cn('rounded-xl border p-4 flex flex-col gap-3 transition-colors', STATUS_STYLES[result.status])}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2.5 min-w-0">
-          <span className="text-xl leading-none mt-0.5">{item.icon}</span>
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-secondary/70 text-muted-foreground flex items-center justify-center shrink-0 mt-0.5">
+            <ChecklistIcon name={item.icon} className="w-[18px] h-[18px]" />
+          </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h4 className="font-medium text-sm truncate">{item.title}</h4>
+              <h4 className="font-semibold text-sm truncate">{item.title}</h4>
               {!item.required && (
                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-secondary/60 px-1.5 py-0.5 rounded">
                   optional
@@ -180,10 +183,18 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
 function StatusBadge({ status }: { status: ChecklistItemResult['status'] }) {
   switch (status) {
     case 'pass':
-      return <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />;
+      return (
+        <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
+          <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} fill="none" />
+        </span>
+      );
     case 'fail':
     case 'error':
-      return <XCircle className="w-4 h-4 text-destructive shrink-0" />;
+      return (
+        <span className="w-5 h-5 rounded-full bg-destructive flex items-center justify-center shrink-0">
+          <XCircle className="w-3.5 h-3.5 text-white" strokeWidth={2.5} fill="none" />
+        </span>
+      );
     case 'analyzing':
     case 'uploaded':
       return <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />;

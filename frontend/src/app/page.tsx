@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Download, Mail, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Download, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -12,15 +12,44 @@ import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
 import { ChecklistItemCard } from '@/components/inspection/ChecklistItemCard';
 import { ContactForm, type ContactFormData } from '@/components/public/ContactForm';
 import { ModelSelect } from '@/components/public/ModelSelect';
+import { StepIndicator } from '@/components/public/StepIndicator';
+import { PulseLogo } from '@/components/icons';
 import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
 type Step = 'contact' | 'model' | 'inspecting';
 
-const RESULT_STYLES: Record<InspectionResult, { label: string; className: string }> = {
-  PASS: { label: 'PASS', className: 'text-emerald-500 border-emerald-500/40 bg-emerald-500/10' },
-  FAIL: { label: 'FAIL', className: 'text-destructive border-destructive/40 bg-destructive/10' },
-  REVIEW: { label: 'NEEDS REVIEW', className: 'text-amber-500 border-amber-500/40 bg-amber-500/10' },
-  INCOMPLETE: { label: 'INCOMPLETE', className: 'text-muted-foreground border-border/40 bg-secondary/40' },
+const RESULT_STYLES: Record<
+  InspectionResult,
+  { label: string; icon: typeof CheckCircle2; ring: string; iconWrap: string; badge: string }
+> = {
+  PASS: {
+    label: 'PASS',
+    icon: CheckCircle2,
+    ring: 'border-emerald-200 dark:border-emerald-500/25',
+    iconWrap: 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/25 dark:text-emerald-400',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30',
+  },
+  FAIL: {
+    label: 'FAIL',
+    icon: XCircle,
+    ring: 'border-red-200 dark:border-red-500/25',
+    iconWrap: 'bg-red-50 border-red-200 text-destructive dark:bg-red-500/10 dark:border-red-500/25 dark:text-red-400',
+    badge: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30',
+  },
+  REVIEW: {
+    label: 'NEEDS REVIEW',
+    icon: AlertTriangle,
+    ring: 'border-amber-200 dark:border-amber-500/25',
+    iconWrap: 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-500/10 dark:border-amber-500/25 dark:text-amber-400',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30',
+  },
+  INCOMPLETE: {
+    label: 'INCOMPLETE',
+    icon: AlertTriangle,
+    ring: 'border-border',
+    iconWrap: 'bg-secondary border-border text-muted-foreground',
+    badge: 'bg-secondary text-muted-foreground border-border',
+  },
 };
 
 export default function PublicInspectionPage() {
@@ -100,16 +129,27 @@ export default function PublicInspectionPage() {
     setEmailStatus(null);
   }, []);
 
+  const stepIndex: 0 | 1 | 2 = step === 'contact' ? 0 : step === 'model' ? 1 : 2;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border/50 px-6 py-3 flex items-center justify-between">
-        <span className="text-sm font-semibold">AED Inspection</span>
-        <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-          Staff login
+      <header className="px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-[30px] h-[30px] rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <PulseLogo className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <span className="font-display text-[15px] font-bold tracking-tight">AED Inspect</span>
+        </div>
+        <Link href="/login" className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          Staff sign in
         </Link>
       </header>
 
-      <div className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-8 flex flex-col gap-6 justify-center">
+      <div className="px-5 pb-5">
+        <StepIndicator current={stepIndex} />
+      </div>
+
+      <div className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-8 pt-2 flex flex-col gap-6 justify-center">
         <AnimatePresence mode="wait">
           {step === 'contact' && (
             <ContactForm key="contact" defaultValues={contact ?? undefined} onSubmit={handleContactSubmit} />
@@ -129,8 +169,8 @@ export default function PublicInspectionPage() {
         {step === 'inspecting' && inspection && (
           <>
             <div className="text-center">
-              <h1 className="text-xl font-semibold">{inspection.aedModel} Inspection</h1>
-              <p className="text-muted-foreground text-sm mt-1">
+              <h1 className="font-display text-xl font-bold tracking-tight">{inspection.aedModel} Inspection</h1>
+              <p className="text-muted-foreground text-sm mt-1.5">
                 10 checks across 3 sections. Capture a photo (or short video) for each item — AI analyses it
                 instantly.
               </p>
@@ -159,44 +199,59 @@ export default function PublicInspectionPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    'glass-card p-5 border flex flex-col gap-4',
-                    RESULT_STYLES[inspection.inspectionResult].className,
-                  )}
+                  className={cn('glass-card border p-6 flex flex-col items-center text-center gap-5', RESULT_STYLES[inspection.inspectionResult].ring)}
                 >
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-6 h-6" />
-                      <div>
-                        <div className="font-bold text-lg">{RESULT_STYLES[inspection.inspectionResult].label}</div>
-                        <div className="text-xs opacity-80">Inspection complete</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => api.public.downloadPdf(inspection.inspectionId)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        PDF
-                      </button>
-                      <button
-                        onClick={handleReset}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        New Inspection
-                      </button>
-                    </div>
+                  <div
+                    className={cn(
+                      'w-14 h-14 rounded-full border flex items-center justify-center',
+                      RESULT_STYLES[inspection.inspectionResult].iconWrap,
+                    )}
+                  >
+                    {(() => {
+                      const ResultIcon = RESULT_STYLES[inspection.inspectionResult].icon;
+                      return <ResultIcon className="w-7 h-7" strokeWidth={2.25} />;
+                    })()}
                   </div>
+
+                  <div className="flex flex-col items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-3.5 py-1 rounded-full border text-xs font-bold font-mono tracking-wide',
+                        RESULT_STYLES[inspection.inspectionResult].badge,
+                      )}
+                    >
+                      {RESULT_STYLES[inspection.inspectionResult].label}
+                    </span>
+                    <h3 className="font-display text-lg font-bold">Inspection complete</h3>
+                  </div>
+
                   {emailStatus && (
-                    <div className="flex items-center gap-1.5 text-xs opacity-80">
-                      <Mail className="w-3.5 h-3.5" />
-                      {emailStatus.sent
-                        ? `Report emailed to ${emailStatus.recipients.join(', ')}`
-                        : 'Report email could not be sent — use the PDF button above.'}
+                    <div className="w-full flex items-start gap-2.5 bg-primary/5 rounded-xl px-4 py-3 text-left">
+                      <Mail className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs text-foreground/80 leading-relaxed">
+                        {emailStatus.sent
+                          ? <><span className="font-semibold text-foreground">Report emailed. </span>Sent to {emailStatus.recipients.join(' and ')}.</>
+                          : 'Report email could not be sent — use the PDF button below.'}
+                      </p>
                     </div>
                   )}
+
+                  <div className="w-full flex flex-col gap-2.5">
+                    <button
+                      onClick={() => api.public.downloadPdf(inspection.inspectionId)}
+                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download PDF report
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card hover:bg-secondary/60 text-sm font-semibold transition-colors"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Start new inspection
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

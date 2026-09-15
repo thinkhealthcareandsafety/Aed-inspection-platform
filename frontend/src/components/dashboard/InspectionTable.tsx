@@ -39,7 +39,7 @@ export function InspectionTable() {
       {/* Table header controls */}
       <div className="p-4 border-b border-border/50 flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold">Recent Inspections</h2>
+          <h2 className="text-sm font-bold">Recent Inspections</h2>
         </div>
 
         {/* Search (client-side filter on loaded data for now) */}
@@ -74,11 +74,11 @@ export function InspectionTable() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/30">
-              {['Date', 'Manufacturer', 'Model', 'Serial', 'Pads Expiry', 'Result', 'Inspector', ''].map(
+              {['Date', 'AED Model', 'Serial', 'Pads Expiry', 'Result', 'Inspector', ''].map(
                 (h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left text-muted-foreground font-medium whitespace-nowrap"
+                    className="px-4 py-3 text-left text-muted-foreground font-semibold text-[10.5px] uppercase tracking-wide whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -90,7 +90,7 @@ export function InspectionTable() {
             {isLoading &&
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/20">
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: 7 }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-3 bg-muted/30 rounded animate-pulse w-16" />
                     </td>
@@ -119,22 +119,26 @@ export function InspectionTable() {
                         ? format(new Date(insp.startedAt), 'dd MMM yy HH:mm')
                         : '—'}
                     </td>
-                    <td className="px-4 py-3 font-medium">{insp.manufacturer ?? '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{insp.aedModel ?? insp.model ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono">{insp.serialNumber ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono">{insp.padsExpiry ?? '—'}</td>
+                    <td className="px-4 py-3 font-semibold">{insp.aedModel ?? insp.manufacturer ?? insp.model ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-muted-foreground">{insp.serialNumber ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-muted-foreground">{insp.padsExpiry ?? '—'}</td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
-                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold',
                           RESULT_BADGE[insp.inspectionResult as InspectionResult] ?? 'badge-incomplete',
                         )}
                       >
                         {insp.inspectionResult}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {insp.inspector?.name ?? (insp.guestName ? `${insp.guestName} (public)` : '—')}
+                    <td className="px-4 py-3">
+                      <span className="text-foreground">{insp.inspector?.name ?? insp.guestName ?? '—'}</span>
+                      {!insp.inspector && insp.guestName && (
+                        <span className="ml-2 text-[9.5px] font-bold text-primary bg-primary/10 rounded px-1.5 py-0.5 tracking-wide">
+                          WALK-UP
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -150,7 +154,7 @@ export function InspectionTable() {
 
             {!isLoading && inspections.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                   No inspections found.{' '}
                   <Link href="/inspection" className="text-primary hover:underline">
                     Start your first inspection →

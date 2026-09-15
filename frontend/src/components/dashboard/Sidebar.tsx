@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, Zap, FileText, Settings, LogOut,
-  Heart, ChevronRight,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { PulseLogo } from '@/components/icons';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -29,11 +30,11 @@ export function Sidebar() {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-border/30">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Heart className="w-4 h-4 text-primary" />
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <PulseLogo className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
-              <p className="text-sm font-semibold leading-none">AED Inspect</p>
+              <p className="font-display text-sm font-bold leading-none tracking-tight">AED Inspect</p>
               <p className="text-xs text-muted-foreground mt-0.5">AI-Powered</p>
             </div>
           </div>

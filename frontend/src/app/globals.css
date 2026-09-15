@@ -2,57 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @layer base {
-  /* Light theme (default) — enterprise SaaS: white cards on a soft neutral
-     page background, restrained indigo-blue accent, crisp low-contrast
-     borders. Kept as the default `:root` so it's also the no-JS fallback. */
+  /* Light theme (default) — a warm off-white ground, deep confident
+     indigo accent (not the washed-out pastel of a default shadcn theme),
+     and ink-black text instead of default grays. Kept as the default
+     `:root` so it's also the no-JS fallback. */
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 40 23% 97%;
+    --foreground: 228 17% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 228 17% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 221 83% 53%;
+    --popover-foreground: 228 17% 12%;
+    --primary: 233 51% 41%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 95%;
-    --secondary-foreground: 222 47% 20%;
-    --muted: 210 20% 95%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 221 83% 53%;
+    --secondary: 40 15% 94%;
+    --secondary-foreground: 228 17% 20%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 228 12% 40%;
+    --accent: 233 51% 41%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+    --destructive: 357 66% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 20% 88%;
-    --input: 214 20% 91%;
-    --ring: 221 83% 53%;
-    --radius: 0.625rem;
+    --border: 40 11% 89%;
+    --input: 40 11% 87%;
+    --ring: 233 51% 41%;
+    --radius: 0.75rem;
   }
 
-  /* Dark theme — deep neutral navy (not pure black) with the same
-     indigo-blue accent lifted for contrast. */
+  /* Dark theme — deep navy ground carrying the same indigo hue family,
+     primary lifted for contrast. */
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 20% 98%;
-    --card: 222 40% 10%;
-    --card-foreground: 210 20% 98%;
-    --popover: 222 40% 10%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 8%;
-    --secondary: 222 30% 15%;
-    --secondary-foreground: 210 20% 90%;
-    --muted: 222 30% 14%;
-    --muted-foreground: 215 20% 60%;
-    --accent: 217 91% 60%;
-    --accent-foreground: 222 47% 8%;
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 222 30% 18%;
-    --input: 222 30% 16%;
-    --ring: 217 91% 60%;
+    --background: 228 22% 8%;
+    --foreground: 40 12% 95%;
+    --card: 228 20% 11%;
+    --card-foreground: 40 12% 95%;
+    --popover: 228 20% 11%;
+    --popover-foreground: 40 12% 95%;
+    --primary: 231 68% 66%;
+    --primary-foreground: 228 30% 11%;
+    --secondary: 228 16% 16%;
+    --secondary-foreground: 40 10% 90%;
+    --muted: 228 16% 15%;
+    --muted-foreground: 228 10% 64%;
+    --accent: 231 68% 66%;
+    --accent-foreground: 228 30% 11%;
+    --destructive: 357 70% 60%;
+    --destructive-foreground: 228 22% 8%;
+    --border: 228 15% 19%;
+    --input: 228 15% 20%;
+    --ring: 231 68% 66%;
   }
 }
 
@@ -71,6 +70,10 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  .font-display {
+    font-family: var(--font-display), 'Space Grotesk', sans-serif;
   }
 
   /* Scrollbar styling */

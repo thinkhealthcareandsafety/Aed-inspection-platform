@@ -20,9 +20,8 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
       exit={{ opacity: 0, y: -12 }}
       className="w-full max-w-md mx-auto"
     >
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">Select AED Model</h1>
-        <p className="text-muted-foreground text-sm mt-1">Choose the machine you&apos;re inspecting.</p>
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-bold tracking-tight">Which AED are<br />you inspecting?</h1>
       </div>
 
       <div className="glass-card p-4 space-y-2.5">
@@ -36,14 +35,14 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
               disabled={starting}
               onClick={() => onSelect(model.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-all disabled:opacity-60',
+                'w-full flex items-center gap-3.5 px-4 py-4 rounded-2xl border text-left transition-all disabled:opacity-60',
                 isSelected
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                  : 'border-border/50 bg-card/40 hover:border-primary/40 hover:bg-secondary/40',
+                  ? 'border-primary ring-1 ring-primary shadow-sm'
+                  : 'border-border bg-card hover:border-primary/40 hover:bg-secondary/40',
               )}
             >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <HeartPulse className="w-5 h-5" />
+              <div className="w-[42px] h-[42px] rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <HeartPulse className="w-[21px] h-[21px]" strokeWidth={1.8} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-sm">{model.brand} {model.name}</div>

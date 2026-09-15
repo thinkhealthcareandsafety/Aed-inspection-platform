@@ -6,11 +6,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Heart, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
+import { PulseLogo } from '@/components/icons';
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -49,10 +50,10 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
+            <PulseLogo className="w-6 h-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold">AED Inspection</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">AED Inspection</h1>
           <p className="text-muted-foreground text-sm mt-1">AI-powered AED compliance platform</p>
         </div>
 

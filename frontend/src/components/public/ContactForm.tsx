@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
@@ -38,10 +38,12 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
       exit={{ opacity: 0, y: -12 }}
       className="w-full max-w-sm mx-auto"
     >
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">AED Inspection</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Enter your details to start an AI-guided inspection.
+      <div className="mb-6">
+        <h1 className="font-display text-[26px] leading-[1.15] font-bold tracking-tight">
+          Let&apos;s verify<br />your AED.
+        </h1>
+        <p className="text-muted-foreground text-sm mt-2.5 max-w-[300px]">
+          Takes about five minutes. We&apos;ll email a signed inspection report the moment you finish.
         </p>
       </div>
 
@@ -73,7 +75,10 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
             )}
           />
           {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
-          <p className="text-[11px] text-muted-foreground mt-1">Your inspection report will be emailed here.</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
+            <Mail className="w-3 h-3 shrink-0" />
+            Your signed report is sent here
+          </p>
         </div>
 
         <div>
@@ -94,13 +99,20 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all disabled:opacity-60 shadow-md shadow-primary/20"
+          className="w-full flex items-center justify-center gap-2 h-[52px] rounded-xl bg-primary text-primary-foreground font-semibold text-[15px] hover:bg-primary/90 transition-all disabled:opacity-60 shadow-lg shadow-primary/25"
         >
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Continue
-          {!isSubmitting && <ArrowRight className="w-4 h-4" />}
+          {!isSubmitting && <ArrowRight className="w-[17px] h-[17px]" strokeWidth={2.25} />}
         </button>
       </form>
+
+      <div className="flex items-center justify-center gap-1.5 mt-4">
+        <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+        <span className="text-[11.5px] text-muted-foreground/70">
+          Verified by AI in seconds, reviewed on request
+        </span>
+      </div>
     </motion.div>
   );
 }

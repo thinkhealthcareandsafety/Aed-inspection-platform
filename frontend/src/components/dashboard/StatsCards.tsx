@@ -19,75 +19,77 @@ export function StatsCards() {
     {
       label: 'Total Inspections',
       value: data?.total ?? 0,
-      icon: <Activity className="w-5 h-5" />,
-      color: 'text-primary',
-      bg: 'bg-primary/10 border-primary/20',
+      icon: <Activity className="w-[15px] h-[15px]" strokeWidth={2} />,
+      tile: 'bg-primary',
+      textColor: '',
       delay: 0,
     },
     {
       label: 'Pass Rate',
       value: data ? `${data.passRate}%` : '—',
-      icon: <TrendingUp className="w-5 h-5" />,
-      color: 'text-green-400',
-      bg: 'bg-green-500/10 border-green-500/20',
+      icon: <TrendingUp className="w-[15px] h-[15px]" strokeWidth={2} />,
+      tile: 'bg-emerald-600',
+      textColor: 'text-emerald-700 dark:text-emerald-400',
       delay: 0.05,
     },
     {
       label: 'Passed',
       value: data?.passed ?? 0,
-      icon: <CheckCircle2 className="w-5 h-5" />,
-      color: 'text-green-400',
-      bg: 'bg-green-500/10 border-green-500/20',
+      icon: <CheckCircle2 className="w-[15px] h-[15px]" strokeWidth={2} />,
+      tile: 'bg-emerald-600',
+      textColor: '',
       delay: 0.1,
     },
     {
       label: 'Failed',
       value: data?.failed ?? 0,
-      icon: <XCircle className="w-5 h-5" />,
-      color: 'text-red-400',
-      bg: 'bg-red-500/10 border-red-500/20',
+      icon: <XCircle className="w-[15px] h-[15px]" strokeWidth={2} />,
+      tile: 'bg-destructive',
+      textColor: '',
       delay: 0.15,
     },
     {
       label: 'Review Required',
       value: data?.review ?? 0,
-      icon: <AlertTriangle className="w-5 h-5" />,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/10 border-amber-500/20',
+      icon: <AlertTriangle className="w-[15px] h-[15px]" strokeWidth={2} />,
+      tile: 'bg-amber-600',
+      textColor: '',
       delay: 0.2,
     },
     {
       label: 'Last 30 Days',
       value: data?.recent ?? 0,
-      icon: <Clock className="w-5 h-5" />,
-      color: 'text-sky-400',
-      bg: 'bg-sky-500/10 border-sky-500/20',
+      icon: <Clock className="w-[15px] h-[15px]" strokeWidth={2} />,
+      // Fixed neutral (not a theme token) so the white icon stays visible in
+      // both themes — bg-foreground flips to near-white in dark mode and
+      // swallows it.
+      tile: 'bg-slate-700',
+      textColor: '',
       delay: 0.25,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
       {cards.map((card) => (
         <motion.div
           key={card.label}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: card.delay, duration: 0.3 }}
-          className={cn(
-            'rounded-xl border p-4 glass-card',
-            card.bg,
-          )}
+          className="rounded-2xl border border-border bg-card p-4"
         >
-          <div className={cn('mb-2', card.color)}>{card.icon}</div>
-          <div className={cn('text-2xl font-bold font-mono', card.color)}>
+          <div className={cn('w-[30px] h-[30px] rounded-lg flex items-center justify-center text-white mb-3', card.tile)}>
+            {card.icon}
+          </div>
+          <div className={cn('text-[22px] font-bold font-mono tracking-tight leading-none', card.textColor)}>
             {isLoading ? (
               <span className="w-8 h-6 bg-muted/40 rounded animate-pulse block" />
             ) : (
               card.value
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">{card.label}</p>
+          <p className="text-[11.5px] text-muted-foreground mt-2">{card.label}</p>
         </motion.div>
       ))}
     </div>

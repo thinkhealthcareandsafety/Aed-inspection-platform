@@ -1,4 +1,5 @@
 import type { ChecklistItemId, ChecklistMediaType } from '@/types';
+import type { IconName } from '@/components/icons';
 
 export interface ChecklistItemMeta {
   id: ChecklistItemId;
@@ -8,7 +9,7 @@ export interface ChecklistItemMeta {
   description: string;
   required: boolean;
   mediaType: ChecklistMediaType;
-  icon: string;
+  icon: IconName;
 }
 
 export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
@@ -20,7 +21,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Live photo of the manufacturer serial number label.',
     required: true,
     mediaType: 'image',
-    icon: '🏷️',
+    icon: 'tag',
   },
   {
     id: 'pads_expiry',
@@ -30,7 +31,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo of the electrode pads expiry date.',
     required: true,
     mediaType: 'image',
-    icon: '⚡',
+    icon: 'bolt',
   },
   {
     id: 'battery_expiry',
@@ -40,7 +41,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo of the battery expiry date. Lot & serial number are read automatically if visible (optional).',
     required: true,
     mediaType: 'image',
-    icon: '🔋',
+    icon: 'battery',
   },
   {
     id: 'battery_attached',
@@ -50,7 +51,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo confirming the battery is fully seated in the machine.',
     required: true,
     mediaType: 'image',
-    icon: '🔌',
+    icon: 'plug',
   },
   {
     id: 'pads_connected',
@@ -60,7 +61,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo confirming the pads connector is plugged in.',
     required: true,
     mediaType: 'image',
-    icon: '🔗',
+    icon: 'plug',
   },
   {
     id: 'readiness_indicator',
@@ -71,7 +72,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
       'Record at least 10 seconds of the small status LED (not the big green power button). Blinks can be up to 5 seconds apart, so hold steady long enough to catch one.',
     required: true,
     mediaType: 'video',
-    icon: '🟢',
+    icon: 'pulse-dot',
   },
   {
     id: 'child_key_pad',
@@ -81,7 +82,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo of the paediatric key or child pads, if present.',
     required: false,
     mediaType: 'image',
-    icon: '🔑',
+    icon: 'key',
   },
   {
     id: 'aed_cabinet',
@@ -91,7 +92,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo of the wall cabinet/case housing the AED.',
     required: false,
     mediaType: 'image',
-    icon: '🗄️',
+    icon: 'archive',
   },
   {
     id: 'first_response_kit',
@@ -101,7 +102,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo of the accompanying rescue kit (gloves, razor, scissors, mask).',
     required: false,
     mediaType: 'image',
-    icon: '🩹',
+    icon: 'kit',
   },
   {
     id: 'emergency_contacts',
@@ -111,7 +112,7 @@ export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
     description: 'Photo confirming an emergency contact sticker is on the machine or cabinet.',
     required: false,
     mediaType: 'image',
-    icon: '📞',
+    icon: 'contact',
   },
 ];
 
