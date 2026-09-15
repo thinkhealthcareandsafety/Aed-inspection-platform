@@ -109,7 +109,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
           value={digits}
           onChange={(e) => handleDigitsChange(e.target.value)}
           onBlur={onBlur}
-          placeholder="555 123 4567"
+          placeholder={country.example ?? '0'.repeat(country.minLength)}
           className="flex-1 min-w-0 px-3 py-2.5 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-60"
         />
       </div>

@@ -8,10 +8,15 @@ import { ArrowRight, Loader2, Mail, ShieldCheck, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
+import { isValidEmail } from '@/lib/validators';
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Enter your full name'),
-  email: z.string().trim().email('Enter a valid email address'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine(isValidEmail, { message: 'Enter a valid email address' }),
   phone: z.string().refine(
     (value) => {
       const { country, nationalDigits } = parsePhoneValue(value);
@@ -34,7 +39,12 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<ContactFormData>({ resolver: zodResolver(schema), defaultValues });
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(schema),
+    defaultValues,
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
+  });
 
   return (
     <motion.div

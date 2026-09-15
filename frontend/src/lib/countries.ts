@@ -12,15 +12,18 @@ export interface Country {
   dialCode: string; // digits only, no '+'
   minLength: number;
   maxLength: number;
+  /** A realistic sample national number, used as the input's placeholder. */
+  example?: string;
 }
 
 export const COUNTRIES: Country[] = [
-  { name: 'United States', iso2: 'US', dialCode: '1', minLength: 10, maxLength: 10 },
-  { name: 'Canada', iso2: 'CA', dialCode: '1', minLength: 10, maxLength: 10 },
-  { name: 'United Kingdom', iso2: 'GB', dialCode: '44', minLength: 10, maxLength: 11 },
+  { name: 'India', iso2: 'IN', dialCode: '91', minLength: 10, maxLength: 10, example: '98765 43210' },
+  { name: 'United States', iso2: 'US', dialCode: '1', minLength: 10, maxLength: 10, example: '555 123 4567' },
+  { name: 'Canada', iso2: 'CA', dialCode: '1', minLength: 10, maxLength: 10, example: '555 123 4567' },
+  { name: 'United Kingdom', iso2: 'GB', dialCode: '44', minLength: 10, maxLength: 11, example: '7911 123456' },
   { name: 'Ireland', iso2: 'IE', dialCode: '353', minLength: 9, maxLength: 9 },
-  { name: 'Germany', iso2: 'DE', dialCode: '49', minLength: 10, maxLength: 11 },
-  { name: 'France', iso2: 'FR', dialCode: '33', minLength: 9, maxLength: 9 },
+  { name: 'Germany', iso2: 'DE', dialCode: '49', minLength: 10, maxLength: 11, example: '1512 3456789' },
+  { name: 'France', iso2: 'FR', dialCode: '33', minLength: 9, maxLength: 9, example: '6 12 34 56 78' },
   { name: 'Spain', iso2: 'ES', dialCode: '34', minLength: 9, maxLength: 9 },
   { name: 'Italy', iso2: 'IT', dialCode: '39', minLength: 9, maxLength: 10 },
   { name: 'Netherlands', iso2: 'NL', dialCode: '31', minLength: 9, maxLength: 9 },
@@ -37,11 +40,10 @@ export const COUNTRIES: Country[] = [
   { name: 'Turkey', iso2: 'TR', dialCode: '90', minLength: 10, maxLength: 10 },
   { name: 'Russia', iso2: 'RU', dialCode: '7', minLength: 10, maxLength: 10 },
   { name: 'Ukraine', iso2: 'UA', dialCode: '380', minLength: 9, maxLength: 9 },
-  { name: 'India', iso2: 'IN', dialCode: '91', minLength: 10, maxLength: 10 },
-  { name: 'China', iso2: 'CN', dialCode: '86', minLength: 11, maxLength: 11 },
+  { name: 'China', iso2: 'CN', dialCode: '86', minLength: 11, maxLength: 11, example: '138 0013 8000' },
   { name: 'Japan', iso2: 'JP', dialCode: '81', minLength: 10, maxLength: 10 },
   { name: 'South Korea', iso2: 'KR', dialCode: '82', minLength: 9, maxLength: 10 },
-  { name: 'Singapore', iso2: 'SG', dialCode: '65', minLength: 8, maxLength: 8 },
+  { name: 'Singapore', iso2: 'SG', dialCode: '65', minLength: 8, maxLength: 8, example: '9123 4567' },
   { name: 'Malaysia', iso2: 'MY', dialCode: '60', minLength: 9, maxLength: 10 },
   { name: 'Indonesia', iso2: 'ID', dialCode: '62', minLength: 9, maxLength: 12 },
   { name: 'Philippines', iso2: 'PH', dialCode: '63', minLength: 10, maxLength: 10 },
@@ -49,7 +51,7 @@ export const COUNTRIES: Country[] = [
   { name: 'Vietnam', iso2: 'VN', dialCode: '84', minLength: 9, maxLength: 10 },
   { name: 'Pakistan', iso2: 'PK', dialCode: '92', minLength: 10, maxLength: 10 },
   { name: 'Bangladesh', iso2: 'BD', dialCode: '880', minLength: 10, maxLength: 10 },
-  { name: 'United Arab Emirates', iso2: 'AE', dialCode: '971', minLength: 9, maxLength: 9 },
+  { name: 'United Arab Emirates', iso2: 'AE', dialCode: '971', minLength: 9, maxLength: 9, example: '50 123 4567' },
   { name: 'Saudi Arabia', iso2: 'SA', dialCode: '966', minLength: 9, maxLength: 9 },
   { name: 'Israel', iso2: 'IL', dialCode: '972', minLength: 9, maxLength: 9 },
   { name: 'Qatar', iso2: 'QA', dialCode: '974', minLength: 8, maxLength: 8 },
@@ -58,7 +60,7 @@ export const COUNTRIES: Country[] = [
   { name: 'Nigeria', iso2: 'NG', dialCode: '234', minLength: 10, maxLength: 10 },
   { name: 'Kenya', iso2: 'KE', dialCode: '254', minLength: 9, maxLength: 9 },
   { name: 'Egypt', iso2: 'EG', dialCode: '20', minLength: 10, maxLength: 10 },
-  { name: 'Australia', iso2: 'AU', dialCode: '61', minLength: 9, maxLength: 9 },
+  { name: 'Australia', iso2: 'AU', dialCode: '61', minLength: 9, maxLength: 9, example: '412 345 678' },
   { name: 'New Zealand', iso2: 'NZ', dialCode: '64', minLength: 8, maxLength: 9 },
   { name: 'Brazil', iso2: 'BR', dialCode: '55', minLength: 10, maxLength: 11 },
   { name: 'Argentina', iso2: 'AR', dialCode: '54', minLength: 10, maxLength: 11 },
@@ -68,7 +70,7 @@ export const COUNTRIES: Country[] = [
   { name: 'Mexico', iso2: 'MX', dialCode: '52', minLength: 10, maxLength: 10 },
 ];
 
-export const DEFAULT_COUNTRY_ISO2 = 'US';
+export const DEFAULT_COUNTRY_ISO2 = 'IN';
 
 export function findCountry(iso2: string): Country {
   return COUNTRIES.find((c) => c.iso2 === iso2) ?? COUNTRIES[0];
