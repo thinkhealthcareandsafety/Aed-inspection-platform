@@ -1,20 +1,24 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2, Mail, ShieldCheck, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PhoneInput } from './PhoneInput';
+import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Enter your full name'),
   email: z.string().trim().email('Enter a valid email address'),
-  phone: z
-    .string()
-    .trim()
-    .min(7, 'Enter a valid mobile number')
-    .regex(/^[+()\-.\s\d]+$/, 'Digits only, please'),
+  phone: z.string().refine(
+    (value) => {
+      const { country, nationalDigits } = parsePhoneValue(value);
+      return isValidNationalNumber(country, nationalDigits);
+    },
+    { message: 'Enter a valid mobile number for the selected country' },
+  ),
 });
 
 export type ContactFormData = z.infer<typeof schema>;
@@ -27,6 +31,7 @@ interface Props {
 export function ContactForm({ defaultValues, onSubmit }: Props) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ContactFormData>({ resolver: zodResolver(schema), defaultValues });
@@ -87,17 +92,18 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
 
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Mobile number</label>
-          <input
-            {...register('phone')}
-            type="tel"
-            autoComplete="tel"
-            placeholder="+1 555 123 4567"
-            className={cn(
-              'w-full px-3 py-2.5 rounded-lg bg-secondary border text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary transition-colors',
-              errors.phone ? 'border-destructive' : 'border-border/50',
+          <Controller
+            name="phone"
+            control={control}
+            render={({ field }) => (
+              <PhoneInput
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.phone?.message}
+              />
             )}
           />
-          {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
         </div>
 
         <button
