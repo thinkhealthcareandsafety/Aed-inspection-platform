@@ -72,14 +72,43 @@ async function callCvService(itemId: string, file: Express.Multer.File): Promise
     file.originalname || itemId,
   );
 
-  const res = await fetch(`${config.CV_SERVICE_URL}/api/v1/checklist/${itemId}/analyze`, {
-    method: 'POST',
-    body: form,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${config.CV_SERVICE_URL}/api/v1/checklist/${itemId}/analyze`, {
+      method: 'POST',
+      body: form,
+    });
+  } catch (err) {
+    // Couldn't even reach the CV service (network blip, cold start) — always
+    // worth a retry.
+    throw createError(
+      'Could not reach the AI analysis service. Please try again.',
+      502,
+      'CV_SERVICE_UNREACHABLE',
+      true,
+    );
+  }
 
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw createError(`AI analysis failed (${res.status}): ${detail}`, 502, 'CV_SERVICE_ERROR');
+    const raw = await res.text().catch(() => '');
+    let detail = raw;
+    try {
+      const parsed = JSON.parse(raw) as { detail?: string };
+      if (parsed.detail) detail = parsed.detail;
+    } catch {
+      // Not JSON — use the raw text as-is.
+    }
+
+    // 502/503/504 from the CV service means Gemini itself was unavailable or
+    // timed out after its own internal retries — a transient upstream issue,
+    // not something wrong with this specific photo. Everything else (400/404
+    // — unknown item, bad upload) won't be fixed by retrying the same file.
+    const retryable = res.status === 502 || res.status === 503 || res.status === 504;
+    const message = retryable
+      ? 'The AI service is busy right now. Please try again in a moment.'
+      : detail || 'AI analysis failed for this photo. Please try a clearer capture.';
+
+    throw createError(message, retryable ? 502 : 400, 'CV_SERVICE_ERROR', retryable);
   }
   return (await res.json()) as AnalysisResponse;
 }

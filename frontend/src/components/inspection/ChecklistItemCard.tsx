@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { Camera, Video, CheckCircle2, XCircle, Loader2, SkipForward, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -9,6 +10,16 @@ import { api, BASE_URL } from '@/lib/api';
 import { ChecklistIcon } from '@/components/icons';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
+
+/** Pulls the backend's structured error out of a failed request — the real
+ *  reason (and whether it's worth retrying), not a generic fallback string. */
+function extractApiError(err: unknown): { message?: string; retryable?: boolean } {
+  if (axios.isAxiosError(err)) {
+    const payload = err.response?.data?.error as { message?: string; retryable?: boolean } | undefined;
+    return { message: payload?.message, retryable: payload?.retryable };
+  }
+  return {};
+}
 
 interface Props {
   item: ChecklistItemMeta;
@@ -42,18 +53,36 @@ export function ChecklistItemCard({ item, result, inspectionId, onChange, upload
     e.target.value = '';
     if (!file) return;
 
+    const upload = uploadFn ?? api.checklist.upload;
+
     setBusy(true);
     onChange({ ...result, status: 'analyzing' });
     try {
-      const res = await (uploadFn ?? api.checklist.upload)(inspectionId, item.id, file, file.name);
+      let res;
+      try {
+        res = await upload(inspectionId, item.id, file, file.name);
+      } catch (err) {
+        const { retryable } = extractApiError(err);
+        if (!retryable) throw err;
+        // Transient upstream blip (the AI service under load) — worth one
+        // silent retry before bothering the inspector with an error.
+        onChange({ ...result, status: 'analyzing', notes: 'AI service is busy — retrying…' });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        res = await upload(inspectionId, item.id, file, file.name);
+      }
       onChange(res.data.item);
       if (res.data.item.status === 'pass') {
         toast.success(`${item.title}: passed`);
       } else if (res.data.item.status === 'fail') {
         toast.error(`${item.title}: needs attention`);
       }
-    } catch {
-      onChange({ ...result, status: 'error', notes: 'Upload or analysis failed. Try again.' });
+    } catch (err) {
+      const { message } = extractApiError(err);
+      onChange({
+        ...result,
+        status: 'error',
+        notes: message || 'Could not upload this photo — check your connection and try again.',
+      });
     } finally {
       setBusy(false);
     }
