@@ -257,7 +257,7 @@ export default function PublicInspectionPage() {
             <ContactForm key="contact" defaultValues={contact ?? undefined} onSubmit={handleContactSubmit} />
           )}
 
-          {step === 'model' && (
+          {resume === 'done' && step === 'model' && (
             <ModelSelect
               key="model"
               selected={null}
@@ -268,7 +268,7 @@ export default function PublicInspectionPage() {
           )}
         </AnimatePresence>
 
-        {step === 'inspecting' && inspection && (
+        {resume === 'done' && step === 'inspecting' && inspection && (
           <>
             <div className="px-1">
               <h1 className="text-title text-foreground">{inspection.aedModel}</h1>
