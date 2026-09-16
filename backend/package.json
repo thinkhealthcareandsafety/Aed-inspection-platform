@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest --runInBand",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "backfill:expiry": "node dist/scripts/backfill-expiry.js"
   },
   "dependencies": {
     "express": "^4.19.2",

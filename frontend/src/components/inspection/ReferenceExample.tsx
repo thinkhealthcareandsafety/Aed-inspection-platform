@@ -6,6 +6,7 @@ import { ImageIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/Dialog';
 import { getReferenceExamples } from '@/lib/reference-examples';
+import { track } from '@/lib/track';
 import type { ChecklistItemId } from '@/types';
 
 const KIND_BADGE: Record<'good' | 'bad' | 'neutral', { label: string; className: string; icon?: typeof CheckCircle2 }> = {
@@ -40,7 +41,9 @@ export function ReferenceExample({
   if (!examples?.length) return null;
 
   return (
-    <Dialog>
+    // How often the reference photo gets opened per item is the clearest
+    // signal of which checks aren't self-explanatory yet.
+    <Dialog onOpenChange={(open) => open && track('reference_opened', { itemId, aedModel })}>
       <DialogTrigger asChild>
         <button
           type="button"

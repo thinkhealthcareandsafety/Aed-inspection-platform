@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Download, Loader2, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ import { StepIndicator } from '@/components/public/StepIndicator';
 import { BrandFooter } from '@/components/public/BrandFooter';
 import { PulseLogo } from '@/components/icons';
 import { springSnappy, springSoft } from '@/lib/motion';
+import { track, installTrackingFlush } from '@/lib/track';
 import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
 type Step = 'contact' | 'model' | 'inspecting';
@@ -92,6 +93,11 @@ export default function PublicInspectionPage() {
   const [resume, setResume] = useState<'checking' | 'restoring' | 'done'>('checking');
 
   useEffect(() => {
+    track('landing_view');
+    return installTrackingFlush();
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     let storedId: string | null = null;
@@ -125,6 +131,10 @@ export default function PublicInspectionPage() {
           phone: restored.guestPhone ?? '',
         });
         setStep('inspecting');
+        track('inspection_resumed', {
+          inspectionId: restored.inspectionId,
+          aedModel: restored.aedModel,
+        });
       })
       .catch(() => {
         forgetInspection();
@@ -161,20 +171,32 @@ export default function PublicInspectionPage() {
   const progressPct = Math.round((requiredResolvedCount / REQUIRED_ITEM_IDS.length) * 100);
   const isComplete = inspection?.inspectionStatus === 'complete';
 
+  useEffect(() => {
+    if (allRequiredResolved && inspection) {
+      track('all_required_done', {
+        inspectionId: inspection.inspectionId,
+        aedModel: inspection.aedModel,
+      });
+    }
+  }, [allRequiredResolved, inspection]);
+
   const handleContactSubmit = useCallback((data: ContactFormData) => {
     setContact(data);
     setStep('model');
+    track('contact_submitted');
   }, []);
 
   const handleSelectModel = useCallback(
     async (aedModel: string) => {
       if (!contact || starting) return;
       setStarting(true);
+      track('model_selected', { aedModel });
       try {
         const res = await api.public.createInspection({ ...contact, aedModel });
         rememberInspection(res.data.inspection.inspectionId);
         setInspection(res.data.inspection);
         setStep('inspecting');
+        track('inspection_started', { inspectionId: res.data.inspection.inspectionId, aedModel });
       } catch {
         toast.error('Could not start inspection. Please try again.');
       } finally {
@@ -184,7 +206,30 @@ export default function PublicInspectionPage() {
     [contact, starting],
   );
 
+  /** Read outside the state updater so tracking fires once per real change,
+   *  not once per React re-invocation of the updater. */
+  const inspectionRef = useRef<Inspection | null>(null);
+  useEffect(() => {
+    inspectionRef.current = inspection;
+  }, [inspection]);
+
   const handleItemChange = useCallback((result: ChecklistItemResult) => {
+    const prev = inspectionRef.current;
+    const before = prev?.checklist.find((c) => c.itemId === result.itemId);
+    const meta = { inspectionId: prev?.inspectionId, aedModel: prev?.aedModel, itemId: result.itemId };
+
+    if (result.status === 'analyzing' && (before?.status === 'pass' || before?.status === 'fail')) {
+      track('item_retaken', meta);
+    } else if (result.status === 'pass' || result.status === 'fail') {
+      track('item_analyzed', { ...meta, outcome: result.status });
+      track('first_item_analyzed', { inspectionId: prev?.inspectionId, aedModel: prev?.aedModel });
+    } else if (result.status === 'error') {
+      track('item_analyzed', { ...meta, outcome: 'error' });
+      track('item_error', meta);
+    } else if (result.status === 'skipped') {
+      track('item_skipped', meta);
+    }
+
     setInspection((prev) => {
       if (!prev) return prev;
       return {
@@ -201,6 +246,11 @@ export default function PublicInspectionPage() {
       const res = await api.public.complete(inspection.inspectionId);
       setInspection(res.data.inspection);
       setEmailStatus(res.data.email);
+      track('inspection_completed', {
+        inspectionId: inspection.inspectionId,
+        aedModel: inspection.aedModel,
+        outcome: res.data.inspection.inspectionResult,
+      });
       if (res.data.email.sent) {
         toast.success('Report emailed to you.');
       } else {
@@ -333,7 +383,13 @@ export default function PublicInspectionPage() {
 
                   <div className="w-full flex flex-col gap-2.5 mt-7">
                     <button
-                      onClick={() => api.public.downloadPdf(inspection.inspectionId)}
+                      onClick={() => {
+                        track('report_downloaded', {
+                          inspectionId: inspection.inspectionId,
+                          aedModel: inspection.aedModel,
+                        });
+                        void api.public.downloadPdf(inspection.inspectionId);
+                      }}
                       className="pressable w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground text-callout font-medium hover:bg-primary/92 transition-colors"
                     >
                       <Download className="w-4 h-4" strokeWidth={2} />

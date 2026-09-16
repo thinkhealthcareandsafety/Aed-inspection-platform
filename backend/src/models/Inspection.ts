@@ -44,8 +44,11 @@ export interface IInspection extends Document {
   lotNumber?: string;
   udi?: string;
   padsExpiry?: string;
+  /** `padsExpiry` parsed to a real date, so it can be indexed and queried. */
+  padsExpiryAt?: Date;
   padsLot?: string;
   batteryExpiry?: string;
+  batteryExpiryAt?: Date;
   batteryLot?: string;
   batterySerialNumber?: string;
   statusIndicator?: string;
@@ -111,8 +114,10 @@ const InspectionSchema = new Schema<IInspection>(
     lotNumber: { type: String },
     udi: { type: String },
     padsExpiry: { type: String },
+    padsExpiryAt: { type: Date },
     padsLot: { type: String },
     batteryExpiry: { type: String },
+    batteryExpiryAt: { type: Date },
     batteryLot: { type: String },
     batterySerialNumber: { type: String },
     statusIndicator: { type: String },
@@ -144,5 +149,9 @@ const InspectionSchema = new Schema<IInspection>(
 InspectionSchema.index({ inspector: 1, startedAt: -1 });
 InspectionSchema.index({ locationId: 1, startedAt: -1 });
 InspectionSchema.index({ inspectionResult: 1, startedAt: -1 });
+// The replacement pipeline: "everything expiring in the next N days", newest
+// inspection per device first.
+InspectionSchema.index({ padsExpiryAt: 1 });
+InspectionSchema.index({ batteryExpiryAt: 1 });
 
 export const Inspection = mongoose.model<IInspection>('Inspection', InspectionSchema);

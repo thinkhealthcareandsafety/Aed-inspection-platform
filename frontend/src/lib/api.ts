@@ -135,6 +135,28 @@ export const api = {
     },
   },
 
+  // Staff-only business intelligence: where the funnel leaks, and whose
+  // consumables are about to expire.
+  insights: {
+    funnel: (days: number) =>
+      apiClient.get<import('@/types/insights').FunnelResponse>('/insights/funnel', { params: { days } }),
+
+    pipeline: (params?: { urgency?: string; q?: string }) =>
+      apiClient.get<import('@/types/insights').PipelineResponse>('/insights/pipeline', { params }),
+
+    downloadPipelineCsv: async () => {
+      const res = await apiClient.get('/insights/pipeline.csv', { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(res.data as Blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `aed-replacement-pipeline-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    },
+  },
+
   // Public, unauthenticated walk-up inspection flow (inspector.aedsmartx.com landing page).
   public: {
     createInspection: (data: { name: string; email: string; phone: string; aedModel: string }) =>

@@ -11,6 +11,7 @@ import { getChecklistItem, REQUIRED_ITEM_IDS } from '../config/checklist-items';
 import { createError } from '../api/middleware/error-handler';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
+import { toExpiryDate } from '../utils/expiry';
 
 export interface AnalysisResponse {
   passed: boolean;
@@ -30,10 +31,16 @@ function syncTopLevelFields(itemId: string, data: AnalysisResponse) {
     case 'serial_number':
       return data.serial_number ? { serialNumber: data.serial_number } : {};
     case 'pads_expiry':
-      return data.expiry_date ? { padsExpiry: data.expiry_date } : {};
+      // The parsed date is what the replacement pipeline queries on; the raw
+      // string stays for the report, which should show what the label said.
+      return data.expiry_date
+        ? { padsExpiry: data.expiry_date, padsExpiryAt: toExpiryDate(data.expiry_date) }
+        : {};
     case 'battery_expiry':
       return {
-        ...(data.expiry_date ? { batteryExpiry: data.expiry_date } : {}),
+        ...(data.expiry_date
+          ? { batteryExpiry: data.expiry_date, batteryExpiryAt: toExpiryDate(data.expiry_date) }
+          : {}),
         ...(data.lot_number ? { batteryLot: data.lot_number } : {}),
         ...(data.battery_serial_number ? { batterySerialNumber: data.battery_serial_number } : {}),
       };

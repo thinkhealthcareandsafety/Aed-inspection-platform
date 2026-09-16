@@ -31,6 +31,17 @@
     --input: 240 10% 88%;
     --ring: 233 51% 41%;
     --radius: 0.75rem;
+
+    /* Status palette for data display. Deliberately fixed rather than themed:
+       a colour that means "expired" has to mean it in both light and dark, and
+       these four are held apart from the indigo primary so a status can never
+       be mistaken for a series. Warning and serious fall below 3:1 on a white
+       surface by design — every use pairs the colour with an icon and a written
+       label, so meaning never rests on colour alone. */
+    --status-critical: #d03b3b;
+    --status-serious: #ec835a;
+    --status-warning: #fab219;
+    --status-good: #0ca30c;
   }
 
   /* Dark theme — near-black neutral ground, primary lifted for contrast. */
