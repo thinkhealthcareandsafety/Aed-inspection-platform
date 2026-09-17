@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Download, Loader2, Mail, RotateCcw, XCircle, AlertTriangle } from 'lucide-react';
+import {
+  CheckCircle2, Download, Loader2, Mail, RotateCcw, XCircle, AlertTriangle, ChevronDown,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
-import { ChecklistItemCard } from '@/components/inspection/ChecklistItemCard';
+import { ActiveCheck, CheckRow } from '@/components/inspection/ActiveCheck';
 import { ContactForm, type ContactFormData } from '@/components/public/ContactForm';
 import { ModelSelect } from '@/components/public/ModelSelect';
 import { StepIndicator } from '@/components/public/StepIndicator';
@@ -91,6 +93,9 @@ export default function PublicInspectionPage() {
   /** 'checking' is a single frame reading localStorage; it exists so a stored
    *  inspection doesn't flash the empty contact form before restoring. */
   const [resume, setResume] = useState<'checking' | 'restoring' | 'done'>('checking');
+  /** The one check currently expanded. Null once everything is resolved. */
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [showOptional, setShowOptional] = useState(false);
 
   useEffect(() => {
     track('landing_view');
@@ -170,6 +175,71 @@ export default function PublicInspectionPage() {
   const allRequiredResolved = requiredResolvedCount === REQUIRED_ITEM_IDS.length;
   const progressPct = Math.round((requiredResolvedCount / REQUIRED_ITEM_IDS.length) * 100);
   const isComplete = inspection?.inspectionStatus === 'complete';
+
+  const ALL_ITEMS = useMemo(() => CHECKLIST_SECTIONS.flatMap((s) => s.items), []);
+
+  /** Open the first outstanding REQUIRED check as soon as there's an
+   *  inspection to work on — including after a refresh, which lands mid-list.
+   *  Never auto-opens an optional extra: with the required set finished, the
+   *  thing to put in front of someone is the finish button. */
+  const firstOutstandingRequired = useMemo(() => {
+    if (!inspection) return undefined;
+    const outstanding = (id: string) => {
+      const st = inspection.checklist.find((c) => c.itemId === id)?.status;
+      return st === 'pending' || st === 'error';
+    };
+    return CHECKLIST_SECTIONS.flatMap((s) => s.items)
+      .filter((i) => i.required)
+      .find((i) => outstanding(i.id))?.id;
+  }, [inspection]);
+
+  const [openedOnce, setOpenedOnce] = useState(false);
+  useEffect(() => {
+    if (!inspection || openedOnce) return;
+    setOpenedOnce(true);
+    setActiveId(firstOutstandingRequired ?? null);
+  }, [inspection, openedOnce, firstOutstandingRequired]);
+
+  /** Sorting each check into done / to-do / optional is what lets exactly one
+   *  of them be on screen expanded while the rest stay one line each. */
+  const groups = useMemo(() => {
+    if (!inspection) return { done: [], todo: [], optional: [] };
+    const statusOf = (id: string) => inspection.checklist.find((c) => c.itemId === id)?.status;
+    const outstanding = (id: string) => {
+      const s = statusOf(id);
+      return s === 'pending' || s === 'error' || s === 'analyzing';
+    };
+    return {
+      done: ALL_ITEMS.filter((i) => i.id !== activeId && !outstanding(i.id)),
+      todo: ALL_ITEMS.filter((i) => i.id !== activeId && i.required && outstanding(i.id)),
+      optional: ALL_ITEMS.filter((i) => i.id !== activeId && !i.required && outstanding(i.id)),
+    };
+  }, [inspection, activeId, ALL_ITEMS]);
+
+  /** Required checks the AI marked as faults. Worth interrupting for: most
+   *  are a thirty-second fix (reseat a connector, close a lid) and fixing one
+   *  before finishing turns a FAIL report into a PASS — which is the actual
+   *  point of inspecting an AED. */
+  const failedRequired = useMemo(() => {
+    if (!inspection) return [];
+    return ALL_ITEMS.filter(
+      (i) =>
+        i.required &&
+        inspection.checklist.find((c) => c.itemId === i.id)?.status === 'fail',
+    );
+  }, [inspection, ALL_ITEMS]);
+
+  const activeItem = ALL_ITEMS.find((i) => i.id === activeId);
+  const activeResult = inspection?.checklist.find((c) => c.itemId === activeId);
+
+  /** "Check 3 of 6" counts required checks only — the optional extras are a
+   *  bonus, and numbering them into the total makes the job look longer. */
+  const activePosition = useMemo(() => {
+    if (!activeItem?.required) return undefined;
+    const required = ALL_ITEMS.filter((i) => i.required);
+    const index = required.findIndex((i) => i.id === activeItem.id);
+    return index < 0 ? undefined : { index: index + 1, total: required.length };
+  }, [activeItem, ALL_ITEMS]);
 
   useEffect(() => {
     if (allRequiredResolved && inspection) {
@@ -263,8 +333,40 @@ export default function PublicInspectionPage() {
     }
   }, [inspection]);
 
+  /**
+   * Move to the next outstanding check once one is finished. Required checks
+   * come first and in order; optional extras only once the required set is
+   * clear. The pause between "done" and "what now" is where people put the
+   * phone down, so this closes it.
+   */
+  const handleAdvance = useCallback(
+    (doneId: string) => {
+      const current = inspectionRef.current;
+      const outstanding = (id: string) => {
+        const s = current?.checklist.find((c) => c.itemId === id)?.status;
+        return s === 'pending' || s === 'error';
+      };
+      // Only ever auto-advance within the required set. Once those are done
+      // the next thing to offer is the finish button, not a fourth optional
+      // extra — pushing someone into bonus work right after they've earned
+      // the report is how a three-minute job starts feeling like ten.
+      const next =
+        ALL_ITEMS.map((i) => i.id)
+          .filter((id) => id !== doneId)
+          .find((id) => REQUIRED_ITEM_IDS.includes(id) && outstanding(id)) ?? null;
+      setActiveId(next);
+      if (next && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [ALL_ITEMS],
+  );
+
   const handleReset = useCallback(() => {
     forgetInspection();
+    setActiveId(null);
+    setOpenedOnce(false);
+    setShowOptional(false);
     setStep('contact');
     setContact(null);
     setInspection(null);
@@ -283,12 +385,14 @@ export default function PublicInspectionPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="px-5 pt-5 pb-4 flex items-center gap-2.5">
+      {/* Chrome shares the content column's gutters, so on a wide screen the
+          wordmark sits over the content instead of drifting to the far edge. */}
+      <header className="max-w-3xl w-full mx-auto px-4 md:px-8 pt-5 pb-4 flex items-center gap-2.5">
         <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
         <span className="text-headline text-foreground">AED Inspect</span>
       </header>
 
-      <div className="px-5 pb-6">
+      <div className="max-w-3xl w-full mx-auto px-4 md:px-8 pb-6">
         <StepIndicator current={stepIndex} />
       </div>
 
@@ -322,20 +426,19 @@ export default function PublicInspectionPage() {
           <>
             <div className="px-1">
               <h1 className="text-title text-foreground">{inspection.aedModel}</h1>
-              <p className="text-body text-muted-foreground mt-1.5">
-                Ten checks across three sections. Capture each one — the AI reads it instantly.
-              </p>
-            </div>
-
-            {/* Progress */}
-            <div className="px-1">
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="text-callout text-muted-foreground">Required items</span>
-                <span className="text-callout font-mono text-foreground">
+              <div className="flex items-baseline justify-between gap-3 mt-3">
+                <span className="text-callout text-muted-foreground">
+                  {allRequiredResolved
+                    ? 'All required checks done'
+                    : `${REQUIRED_ITEM_IDS.length - requiredResolvedCount} required ${
+                        REQUIRED_ITEM_IDS.length - requiredResolvedCount === 1 ? 'check' : 'checks'
+                      } to go`}
+                </span>
+                <span className="text-callout font-mono tabular-nums text-foreground shrink-0">
                   {requiredResolvedCount}/{REQUIRED_ITEM_IDS.length}
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-border overflow-hidden">
+              <div className="h-1.5 rounded-full bg-border overflow-hidden mt-2">
                 <motion.div
                   className="h-full bg-foreground rounded-full"
                   initial={{ width: 0 }}
@@ -407,53 +510,142 @@ export default function PublicInspectionPage() {
               )}
             </AnimatePresence>
 
-            {/* Sections */}
-            {CHECKLIST_SECTIONS.map((section) => (
-              <div key={section.section}>
-                <div className="group-label">{section.title}</div>
+            {/* The one check being done right now. */}
+            {!isComplete && activeItem && activeResult && (
+              <ActiveCheck
+                key={activeItem.id}
+                item={activeItem}
+                result={activeResult}
+                position={activePosition}
+                inspectionId={inspection.inspectionId}
+                aedModel={inspection.aedModel}
+                onChange={handleItemChange}
+                onDone={handleAdvance}
+                uploadFn={api.public.checklist.upload}
+                skipFn={api.public.checklist.skip}
+              />
+            )}
+
+            {/* Everything else stays one line each — the whole job remains
+                visible without putting ten camera buttons on one screen. */}
+            {groups.todo.length > 0 && (
+              <section>
+                <div className="group-label">Still to do</div>
                 <div className="surface-group">
-                  {section.items.map((item) => {
+                  {groups.todo.map((item) => {
                     const result = inspection.checklist.find((c) => c.itemId === item.id);
                     if (!result) return null;
                     return (
-                      <ChecklistItemCard
-                        key={item.id}
-                        item={item}
-                        result={result}
-                        inspectionId={inspection.inspectionId}
-                        onChange={handleItemChange}
-                        uploadFn={api.public.checklist.upload}
-                        skipFn={api.public.checklist.skip}
-                        aedModel={inspection.aedModel}
-                        isNext={item.id === nextItemId}
-                      />
+                      <CheckRow key={item.id} item={item} result={result} onSelect={() => setActiveId(item.id)} />
                     );
                   })}
                 </div>
-              </div>
-            ))}
-
-            {!isComplete && (
-              <button
-                onClick={handleComplete}
-                disabled={completing}
-                className={cn(
-                  'pressable flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline transition-colors disabled:opacity-50',
-                  allRequiredResolved
-                    ? 'bg-primary hover:bg-primary/92 text-primary-foreground'
-                    : 'bg-secondary hover:bg-secondary/80 text-muted-foreground',
-                )}
-              >
-                {completing && <Loader2 className="w-4 h-4 animate-spin" />}
-                {completing
-                  ? 'Finishing…'
-                  : allRequiredResolved
-                    ? 'Finish & email report'
-                    : `${REQUIRED_ITEM_IDS.length - requiredResolvedCount} required ${
-                        REQUIRED_ITEM_IDS.length - requiredResolvedCount === 1 ? 'item' : 'items'
-                      } left`}
-              </button>
+              </section>
             )}
+
+            {groups.done.length > 0 && (
+              <section>
+                <div className="group-label">Done ({groups.done.length})</div>
+                <div className="surface-group">
+                  {groups.done.map((item) => {
+                    const result = inspection.checklist.find((c) => c.itemId === item.id);
+                    if (!result) return null;
+                    return (
+                      <CheckRow key={item.id} item={item} result={result} onSelect={() => setActiveId(item.id)} />
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Folded away by default: four optional extras on screen make a
+                six-check job look like a ten-check one. */}
+            {groups.optional.length > 0 && !isComplete && (
+              <section>
+                <button
+                  type="button"
+                  onClick={() => setShowOptional((v) => !v)}
+                  className="group-label flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  aria-expanded={showOptional}
+                >
+                  Optional extras ({groups.optional.length})
+                  <ChevronDown
+                    className={cn('w-3.5 h-3.5 transition-transform', showOptional && 'rotate-180')}
+                    strokeWidth={2.2}
+                  />
+                </button>
+                {showOptional && (
+                  <div className="surface-group fade-in">
+                    {groups.optional.map((item) => {
+                      const result = inspection.checklist.find((c) => c.itemId === item.id);
+                      if (!result) return null;
+                      return (
+                        <CheckRow key={item.id} item={item} result={result} onSelect={() => setActiveId(item.id)} />
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {!isComplete && allRequiredResolved && failedRequired.length > 0 && (
+              <div className="surface-group p-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle
+                    className="w-4 h-4 mt-0.5 shrink-0"
+                    strokeWidth={2.1}
+                    style={{ color: 'var(--status-serious)' }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-headline text-foreground">
+                      {failedRequired.length === 1
+                        ? '1 check needs attention'
+                        : `${failedRequired.length} checks need attention`}
+                    </p>
+                    <p className="text-footnote text-muted-foreground mt-1">
+                      Most of these take under a minute to put right. Fix it, retake the photo, and
+                      your report comes out as a pass.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {failedRequired.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveId(item.id);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="pressable h-9 px-3 rounded-xl bg-secondary hover:bg-secondary/80 text-callout text-foreground transition-colors"
+                    >
+                      Fix {item.title.toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* The finish button is earned, not decoration: a dead grey bar
+                repeating the count already in the header sat at the bottom of
+                the screen for the whole inspection. It now arrives, with
+                motion, at the moment it can actually be pressed. */}
+            <AnimatePresence>
+              {!isComplete && allRequiredResolved && (
+                <motion.button
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={springSnappy}
+                  onClick={handleComplete}
+                  disabled={completing}
+                  className="pressable flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline bg-primary hover:bg-primary/92 text-primary-foreground transition-colors disabled:opacity-50"
+                >
+                  {completing && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {completing ? 'Finishing…' : 'Finish & email my report'}
+                </motion.button>
+              )}
+            </AnimatePresence>
           </>
         )}
       </div>

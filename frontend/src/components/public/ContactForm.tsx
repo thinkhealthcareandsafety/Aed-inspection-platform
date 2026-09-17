@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Loader2, ShieldCheck, Sparkles, Clock, FileCheck2, IndianRupee } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
@@ -52,18 +52,39 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
       {...screenTransition}
       className="w-full max-w-sm mx-auto"
     >
-      <div className="mb-7 px-1">
-        <p className="text-caption uppercase text-muted-foreground mb-2.5" style={{ letterSpacing: '0.08em' }}>
-          Automated AI inspection
+      <div className="mb-6 px-1">
+        <p
+          className="inline-flex items-center gap-1.5 text-caption uppercase text-muted-foreground mb-2.5"
+          style={{ letterSpacing: '0.08em' }}
+        >
+          <Sparkles className="w-3 h-3" strokeWidth={2.2} />
+          AI-checked in real time
         </p>
         <h1 className="text-display text-foreground">
-          Let&apos;s verify<br />your AED.
+          Is your AED<br />ready to save<br />a life?
         </h1>
         <p className="text-body text-muted-foreground mt-3">
-          Point your camera at each part — AI checks it instantly. A signed report lands in your inbox the moment
-          you finish.
+          Photograph six things on your defibrillator. Our AI reads every label and tells you
+          instantly whether the device would work in an emergency.
         </p>
       </div>
+
+      {/* Three facts that answer what a stranger is actually asking before
+          they type their mobile number in: what does it cost, how long will
+          it take, and what do I walk away with. */}
+      <ul className="grid grid-cols-3 gap-2 mb-6 px-1">
+        {[
+          { icon: IndianRupee, label: 'Free', sub: 'No charge' },
+          { icon: Clock, label: '3 min', sub: 'Six photos' },
+          { icon: FileCheck2, label: 'PDF report', sub: 'Emailed' },
+        ].map((f) => (
+          <li key={f.label} className="surface-group px-3 py-3 text-center">
+            <f.icon className="w-4 h-4 mx-auto text-muted-foreground" strokeWidth={1.9} />
+            <p className="text-callout text-foreground mt-1.5 leading-none">{f.label}</p>
+            <p className="text-caption text-muted-foreground mt-1">{f.sub}</p>
+          </li>
+        ))}
+      </ul>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="surface-group">
@@ -113,7 +134,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
         )}
 
         <p className="text-footnote text-muted-foreground mt-2.5 px-1">
-          Your signed report is sent to this email address.
+          We use your details only to send this report. No marketing lists, no sharing.
         </p>
 
         <button
@@ -126,14 +147,18 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
           )}
         >
           {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          Continue
+          Start free inspection
           {!isSubmitting && <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.2} />}
         </button>
       </form>
 
       <div className="flex items-center justify-center gap-1.5 mt-5">
         <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" strokeWidth={1.8} />
-        <span className="text-footnote text-muted-foreground/80">Verified by AI in seconds, reviewed on request</span>
+        {/* Only claims that are actually true — invented social proof is the
+            fastest way to lose a safety professional's trust. */}
+        <span className="text-footnote text-muted-foreground/80">
+          Your photos are never shared or published
+        </span>
       </div>
     </motion.div>
   );

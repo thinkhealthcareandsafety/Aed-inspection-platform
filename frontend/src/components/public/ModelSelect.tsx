@@ -5,6 +5,7 @@ import { ArrowLeft, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
 import { screenTransition } from '@/lib/motion';
+import { AedGlyph } from './AedGlyph';
 
 interface Props {
   selected: string | null;
@@ -19,12 +20,13 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
       {...screenTransition}
       className="w-full max-w-sm mx-auto"
     >
-      <div className="mb-7 px-1">
+      <div className="mb-6 px-1">
         <h1 className="text-display text-foreground">
           Which AED are<br />you inspecting?
         </h1>
         <p className="text-body text-muted-foreground mt-3">
-          We tailor the checks and the reference photos to your exact machine.
+          The checks and the example photos are matched to your exact machine, so you are never
+          shown a part your device doesn&apos;t have.
         </p>
       </div>
 
@@ -44,10 +46,15 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
                 isSelected && 'bg-secondary/60',
               )}
             >
+              <AedGlyph
+                model={model.id}
+                className="w-10 h-10 shrink-0 text-muted-foreground/70"
+              />
               <div className="min-w-0 flex-1">
                 <div className="text-headline text-foreground">
                   {model.brand} {model.name}
                 </div>
+                <div className="text-footnote text-muted-foreground mt-0.5">{model.hint}</div>
               </div>
               {isBusy ? (
                 <Loader2 className="w-[18px] h-[18px] text-muted-foreground animate-spin shrink-0" />
@@ -61,12 +68,17 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
         })}
 
         <div className="surface-row flex items-center gap-3 px-4 py-4 opacity-45">
+          <div className="w-10 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="text-headline text-foreground">Other models</div>
             <div className="text-footnote text-muted-foreground mt-0.5">Coming soon</div>
           </div>
         </div>
       </div>
+
+      <p className="text-caption text-muted-foreground mt-3 px-1">
+        Not sure? The model name is printed on the front of the unit and on the label at the back.
+      </p>
 
       <button
         type="button"
