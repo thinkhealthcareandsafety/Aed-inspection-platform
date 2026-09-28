@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional
 
 # Ordered list of patterns, most-specific first. Full Y-M-D / M-D-Y dates
 # MUST be tried before the bare Y-M / M-Y patterns below, otherwise the
@@ -79,6 +79,38 @@ def parse_expiry_date(text: str) -> Optional[str]:
             continue
 
     return None
+
+
+def parse_all_expiry_dates(text: str) -> List[str]:
+    """Every date in `text`, normalised, in the order they appear.
+
+    Labels carry several dates (manufacture, install-before, use-by), and the
+    transcription now lists all of them. `parse_expiry_date` returns only the
+    first match, which on a Philips battery is the manufacture date — so a
+    cross-check against it vetoed correct readings. Anything comparing against
+    the raw text must consider every date in it.
+    """
+    if not text:
+        return []
+    found: List[tuple] = []
+    claimed: List[range] = []
+    for pattern, fmt in _PATTERNS:
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            span = range(match.start(), match.end())
+            # A span already claimed by a more specific pattern (a full
+            # Y-M-D) must not be re-read by a shorter one (its leading Y-M).
+            if any(span.start < c.stop and c.start < span.stop for c in claimed):
+                continue
+            value = parse_expiry_date(match.group(0))
+            if value:
+                claimed.append(span)
+                found.append((match.start(), value))
+    found.sort(key=lambda item: item[0])
+    seen: List[str] = []
+    for _, value in found:
+        if value not in seen:
+            seen.append(value)
+    return seen
 
 
 def is_expired(date_str: str) -> bool:

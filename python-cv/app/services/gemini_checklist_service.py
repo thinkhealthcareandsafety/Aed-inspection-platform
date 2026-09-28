@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.services.checklist_items import ChecklistItem, get_item
 from app.utils import validators
-from app.utils.date_parser import parse_expiry_date
+from app.utils.date_parser import parse_all_expiry_dates
 
 logger = structlog.get_logger(__name__)
 
@@ -341,9 +341,14 @@ def _apply_deterministic_checks(
             )
         # Keep the deterministic parser's month/day if Gemini normalised to
         # month-only but the raw text had a day — free precision upgrade.
-        if result.expiry_raw_text:
-            deterministic = parse_expiry_date(result.expiry_raw_text)
-            if deterministic and len(deterministic) > len(result.expiry_date):
-                result = result.model_copy(update={"expiry_date": deterministic})
+        # Only ever upgrade to a more precise form of the SAME month. Taking the
+        # first date in the raw text would, on a Philips battery, swap a correct
+        # "2031-11" for the manufacture date "2026-01-13" simply because it has
+        # a day in it.
+        if result.expiry_raw_text and len(result.expiry_date) == 7:
+            for candidate in parse_all_expiry_dates(result.expiry_raw_text):
+                if len(candidate) == 10 and candidate.startswith(result.expiry_date):
+                    result = result.model_copy(update={"expiry_date": candidate})
+                    break
 
     return result

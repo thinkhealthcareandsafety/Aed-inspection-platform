@@ -96,15 +96,17 @@ def expiry_cross_check_agrees(
     if not gemini_normalised or not raw_label_text:
         return True
 
-    from app.utils.date_parser import parse_expiry_date
+    from app.utils.date_parser import parse_all_expiry_dates
 
-    parsed = parse_expiry_date(raw_label_text)
-    if not parsed:
+    # The transcription lists every date on the label (manufacture as well as
+    # expiry), so agreement means the chosen date appears among them — not
+    # that it happens to be the first one written down.
+    parsed_all = parse_all_expiry_dates(raw_label_text)
+    if not parsed_all:
         return True
 
     gemini_ym = _to_year_month(gemini_normalised)
-    parsed_ym = _to_year_month(parsed) or parsed
     if gemini_ym is None:
         return True
 
-    return gemini_ym == parsed_ym
+    return any((_to_year_month(p) or p) == gemini_ym for p in parsed_all)
