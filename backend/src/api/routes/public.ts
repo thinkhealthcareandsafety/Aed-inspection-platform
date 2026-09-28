@@ -113,6 +113,22 @@ router.post('/inspections/:id/checklist/:itemId/skip', async (req: Request, res:
 router.post('/inspections/:id/complete', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const inspection = await loadPublicInspection(req.params.id);
+
+    // Already issued: hand back what was issued. Re-running would re-send the
+    // report email on every call — an unauthenticated way to make this
+    // server mail an address over and over.
+    if (inspection.inspectionStatus === 'complete') {
+      res.json({
+        inspection,
+        email: {
+          sent: Boolean(inspection.emailSentAt),
+          recipients: [inspection.guestEmail, config.REPORT_BCC_EMAIL].filter(Boolean),
+          ...(inspection.emailSentAt ? {} : { reason: 'Already completed' }),
+        },
+      });
+      return;
+    }
+
     const completed = await completeInspection(inspection);
 
     const pdfBuffer = await generateInspectionPdfBuffer(completed.toObject());

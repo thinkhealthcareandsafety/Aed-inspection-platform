@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import { User } from '../../models/User';
 import { config } from '../../config/env';
 import { createError } from '../middleware/error-handler';
@@ -86,8 +87,29 @@ router.post('/register', requireAdminUnlessFirstUser, async (req: Request, res: 
   }
 });
 
+/**
+ * The only thing between the internet and the customer pipeline is a
+ * password, and the general API limit allowed ~500 guesses per 15 minutes.
+ * Only FAILED attempts count, so a genuine user who signs in normally is
+ * never slowed — and twenty wrong tries is well past anyone mistyping.
+ */
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: {
+      message: 'Too many failed sign-in attempts. Please wait 15 minutes and try again.',
+      code: 'TOO_MANY_ATTEMPTS',
+      retryable: false,
+    },
+  },
+});
+
 // POST /api/v1/auth/login
-router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = loginSchema.parse(req.body);
     const user = await User.findOne({ email: body.email, active: true });

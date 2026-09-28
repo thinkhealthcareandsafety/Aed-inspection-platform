@@ -24,6 +24,15 @@ import insightsRouter from './api/routes/insights';
 export function createApp(): Application {
   const app = express();
 
+  // Render terminates the connection at its load balancer, so without this
+  // every request appears to come from the balancer's address. The rate
+  // limiters below key on client IP — they were effectively one shared bucket
+  // for the entire world: ~120 requests per 15 minutes across every user at
+  // once, about fourteen inspections, before everyone was refused.
+  // Exactly one hop, not `true`: trusting every X-Forwarded-For entry would
+  // let a client pick its own IP and walk straight past the limits.
+  app.set('trust proxy', 1);
+
   // ── Security ─────────────────────────────────────────────────────────
   app.use(
     helmet({
@@ -44,6 +53,11 @@ export function createApp(): Application {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 500,
+    // Public inspection traffic and telemetry each have their own limiter,
+    // sized for them. Counting them here as well double-limited the public
+    // flow, so the smaller general budget was the one that actually bit.
+    skip: (req) =>
+      req.originalUrl.startsWith('/api/v1/public') || req.originalUrl.startsWith('/api/v1/events'),
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
@@ -80,7 +94,26 @@ export function createApp(): Application {
   });
 
   // ── Uploaded checklist media (photos/videos captured during inspection) ─
-  app.use('/uploads', express.static(config.UPLOAD_DIR));
+  // The frontend runs on a different origin (inspector.aedsmartx.com) from
+  // this API, and helmet's default Cross-Origin-Resource-Policy of
+  // same-origin made browsers refuse to render every uploaded photo —
+  // net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin, a broken image where the
+  // inspector's own capture should be. These files are unguessable
+  // (two UUIDs in the path), so cross-origin is the right policy here.
+  //
+  // The CSP is defence in depth: were anything other than an image or video
+  // ever to land in this directory, it is served sandboxed with no ability
+  // to run script, rather than as a live page on our domain.
+  app.use(
+    '/uploads',
+    express.static(config.UPLOAD_DIR, {
+      setHeaders(res) {
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      },
+    }),
+  );
 
   // ── API routes ────────────────────────────────────────────────────────
   app.use('/api/v1/public', publicRouter);

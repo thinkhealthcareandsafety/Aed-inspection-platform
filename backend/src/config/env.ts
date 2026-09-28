@@ -17,7 +17,12 @@ const envSchema = z.object({
   BCRYPT_ROUNDS: z.coerce.number().default(12),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(500),
-  PUBLIC_RATE_LIMIT_MAX: z.coerce.number().default(120),
+  // Per client IP per 15 minutes. Sized for shared NAT, which is the normal
+  // case for this product's customers: a corporate facilities team, or a
+  // room on venue Wi-Fi, all present one public address. One inspection is
+  // ~9 requests; at 120 that was about 13 inspections per building per 15
+  // minutes before everyone in it was refused.
+  PUBLIC_RATE_LIMIT_MAX: z.coerce.number().default(600),
 
   // ── Outbound email (inspection report delivery) ────────────────────────
   SMTP_HOST: z.string().optional(),
@@ -33,6 +38,15 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   console.error('❌ Invalid environment variables:', parsed.error.flatten());
+  process.exit(1);
+}
+
+// The default secret above is published in this repository. A production
+// deployment that fell back to it would accept admin tokens forged by anyone
+// who has read the source, so refuse to start instead.
+const PUBLISHED_DEFAULT_SECRET = 'change-me-in-production-use-long-secret-key!!';
+if (parsed.data.NODE_ENV === 'production' && parsed.data.JWT_SECRET === PUBLISHED_DEFAULT_SECRET) {
+  console.error('❌ JWT_SECRET is the published default. Set a unique secret before running in production.');
   process.exit(1);
 }
 

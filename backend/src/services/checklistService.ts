@@ -62,10 +62,71 @@ export function deriveResult(checklist: IChecklistItemResult[]): 'PASS' | 'FAIL'
   return 'REVIEW';
 }
 
+/**
+ * Extensions come from the declared media type through this allow-list,
+ * never from the uploaded filename. The filename is attacker-controlled: an
+ * upload named "x.html" used to be written to disk as .html and served from
+ * our own domain.
+ */
+const EXTENSION_FOR_MIME: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/webm': '.webm',
+  'video/3gpp': '.3gp',
+};
+
+function assertAcceptableMedia(file: Express.Multer.File, expected: 'image' | 'video'): void {
+  const mime = (file.mimetype || '').toLowerCase();
+  // Some Android builds send camera captures with no type, or a generic
+  // octet-stream. Rejecting those would fail a genuine inspection in the
+  // field, so they pass through for the AI to judge — the extension
+  // allow-list above still guarantees they are stored as inert media.
+  if (!mime || mime === 'application/octet-stream') return;
+  // SVG is nominally an image but can carry script.
+  if (mime === 'image/svg+xml') {
+    throw createError('Please upload a photo or a video.', 400, 'UNSUPPORTED_MEDIA');
+  }
+  if (!mime.startsWith('image/') && !mime.startsWith('video/')) {
+    throw createError('Please upload a photo or a video.', 400, 'UNSUPPORTED_MEDIA');
+  }
+  if (!mime.startsWith(`${expected}/`)) {
+    throw createError(
+      expected === 'video'
+        ? 'This check needs a short video, not a photo.'
+        : 'This check needs a photo, not a video.',
+      400,
+      'WRONG_MEDIA_TYPE',
+    );
+  }
+}
+
+/**
+ * A completed inspection is a record that has been issued — emailed, and
+ * possibly handed to an auditor. It must not change afterwards. Before this
+ * guard, anyone holding the inspection id could keep uploading to it, and
+ * the PDF downloaded later would silently differ from the one sent.
+ */
+function assertEditable(inspection: IInspection): void {
+  if (inspection.inspectionStatus === 'complete') {
+    throw createError(
+      'This inspection has been completed and its report issued, so it can no longer be changed. Start a new inspection instead.',
+      409,
+      'INSPECTION_COMPLETE',
+    );
+  }
+}
+
 async function persistUpload(inspectionId: string, itemId: string, file: Express.Multer.File) {
   const dir = path.join(config.UPLOAD_DIR, inspectionId);
   await fs.mkdir(dir, { recursive: true });
-  const ext = path.extname(file.originalname) || (file.mimetype.startsWith('video') ? '.mp4' : '.jpg');
+  const mime = (file.mimetype || '').toLowerCase();
+  const ext = EXTENSION_FOR_MIME[mime] ?? (mime.startsWith('video/') ? '.mp4' : '.jpg');
   const filename = `${itemId}_${randomUUID()}${ext}`;
   await fs.writeFile(path.join(dir, filename), file.buffer);
   return `/uploads/${inspectionId}/${filename}`;
@@ -128,6 +189,9 @@ export async function analyzeChecklistItem(
   const item = getChecklistItem(itemId);
   if (!item) throw createError(`Unknown checklist item '${itemId}'`, 400, 'BAD_ITEM');
 
+  assertEditable(inspection);
+  assertAcceptableMedia(file, item.mediaType);
+
   const entry = inspection.checklist.find((c) => c.itemId === item.id);
   if (!entry) throw createError('Checklist item not initialised on this inspection', 500, 'STATE_ERROR');
 
@@ -175,6 +239,7 @@ export async function skipChecklistItem(inspection: IInspection, itemId: string)
   const item = getChecklistItem(itemId);
   if (!item) throw createError(`Unknown checklist item '${itemId}'`, 400, 'BAD_ITEM');
   if (item.required) throw createError('Required items cannot be skipped', 400, 'ITEM_REQUIRED');
+  assertEditable(inspection);
 
   const entry = inspection.checklist.find((c) => c.itemId === item.id);
   if (!entry) throw createError('Checklist item not initialised on this inspection', 500, 'STATE_ERROR');
@@ -185,6 +250,11 @@ export async function skipChecklistItem(inspection: IInspection, itemId: string)
 }
 
 export async function completeInspection(inspection: IInspection): Promise<IInspection> {
+  // Idempotent: completing twice (a double-tap, a network retry) returns the
+  // record as issued rather than restamping completedAt and duration on a
+  // report that has already gone out.
+  if (inspection.inspectionStatus === 'complete') return inspection;
+
   inspection.inspectionResult = deriveResult(inspection.checklist);
   inspection.inspectionStatus = 'complete';
   inspection.completedAt = new Date();
