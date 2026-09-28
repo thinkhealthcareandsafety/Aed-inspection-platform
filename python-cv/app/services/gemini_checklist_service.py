@@ -32,7 +32,21 @@ logger = structlog.get_logger(__name__)
 # the -lite variant exists at that version; 3.5 is the next full flash
 # tier available.)
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-lite"
-GEMINI_VIDEO_MODEL = "gemini-3.5-flash"
+
+# Video goes through a fallback chain rather than a single model.
+#
+# gemini-3.5-flash was the sole video model and began returning 503 Service
+# Unavailable persistently — measured against production: every video check
+# failed after ~37s while image checks succeeded in ~3s on the lite model.
+# Retrying one unhealthy model three times just burned the whole timeout
+# budget and surfaced as "the AI service is busy", which read like a Google
+# outage when a perfectly healthy model was sitting next to it.
+#
+# Order is most-capable-first; each entry is tried in turn on a 5xx, so one
+# model losing capacity degrades quality slightly instead of failing the
+# inspection. Measured on a 20-frame sequence: 3.6 answered in ~6.5s, the
+# lite model in ~5s, while 3.5 and 3.7 were both returning 503s.
+GEMINI_VIDEO_MODELS = ("gemini-3.6-flash", "gemini-3.1-flash-lite")
 
 # Google's own SDK retries internally, but has been observed giving up
 # within a few seconds even on a transient "model experiencing high
@@ -52,6 +66,12 @@ OVERALL_TIMEOUT_SECONDS = 35.0
 # Gemini a chronological image sequence instead, so a brief flash can't be
 # missed just because it landed off-beat from a 1fps sampler.
 MAX_EXTRACTED_FRAMES = 20
+# Long edge for extracted frames. A 1080p capture yields ~1.7MB of JPEG across
+# 20 frames; at 640px that is ~0.13MB — a 13x smaller request for a status LED
+# that is still unmistakable at this size. The payload is round-tripped on
+# every video check, so this is the difference between a 6s answer and a
+# timeout on a field connection.
+FRAME_LONG_EDGE = 640
 
 
 class ChecklistAnalysisResult(BaseModel):
@@ -141,6 +161,15 @@ def _extract_frames(video_bytes: bytes, max_frames: int = MAX_EXTRACTED_FRAMES) 
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ok, frame = cap.read()
             if ok:
+                h, w = frame.shape[:2]
+                longest = max(h, w)
+                if longest > FRAME_LONG_EDGE:
+                    scale = FRAME_LONG_EDGE / longest
+                    frame = cv2.resize(
+                        frame,
+                        (max(1, int(w * scale)), max(1, int(h * scale))),
+                        interpolation=cv2.INTER_AREA,
+                    )
                 encoded, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
                 if encoded:
                     frames.append(buf.tobytes())
@@ -174,16 +203,16 @@ async def analyze_checklist_item(
         logger.info("checklist.frames_extracted", item_id=item_id, count=len(frames))
         contents = [types.Part.from_bytes(data=f, mime_type="image/jpeg") for f in frames]
         contents.append(_build_prompt(item, frame_count=len(frames)))
-        model = GEMINI_VIDEO_MODEL
+        models = list(GEMINI_VIDEO_MODELS)
     else:
         mime_type = _mime_type_for(item, content_type)
         contents = [
             types.Part.from_bytes(data=media_bytes, mime_type=mime_type),
             _build_prompt(item),
         ]
-        model = GEMINI_VIDEO_MODEL if item.media_type == "video" else GEMINI_IMAGE_MODEL
+        models = list(GEMINI_VIDEO_MODELS) if item.media_type == "video" else [GEMINI_IMAGE_MODEL]
 
-    async def _call_once():
+    async def _call_once(model: str):
         return await client.aio.models.generate_content(
             model=model,
             contents=contents,
@@ -195,21 +224,40 @@ async def analyze_checklist_item(
         )
 
     async def _call_with_retry():
+        """Retry a model briefly, then move down the chain.
+
+        A 503 means that model has no capacity right now; hammering it is
+        pointless while a healthy sibling exists. Retries stay short so the
+        whole chain still fits inside OVERALL_TIMEOUT_SECONDS.
+        """
         last_error: Optional[errors.ServerError] = None
-        for attempt in range(MAX_ATTEMPTS):
-            try:
-                return await _call_once()
-            except errors.ServerError as exc:
-                last_error = exc
-                logger.warning(
-                    "checklist.gemini_server_error_retrying",
-                    item_id=item_id,
-                    attempt=attempt + 1,
-                    max_attempts=MAX_ATTEMPTS,
-                    error=str(exc),
-                )
-                if attempt < MAX_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_BACKOFF_SECONDS[attempt])
+        # With a chain, spend fewer attempts per model: moving to a healthy
+        # model beats a third try on one that just told us it has no capacity,
+        # and the whole walk has to finish inside the overall timeout.
+        attempts_per_model = MAX_ATTEMPTS if len(models) == 1 else 2
+        for model_index, model in enumerate(models):
+            for attempt in range(attempts_per_model):
+                try:
+                    if model_index > 0 or attempt > 0:
+                        logger.info(
+                            "checklist.gemini_attempt",
+                            item_id=item_id,
+                            model=model,
+                            attempt=attempt + 1,
+                        )
+                    return await _call_once(model)
+                except errors.ServerError as exc:
+                    last_error = exc
+                    logger.warning(
+                        "checklist.gemini_server_error",
+                        item_id=item_id,
+                        model=model,
+                        attempt=attempt + 1,
+                        remaining_models=len(models) - model_index - 1,
+                        error=str(exc),
+                    )
+                    if attempt < attempts_per_model - 1:
+                        await asyncio.sleep(RETRY_BACKOFF_SECONDS[attempt])
         raise last_error  # type: ignore[misc]
 
     try:

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { User } from '../../models/User';
 import { config } from '../../config/env';
 import { createError } from '../middleware/error-handler';
+import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
@@ -26,8 +27,45 @@ function signToken(userId: string, email: string, role: string): string {
   });
 }
 
-// POST /api/v1/auth/register
-router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * Staff accounts may only be created by an existing admin.
+ *
+ * This route used to be open to the internet while accepting role:'admin',
+ * which meant anyone who found the API hostname — and it is discoverable from
+ * the public JS bundle — could mint themselves an admin and read the whole
+ * customer pipeline: names, mobile numbers, emails, AED expiry dates.
+ *
+ * The one exception is a database with no users in it at all. Without that
+ * bootstrap there is no way to create the first admin on a fresh deployment
+ * short of editing the database by hand.
+ */
+async function requireAdminUnlessFirstUser(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userCount = await User.estimatedDocumentCount();
+    if (userCount === 0) {
+      next();
+      return;
+    }
+    authMiddleware(req, res, () => {
+      if (req.user?.role !== 'admin') {
+        res.status(403).json({
+          error: { message: 'Only an admin can create staff accounts', code: 'FORBIDDEN' },
+        });
+        return;
+      }
+      next();
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/v1/auth/register — admin only (see above)
+router.post('/register', requireAdminUnlessFirstUser, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = registerSchema.parse(req.body);
     const exists = await User.findOne({ email: body.email });
@@ -69,7 +107,6 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 });
 
 // GET /api/v1/auth/me
-import { authMiddleware } from '../middleware/auth';
 router.get('/me', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await User.findById(req.user!.userId).select('-passwordHash');

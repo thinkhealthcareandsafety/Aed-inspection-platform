@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
 import { logger } from '../../utils/logger';
 
 export interface AppError extends Error {
@@ -15,6 +16,22 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ): void {
+  // A request that failed validation is the caller's mistake, not ours. It
+  // was being reported as a 500 with the raw Zod error array as the message,
+  // which both misled clients into retrying and leaked the schema's shape.
+  if (err instanceof ZodError) {
+    const first = err.issues[0];
+    const field = first?.path.join('.');
+    res.status(400).json({
+      error: {
+        message: field ? `${field}: ${first.message}` : (first?.message ?? 'Invalid request'),
+        code: 'VALIDATION_ERROR',
+        retryable: false,
+      },
+    });
+    return;
+  }
+
   const statusCode = err.statusCode ?? 500;
   const message = err.message ?? 'Internal Server Error';
 
