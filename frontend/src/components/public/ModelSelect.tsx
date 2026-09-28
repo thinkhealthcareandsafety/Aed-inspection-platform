@@ -54,7 +54,9 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
                 <div className="text-headline text-foreground">
                   {model.brand} {model.name}
                 </div>
-                <div className="text-footnote text-muted-foreground mt-0.5">{model.hint}</div>
+                <div className="text-footnote text-muted-foreground mt-0.5">
+                  {isBusy ? 'Setting up your checklist…' : model.hint}
+                </div>
               </div>
               {isBusy ? (
                 <Loader2 className="w-[18px] h-[18px] text-muted-foreground animate-spin shrink-0" />

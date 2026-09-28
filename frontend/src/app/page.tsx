@@ -18,6 +18,8 @@ import { BrandFooter } from '@/components/public/BrandFooter';
 import { PulseLogo } from '@/components/icons';
 import { springSnappy, springSoft } from '@/lib/motion';
 import { track, installTrackingFlush } from '@/lib/track';
+import { usePending } from '@/lib/use-pending';
+import { useElapsed } from '@/lib/use-elapsed';
 import type { ChecklistItemResult, Inspection, InspectionResult } from '@/types';
 
 type Step = 'contact' | 'model' | 'inspecting';
@@ -87,6 +89,11 @@ export default function PublicInspectionPage() {
   const [step, setStep] = useState<Step>('contact');
   const [contact, setContact] = useState<ContactFormData | null>(null);
   const [starting, setStarting] = useState(false);
+  /** Which model row was tapped, so that row — not every row — shows the
+   *  spinner. It was hard-wired to null, so a tap only faded the whole list
+   *  and gave no sign of which choice had registered. */
+  const [pendingModel, setPendingModel] = useState<string | null>(null);
+  const [downloadingPdf, runPdfDownload] = usePending();
   const [inspection, setInspection] = useState<Inspection | null>(null);
   const [completing, setCompleting] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; recipients: string[] } | null>(null);
@@ -260,6 +267,7 @@ export default function PublicInspectionPage() {
     async (aedModel: string) => {
       if (!contact || starting) return;
       setStarting(true);
+      setPendingModel(aedModel);
       track('model_selected', { aedModel });
       try {
         const res = await api.public.createInspection({ ...contact, aedModel });
@@ -271,6 +279,7 @@ export default function PublicInspectionPage() {
         toast.error('Could not start inspection. Please try again.');
       } finally {
         setStarting(false);
+        setPendingModel(null);
       }
     },
     [contact, starting],
@@ -377,6 +386,17 @@ export default function PublicInspectionPage() {
 
   /** After a refresh the live send-result is gone, but the inspection records
    *  whether the report was emailed — enough to keep the confirmation true. */
+  // Finishing saves the result, renders the PDF with its photos, and sends it:
+  // a few seconds, so the button says which of those it is on rather than
+  // sitting on one word.
+  const finishingElapsed = useElapsed(completing);
+  const finishingLabel =
+    finishingElapsed < 1200
+      ? 'Saving your inspection…'
+      : finishingElapsed < 4000
+        ? 'Building your PDF report…'
+        : 'Sending your report…';
+
   const emailSummary =
     emailStatus ??
     (inspection?.emailSentAt && inspection.guestEmail
@@ -414,7 +434,7 @@ export default function PublicInspectionPage() {
           {resume === 'done' && step === 'model' && (
             <ModelSelect
               key="model"
-              selected={null}
+              selected={pendingModel}
               starting={starting}
               onSelect={handleSelectModel}
               onBack={() => setStep('contact')}
@@ -486,17 +506,22 @@ export default function PublicInspectionPage() {
 
                   <div className="w-full flex flex-col gap-2.5 mt-7">
                     <button
+                      disabled={downloadingPdf}
                       onClick={() => {
                         track('report_downloaded', {
                           inspectionId: inspection.inspectionId,
                           aedModel: inspection.aedModel,
                         });
-                        void api.public.downloadPdf(inspection.inspectionId);
+                        void runPdfDownload(() => api.public.downloadPdf(inspection.inspectionId));
                       }}
-                      className="pressable w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground text-callout font-medium hover:bg-primary/92 transition-colors"
+                      className="pressable w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground text-callout font-medium hover:bg-primary/92 transition-colors disabled:opacity-70"
                     >
-                      <Download className="w-4 h-4" strokeWidth={2} />
-                      Download PDF report
+                      {downloadingPdf ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" strokeWidth={2} />
+                      )}
+                      {downloadingPdf ? 'Preparing your PDF…' : 'Download PDF report'}
                     </button>
                     <button
                       onClick={handleReset}
@@ -642,7 +667,7 @@ export default function PublicInspectionPage() {
                   className="pressable flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline bg-primary hover:bg-primary/92 text-primary-foreground transition-colors disabled:opacity-50"
                 >
                   {completing && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {completing ? 'Finishing…' : 'Finish & email my report'}
+                  {completing ? finishingLabel : 'Finish & email my report'}
                 </motion.button>
               )}
             </AnimatePresence>

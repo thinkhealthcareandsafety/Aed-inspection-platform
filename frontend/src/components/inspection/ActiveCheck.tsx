@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { Camera, Video, Loader2, RotateCcw, SkipForward, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
@@ -10,6 +10,7 @@ import { compressImage } from '@/lib/compress-image';
 import { springSnappy } from '@/lib/motion';
 import { ChecklistIcon } from '@/components/icons';
 import { ReferenceStrip } from './ReferenceStrip';
+import { AnalysisProgress, type AnalysisPhase } from './AnalysisProgress';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
 
@@ -79,9 +80,23 @@ export function ActiveCheck({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [skipping, setSkipping] = useState(false);
+  const [phase, setPhase] = useState<AnalysisPhase>('preparing');
+  const [uploadFraction, setUploadFraction] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string>();
+  const [retryNote, setRetryNote] = useState<string>();
 
-  const isBusy = busy || result.status === 'analyzing';
+  // Only THIS tab's own in-flight upload makes the card busy. A status of
+  // 'analyzing' read back from the server can be stale — a tab closed
+  // mid-upload leaves it behind — and treating that as busy used to lock the
+  // check with a disabled button and no way to retake.
+  const isBusy = busy;
   const isResolved = result.status === 'pass' || result.status === 'fail';
+
+  // Object URLs hold the capture in memory until released.
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -90,20 +105,51 @@ export function ActiveCheck({
 
     const upload = uploadFn ?? api.checklist.upload;
     setBusy(true);
+    setRetryNote(undefined);
+    setUploadFraction(0);
+    setPhase('preparing');
+    try {
+      setPreviewUrl(URL.createObjectURL(file));
+    } catch {
+      setPreviewUrl(undefined);
+    }
     onChange({ ...result, status: 'analyzing' });
+
+    // Real progress while bytes are moving; once they've all landed, the wait
+    // that remains is the server's, so the loader moves on to say so.
+    const onProgress = (fraction: number) => {
+      setUploadFraction(fraction);
+      if (fraction >= 1) setPhase('analyzing');
+    };
+
+    // Should a browser never report upload progress, don't sit on
+    // "Uploading… 0%" for the whole wait — move on to the analysis stages.
+    let sawProgress = false;
+    const trackedProgress = (fraction: number) => {
+      sawProgress = true;
+      onProgress(fraction);
+    };
+    const fallback = setTimeout(() => {
+      if (!sawProgress) setPhase('analyzing');
+    }, 2500);
 
     try {
       const prepared = await compressImage(file);
+      setPhase('uploading');
 
       let res;
       try {
-        res = await upload(inspectionId, item.id, prepared, prepared.name);
+        res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
       } catch (err) {
         const { retryable } = extractApiError(err);
         if (!retryable) throw err;
+        setRetryNote('The AI service is busy — trying again…');
         onChange({ ...result, status: 'analyzing', notes: 'AI service is busy — retrying…' });
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        res = await upload(inspectionId, item.id, prepared, prepared.name);
+        setRetryNote(undefined);
+        setUploadFraction(0);
+        setPhase('uploading');
+        res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
       }
 
       onChange(res.data.item);
@@ -115,15 +161,22 @@ export function ActiveCheck({
       onChange({
         ...result,
         status: 'error',
-        notes: message || 'Could not upload this photo — check your connection and try again.',
+        notes:
+          message ||
+          `Could not upload this ${item.mediaType === 'video' ? 'video' : 'photo'} — check your connection and try again.`,
       });
     } finally {
+      clearTimeout(fallback);
       setBusy(false);
+      setRetryNote(undefined);
+      setPreviewUrl(undefined);
     }
   }
 
+  // Skipping has its own flag: it is a quick save, not an analysis, and must
+  // not bring up the "reading your photo" loader.
   async function handleSkip() {
-    setBusy(true);
+    setSkipping(true);
     try {
       const res = await (skipFn ?? api.checklist.skip)(inspectionId, item.id);
       onChange(res.data.item);
@@ -131,7 +184,7 @@ export function ActiveCheck({
     } catch {
       // toast handled globally by the api client
     } finally {
-      setBusy(false);
+      setSkipping(false);
     }
   }
 
@@ -157,10 +210,23 @@ export function ActiveCheck({
       <h2 className="text-title text-foreground mt-2.5">{item.title}</h2>
       <p className="text-body text-muted-foreground mt-1.5">{item.description}</p>
 
-      <ReferenceStrip itemId={item.id} aedModel={aedModel} className="mt-4" />
+      {/* While analysing, the example photo gives way to the person's own
+          capture: the loader shows what is being looked at, not what to aim at. */}
+      {isBusy ? (
+        <AnalysisProgress
+          itemId={item.id}
+          mediaType={item.mediaType}
+          phase={phase}
+          uploadFraction={uploadFraction}
+          previewUrl={previewUrl}
+          statusNote={retryNote}
+        />
+      ) : (
+        <ReferenceStrip itemId={item.id} aedModel={aedModel} className="mt-4" />
+      )}
 
       {/* The photo just taken, and what came back from it. */}
-      {result.mediaUrl && isResolved && (
+      {result.mediaUrl && isResolved && !isBusy && (
         <div className="mt-4 rounded-xl overflow-hidden bg-secondary">
           {result.mediaType === 'video' ? (
             <video src={`${BASE_URL}${result.mediaUrl}`} controls className="w-full max-h-52 object-contain" />
@@ -171,7 +237,7 @@ export function ActiveCheck({
         </div>
       )}
 
-      {isResolved && (
+      {isResolved && !isBusy && (
         <div
           className={cn(
             'mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5',
@@ -215,51 +281,49 @@ export function ActiveCheck({
         onChange={handleFile}
       />
 
+      {!isBusy && (
       <div className="flex items-center gap-2 mt-4">
         <button
           type="button"
-          disabled={isBusy}
+          disabled={skipping}
           onClick={() => inputRef.current?.click()}
           className={cn(
             'pressable flex-1 flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline transition-colors',
             isResolved
               ? 'bg-secondary hover:bg-secondary/80 text-foreground'
               : 'bg-primary hover:bg-primary/92 text-primary-foreground',
-            isBusy && 'opacity-60 pointer-events-none',
+            skipping && 'opacity-60 pointer-events-none',
           )}
         >
-          {isBusy ? (
-            <Loader2 className="w-[18px] h-[18px] animate-spin" />
-          ) : isResolved ? (
+          {isResolved ? (
             <RotateCcw className="w-[18px] h-[18px]" strokeWidth={2} />
           ) : item.mediaType === 'video' ? (
             <Video className="w-[18px] h-[18px]" strokeWidth={2} />
           ) : (
             <Camera className="w-[18px] h-[18px]" strokeWidth={2} />
           )}
-          {isBusy
-            ? 'Reading the photo…'
-            : isResolved
-              ? 'Retake'
-              : item.mediaType === 'video'
-                ? 'Record the video'
-                : 'Take the photo'}
+          {isResolved ? 'Retake' : item.mediaType === 'video' ? 'Record the video' : 'Take the photo'}
         </button>
 
         {!item.required && !isResolved && (
           <button
             type="button"
-            disabled={isBusy}
+            disabled={skipping}
             onClick={handleSkip}
-            className="pressable flex items-center justify-center gap-1.5 h-[52px] px-4 rounded-2xl bg-secondary/60 hover:bg-secondary text-callout text-muted-foreground hover:text-foreground transition-colors"
+            className="pressable flex items-center justify-center gap-1.5 h-[52px] px-4 rounded-2xl bg-secondary/60 hover:bg-secondary text-callout text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
           >
-            <SkipForward className="w-4 h-4" strokeWidth={2} />
+            {skipping ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <SkipForward className="w-4 h-4" strokeWidth={2} />
+            )}
             Skip
           </button>
         )}
       </div>
+      )}
 
-      {isResolved && (
+      {isResolved && !isBusy && (
         <button
           type="button"
           onClick={() => onDone(item.id)}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Search, Loader2, CalendarClock } from 'lucide-react';
 import { api } from '@/lib/api';
+import { usePending } from '@/lib/use-pending';
 import { URGENCY } from '@/lib/urgency';
 import { PageHeader, StatTile, EmptyState } from '@/components/dashboard/primitives';
 import { PipelineList } from '@/components/dashboard/PipelineList';
@@ -14,6 +15,7 @@ type Filter = ExpiryUrgency | 'all';
 export default function PipelinePage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
+  const [exporting, runExport] = usePending();
 
   const { data, isLoading } = useQuery({
     queryKey: ['pipeline'],
@@ -51,12 +53,16 @@ export default function PipelinePage() {
         actions={
           <button
             type="button"
-            onClick={() => api.insights.downloadPipelineCsv()}
-            disabled={!summary?.total}
+            onClick={() => void runExport(() => api.insights.downloadPipelineCsv())}
+            disabled={!summary?.total || exporting}
             className="pressable inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-secondary hover:bg-secondary/80 text-callout text-foreground transition-colors disabled:opacity-40"
           >
-            <Download className="w-4 h-4" strokeWidth={2} />
-            Export CSV
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" strokeWidth={2} />
+            )}
+            {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
         }
       />

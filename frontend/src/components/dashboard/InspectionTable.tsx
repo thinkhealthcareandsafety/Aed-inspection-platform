@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { Download, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
+import { Download, ChevronLeft, ChevronRight, Search, Filter, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -18,6 +18,21 @@ const RESULT_BADGE: Record<InspectionResult, string> = {
 };
 
 export function InspectionTable() {
+  // One row at a time: a table of download buttons needs to know which one
+  // was tapped, and to ignore a second tap on it while the PDF is fetched.
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  async function downloadPdf(inspectionId: string) {
+    if (downloadingId) return;
+    setDownloadingId(inspectionId);
+    try {
+      await api.reports.downloadPdf(inspectionId);
+    } catch {
+      // surfaced as a toast by the api client
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   const [page, setPage] = useState(1);
   const [resultFilter, setResultFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -142,11 +157,17 @@ export function InspectionTable() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => api.reports.downloadPdf(insp.inspectionId)}
-                        className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors inline-flex"
-                        title="Download PDF"
+                        onClick={() => void downloadPdf(insp.inspectionId)}
+                        disabled={downloadingId === insp.inspectionId}
+                        className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors inline-flex disabled:opacity-70"
+                        title={downloadingId === insp.inspectionId ? 'Preparing PDF…' : 'Download PDF'}
+                        aria-label={downloadingId === insp.inspectionId ? 'Preparing PDF' : 'Download PDF'}
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        {downloadingId === insp.inspectionId ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </td>
                   </motion.tr>

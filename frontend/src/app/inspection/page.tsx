@@ -2,12 +2,13 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, PlayCircle, CheckCircle2, Download, RotateCcw } from 'lucide-react';
+import { ArrowLeft, PlayCircle, CheckCircle2, Download, RotateCcw, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { usePending } from '@/lib/use-pending';
 import { cn } from '@/lib/utils';
 import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
 import { ChecklistItemCard } from '@/components/inspection/ChecklistItemCard';
@@ -25,6 +26,7 @@ export default function InspectionPage() {
   const [inspection, setInspection] = useState<Inspection | null>(null);
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [downloadingPdf, runPdfDownload] = usePending();
 
   const requiredResolvedCount = useMemo(() => {
     if (!inspection) return 0;
@@ -150,11 +152,16 @@ export default function InspectionPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => api.reports.downloadPdf(inspection.inspectionId)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors"
+                      onClick={() => void runPdfDownload(() => api.reports.downloadPdf(inspection.inspectionId))}
+                      disabled={downloadingPdf}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors disabled:opacity-70"
                     >
-                      <Download className="w-3.5 h-3.5" />
-                      PDF
+                      {downloadingPdf ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      {downloadingPdf ? 'Preparing…' : 'PDF'}
                     </button>
                     <button
                       onClick={handleReset}

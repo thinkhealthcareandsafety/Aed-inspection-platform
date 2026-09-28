@@ -48,6 +48,37 @@ apiClient.interceptors.response.use(
   },
 );
 
+/**
+ * How long an upload-and-analyse request may run, scaled to the file.
+ *
+ * A fixed 45s used to cover BOTH sending the file and the AI reading it. A
+ * 10-second phone video is often 20 MB; on a 3 Mbps connection the upload
+ * alone takes most of that, so the request was cut off while it was still
+ * making progress and the video check failed — measured locally at 45.1s.
+ * Production itself holds a slow request fine (a 100s upload returned 200),
+ * so the limit here was the only thing failing it.
+ *
+ * Budget: the analysis, plus the upload at a pessimistic ~1 Mbps. A longer
+ * limit cannot break a request that is working; it only delays the report of
+ * one that has genuinely died.
+ */
+function uploadTimeoutMs(bytes: number): number {
+  const ANALYSIS_MS = 60_000;
+  const SLOW_UPLOAD_BYTES_PER_MS = 128; // ≈ 1 Mbps
+  const MAX_MS = 5 * 60_000;
+  return Math.min(MAX_MS, ANALYSIS_MS + Math.ceil(bytes / SLOW_UPLOAD_BYTES_PER_MS));
+}
+
+/** Adapts axios's upload event to a plain 0-1 fraction. The upload is the one
+ *  stage of an analysis we can actually measure, not estimate — on a stairwell
+ *  connection a 20 MB video spends most of its wait here. */
+function toFraction(onProgress?: (fraction: number) => void) {
+  if (!onProgress) return undefined;
+  return (event: import('axios').AxiosProgressEvent) => {
+    if (event.total) onProgress(Math.min(1, event.loaded / event.total));
+  };
+}
+
 // ── Typed helpers ─────────────────────────────────────────────────────────────
 
 export const api = {
@@ -96,7 +127,13 @@ export const api = {
   },
 
   checklist: {
-    upload: (inspectionId: string, itemId: string, file: File | Blob, filename: string) => {
+    upload: (
+      inspectionId: string,
+      itemId: string,
+      file: File | Blob,
+      filename: string,
+      onProgress?: (fraction: number) => void,
+    ) => {
       const form = new FormData();
       form.append('file', file, filename);
       return apiClient.post<{
@@ -104,7 +141,8 @@ export const api = {
         inspectionResult: import('@/types').InspectionResult;
       }>(`/inspections/${inspectionId}/checklist/${itemId}`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 45_000,
+        timeout: uploadTimeoutMs(file.size),
+        onUploadProgress: toFraction(onProgress),
       });
     },
 
@@ -168,7 +206,13 @@ export const api = {
       }),
 
     checklist: {
-      upload: (inspectionId: string, itemId: string, file: File | Blob, filename: string) => {
+      upload: (
+        inspectionId: string,
+        itemId: string,
+        file: File | Blob,
+        filename: string,
+        onProgress?: (fraction: number) => void,
+      ) => {
         const form = new FormData();
         form.append('file', file, filename);
         return apiClient.post<{
@@ -176,7 +220,8 @@ export const api = {
           inspectionResult: import('@/types').InspectionResult;
         }>(`/public/inspections/${inspectionId}/checklist/${itemId}`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 45_000,
+          timeout: uploadTimeoutMs(file.size),
+          onUploadProgress: toFraction(onProgress),
         });
       },
       skip: (inspectionId: string, itemId: string) =>
