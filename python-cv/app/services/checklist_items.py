@@ -14,11 +14,31 @@ from typing import Literal, Optional
 
 MediaType = Literal["image", "video"]
 
+# Medical consumables carry SEVERAL dates, and picking the wrong one is the
+# most damaging mistake this system can make: reading a manufacture date as an
+# expiry told a customer that a battery built in January 2026 had already
+# died, when it had five years of life left.
+#
+# The rule is semantic, not "take the latest date". For a safety device the
+# unsafe direction is reporting an expiry LATER than the truth — that tells
+# someone a dead battery is fine. So: identify dates by their ISO 15223-1
+# symbols, exclude manufacture outright, and where two genuine expiry-type
+# dates disagree, take the EARLIER one and say so.
+_DATE_SYMBOLS = """Medical device labels print more than one date, each tagged with a standard ISO 15223-1 symbol. Identify them by symbol and wording, never by which number is largest:
+- A FACTORY building icon marks the DATE OF MANUFACTURE. This is NOT an expiry. Never report it as one. Put it in manufacture_date.
+- An HOURGLASS marks the USE BY / EXPIRY date.
+- An ARROW POINTING INTO A BRACKET, or the words 'Install before', mark the INSTALL-BEFORE / shelf-life date. On Philips AED batteries this is the date by which the battery must be replaced, and it is the one to report.
+- Printed words such as 'EXP', 'Use by' or 'Install before' override any symbol.
+
+Set expiry_date to the USE BY / INSTALL BEFORE date. Set manufacture_date to the factory date when one is visible. If two genuine expiry-type dates are present and you cannot tell which governs, report the EARLIER one and explain the ambiguity in notes — never the later one. If the only date you can read is a manufacture date, set expiry_date to null, passed=false, and say the expiry date was not visible.
+
+Copy every date you can see, verbatim and with whatever labels it carries, into expiry_raw_text (for example: 'factory 2026-01-13 / install-before 2031-11-30')."""
+
 _PHILIPS_CONTEXT = (
     "The device being inspected is a Philips HeartStart FRx or HeartStart "
-    "HS1 AED — both bright orange/yellow rugged cases with a green "
-    "flashing status light on the front and a single push-button "
-    "operation. Use this knowledge of Philips FRx/HS1 label placement and "
+    "HS1 AED — a blue-grey rugged plastic body (often carried in an orange "
+    "soft case) with a small flashing green readiness light and a "
+    "single push-button operation. Use this knowledge of Philips FRx/HS1 label placement and "
     "part appearance to read the image accurately, but do not assume a "
     "device is a Philips unit if the image clearly shows otherwise — "
     "flag that in `notes` instead of guessing."
@@ -71,10 +91,10 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         prompt=(
             f"{_PHILIPS_CONTEXT}\n\n"
             "Find the electrode pads label — either on the sealed pads "
-            "cartridge/pouch itself or the pads connector cassette. Read "
-            "the expiry date exactly as printed into expiry_raw_text, and "
-            "also set expiry_date normalised to YYYY-MM or YYYY-MM-DD. "
-            "This is fine print — if unclear, leave both null, set "
+            "cartridge/pouch itself or the pads connector cassette.\n\n"
+            f"{_DATE_SYMBOLS}\n\n"
+            "Normalise expiry_date to YYYY-MM or YYYY-MM-DD. "
+            "This is fine print — if unclear, leave it null, set "
             "passed=false, and explain what to fix in notes."
         ),
     ),
@@ -90,10 +110,10 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
             f"{_PHILIPS_CONTEXT}\n\n"
             "Find the battery label (Philips FRx/HS1 batteries are usually "
             "a black or dark-grey pack, model M5070A or similar, that slides "
-            "into the back/bottom of the unit). Read the expiry date "
-            "exactly as printed into expiry_raw_text, and also set "
-            "expiry_date normalised to YYYY-MM or YYYY-MM-DD. This is fine "
-            "print — if unclear, leave both null, set passed=false, and "
+            "into the back/bottom of the unit).\n\n"
+            f"{_DATE_SYMBOLS}\n\n"
+            "Normalise expiry_date to YYYY-MM or YYYY-MM-DD. This is fine "
+            "print — if unclear, leave it null, set passed=false, and "
             "explain what to fix in notes.\n\n"
             "Also try to read the battery's LOT number and serial number if "
             "visible on the same label — set lot_number and "

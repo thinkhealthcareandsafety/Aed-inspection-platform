@@ -81,6 +81,10 @@ class ChecklistAnalysisResult(BaseModel):
     serial_number: Optional[str] = None
     expiry_date: Optional[str] = None
     expiry_raw_text: Optional[str] = None
+    # Captured so the manufacture date can never be mistaken for the expiry:
+    # a Philips battery label carries both, and reading the wrong one reports
+    # a five-year-old-stock battery as already dead.
+    manufacture_date: Optional[str] = None
     lot_number: Optional[str] = None
     battery_serial_number: Optional[str] = None
     present: Optional[bool] = None
@@ -295,6 +299,30 @@ def _apply_deterministic_checks(
             )
 
     if item.id in ("pads_expiry", "battery_expiry") and result.expiry_date:
+        # A manufacture date reported as the expiry is the worst failure mode
+        # here — it makes fresh stock look years dead, raises a false alarm
+        # with the customer, and puts a bogus entry in the replacement
+        # pipeline. If the model handed back the same date for both, it read
+        # one date and guessed at its meaning; refuse it rather than publish it.
+        if result.manufacture_date and result.manufacture_date == result.expiry_date:
+            logger.warning(
+                "checklist.expiry_equals_manufacture",
+                item=item.id,
+                value=result.expiry_date,
+                raw=result.expiry_raw_text,
+            )
+            return result.model_copy(
+                update={
+                    "passed": False,
+                    "expiry_date": None,
+                    "notes": (
+                        "That date is the manufacture date, not the expiry date. "
+                        "Look for the date marked 'Install before' or with an "
+                        "hourglass symbol and photograph that part of the label."
+                    ),
+                }
+            )
+
         plausible = validators.is_plausible_expiry(result.expiry_date)
         agrees = validators.expiry_cross_check_agrees(result.expiry_date, result.expiry_raw_text)
         if not plausible or not agrees:
