@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import os
 import tempfile
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 import cv2
@@ -22,7 +23,7 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.services.checklist_items import ChecklistItem, get_item
 from app.utils import validators
-from app.utils.date_parser import parse_all_expiry_dates
+from app.utils.date_parser import expiry_last_valid_day, parse_all_expiry_dates
 
 logger = structlog.get_logger(__name__)
 
@@ -120,6 +121,12 @@ def _build_prompt(item: ChecklistItem, frame_count: Optional[int] = None) -> str
         "You are the vision engine for an AED (defibrillator) inspection "
         "checklist app. You receive photo(s) for exactly one checklist "
         "item and must return a single structured verdict.\n\n"
+        # The model has no reliable sense of the current date. Without this it
+        # judged a 2026 expiry as "still valid" in late 2026. The server makes
+        # the final expired/not-expired call regardless; this keeps the notes
+        # it writes consistent with that verdict.
+        f"Today's date is {datetime.now(timezone.utc).date().isoformat()}. "
+        "A date earlier than today is in the past.\n\n"
         f"{sequence_note}"
         f"Checklist item: {item.title}\n"
         f"Task: {item.prompt}\n\n"
@@ -282,7 +289,7 @@ async def analyze_checklist_item(
 
 
 def _apply_deterministic_checks(
-    item: ChecklistItem, result: ChecklistAnalysisResult
+    item: ChecklistItem, result: ChecklistAnalysisResult, *, today: Optional[date] = None
 ) -> ChecklistAnalysisResult:
     """Downgrade an implausible read the same way the old state machine did
     — cheap, deterministic sanity checks independent of Gemini's own
@@ -350,5 +357,31 @@ def _apply_deterministic_checks(
                 if len(candidate) == 10 and candidate.startswith(result.expiry_date):
                     result = result.model_copy(update={"expiry_date": candidate})
                     break
+
+        # The verdict on an expiry is decided here, against the server's own
+        # clock — never by the model. The model has no grounded sense of the
+        # current date: in production it failed pads marked 2024-06 but PASSED
+        # pads marked 2026-03 and 2026-08, both already expired, because to it
+        # 2026 did not yet look like the past. An AED inspection that calls
+        # expired pads "ready" is failing at the single thing it exists to do.
+        reference_day = today or datetime.now(timezone.utc).date()
+        last_valid = expiry_last_valid_day(result.expiry_date)
+        if last_valid is not None and last_valid < reference_day:
+            what = "pads" if item.id == "pads_expiry" else "battery"
+            logger.warning(
+                "checklist.expired_consumable",
+                item=item.id,
+                expiry=result.expiry_date,
+                model_said_passed=result.passed,
+            )
+            return result.model_copy(
+                update={
+                    "passed": False,
+                    "notes": (
+                        f"The {what} expired on {last_valid.strftime('%d %b %Y')}. "
+                        f"Replace the {what} before this AED is relied on in an emergency."
+                    ),
+                }
+            )
 
     return result

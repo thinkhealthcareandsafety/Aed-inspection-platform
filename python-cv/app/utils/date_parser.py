@@ -5,7 +5,7 @@ Handles many date formats found on AED labels worldwide.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 # Ordered list of patterns, most-specific first. Full Y-M-D / M-D-Y dates
@@ -113,17 +113,31 @@ def parse_all_expiry_dates(text: str) -> List[str]:
     return seen
 
 
-def is_expired(date_str: str) -> bool:
-    """Return True if the parsed date is in the past."""
+def expiry_last_valid_day(date_str: Optional[str]) -> Optional[date]:
+    """The last day on which a consumable with this expiry may still be used.
+
+    A label printed 'YYYY-MM' means usable THROUGH that month, so a month-only
+    expiry resolves to the month's final day. The previous implementation used
+    the first day instead, which would have failed pads on 1 September that
+    are legitimately good until the 30th.
+    """
     if not date_str:
-        return False
+        return None
     try:
-        parts = date_str.split("-")
+        parts = date_str.strip().split("-")
         if len(parts) == 2:
             year, month = int(parts[0]), int(parts[1])
-            expiry = date(year, month, 1)
-        else:
-            expiry = date.fromisoformat(date_str)
-        return expiry < date.today()
+            # The day before the first of next month.
+            first_of_next = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+            return first_of_next - timedelta(days=1)
+        return date.fromisoformat(date_str.strip())
     except ValueError:
+        return None
+
+
+def is_expired(date_str: Optional[str], *, today: Optional[date] = None) -> bool:
+    """True once the last valid day of this expiry has passed."""
+    last_day = expiry_last_valid_day(date_str)
+    if last_day is None:
         return False
+    return last_day < (today or date.today())
