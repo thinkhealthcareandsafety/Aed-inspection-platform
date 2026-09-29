@@ -1,8 +1,10 @@
 """Checklist item analysis endpoint — one Gemini call per uploaded photo/video."""
 from __future__ import annotations
 
+from typing import Optional
+
 import structlog
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.services import gemini_checklist_service
 from app.services.checklist_items import CHECKLIST_ITEMS, get_item
@@ -34,7 +36,16 @@ async def list_items():
 
 
 @router.post("/{item_id}/analyze")
-async def analyze_item(item_id: str, file: UploadFile = File(...)):
+async def analyze_item(
+    item_id: str,
+    file: UploadFile = File(...),
+    # Which AED this is ('Philips FRx', 'Philips HS1', 'Zoll AED Plus'), so
+    # the prompt describes the unit actually in the photo. Optional: an older
+    # caller that doesn't send it gets the brand-neutral profile.
+    aed_model: Optional[str] = Form(None),
+    # The inspector's language; 'hi' adds Hindi feedback alongside English.
+    lang: Optional[str] = Form(None),
+):
     item = get_item(item_id)
     if item is None:
         raise HTTPException(status_code=404, detail=f"Unknown checklist item '{item_id}'")
@@ -47,7 +58,7 @@ async def analyze_item(item_id: str, file: UploadFile = File(...)):
 
     try:
         result = await gemini_checklist_service.analyze_checklist_item(
-            item_id, contents, file.content_type
+            item_id, contents, file.content_type, aed_model=aed_model, language=lang
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

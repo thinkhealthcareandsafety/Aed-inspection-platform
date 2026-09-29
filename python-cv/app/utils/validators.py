@@ -25,6 +25,31 @@ _MIN_PLAUSIBLE_YEAR_OFFSET = -5
 _MAX_PLAUSIBLE_YEAR_OFFSET = 20
 
 
+# What the model sometimes copies along with the serial: the GS1 field code
+# "(21)" printed in front of it on barcode labels (a ZOLL AED Plus reads
+# "(21) X14K718292"), or an "SN:" / "S/N" / "Serial No." caption.
+#
+# A caption is only stripped when it is punctuated as one ("SN:", "S/N",
+# "SN "): some serials genuinely begin with the letters SN.
+_SERIAL_PREFIX_RE = re.compile(
+    r"^\s*(?:\(21\)|serial\s*(?:no\.?|number)?\s*[:#]|s\s*/\s*n\s*[:#.]?|sn\s*[:#.]|sn\s+)\s*",
+    re.IGNORECASE,
+)
+
+
+def normalise_serial(serial: Optional[str]) -> Optional[str]:
+    """The serial alone, without a GS1 '(21)' code or an 'SN:' caption."""
+    if serial is None:
+        return None
+    cleaned = serial.strip()
+    for _ in range(2):  # "(21) SN: X14..." is two prefixes deep
+        stripped = _SERIAL_PREFIX_RE.sub("", cleaned, count=1).strip()
+        if stripped == cleaned or not stripped:
+            break
+        cleaned = stripped
+    return cleaned
+
+
 def is_plausible_serial(serial: Optional[str]) -> bool:
     """Reject empty, too-short/long, or non-alphanumeric "serial" reads."""
     if not serial:

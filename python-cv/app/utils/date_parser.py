@@ -81,6 +81,36 @@ def parse_expiry_date(text: str) -> Optional[str]:
     return None
 
 
+# GS1 human-readable element strings, as printed under barcodes on pads boxes
+# and device labels: "(17)221228" is the expiry and "(11)230301" the
+# production date, both YYMMDD. A day of "00" means the end of that month.
+# Unlike a printed date, a GS1 field says unambiguously what it is.
+_GS1_DATE_RE = re.compile(r"\((1[17])\)\s?(\d{2})(\d{2})(\d{2})")
+
+
+def parse_gs1_dates(text: str) -> dict:
+    """{'17': expiry, '11': production} from GS1 text, normalised like the
+    other parsers ('YYYY-MM-DD', or 'YYYY-MM' when the day is '00')."""
+    found: dict = {}
+    if not text:
+        return found
+    for match in _GS1_DATE_RE.finditer(text):
+        field_code, yy, mm, dd = match.groups()
+        month = int(mm)
+        if not 1 <= month <= 12:
+            continue
+        year = 2000 + int(yy)
+        if dd == "00":
+            value = f"{year:04d}-{month:02d}"
+        else:
+            try:
+                value = date(year, month, int(dd)).isoformat()
+            except ValueError:
+                continue
+        found.setdefault(field_code, value)
+    return found
+
+
 def parse_all_expiry_dates(text: str) -> List[str]:
     """Every date in `text`, normalised, in the order they appear.
 
@@ -105,6 +135,11 @@ def parse_all_expiry_dates(text: str) -> List[str]:
             if value:
                 claimed.append(span)
                 found.append((match.start(), value))
+    # GS1 fields have no separators, so the patterns above never see them.
+    for match in _GS1_DATE_RE.finditer(text):
+        gs1 = parse_gs1_dates(match.group(0))
+        for value in gs1.values():
+            found.append((match.start(), value))
     found.sort(key=lambda item: item[0])
     seen: List[str] = []
     for _, value in found:

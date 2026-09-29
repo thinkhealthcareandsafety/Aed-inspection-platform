@@ -1,11 +1,15 @@
 """
 AED Inspection Checklist — item catalogue.
 
-Replaces the old continuous live-video state machine with 10 discrete
-checklist items split into 3 sections. Each item is satisfied by a single
+10 discrete checklist items in 3 sections. Each is satisfied by a single
 uploaded photo (or, for the readiness indicator, a short video) and one
-Gemini call. Scoped specifically to the two devices this app supports:
-Philips HeartStart FRx and HeartStart HS1.
+Gemini call.
+
+The prompts here are the device-NEUTRAL half of each instruction: the task
+and how to judge it. Where things are on a particular unit, and what "ready"
+or "fitted" looks like on it, comes from that unit's profile in
+device_profiles.py. They used to be one Philips-only text, which is how a
+ZOLL came to be judged against a Philips.
 """
 from __future__ import annotations
 
@@ -27,21 +31,20 @@ MediaType = Literal["image", "video"]
 _DATE_SYMBOLS = """Medical device labels print more than one date, each tagged with a standard ISO 15223-1 symbol. Identify them by symbol and wording, never by which number is largest:
 - A FACTORY building icon marks the DATE OF MANUFACTURE. This is NOT an expiry. Never report it as one. Put it in manufacture_date.
 - An HOURGLASS marks the USE BY / EXPIRY date.
-- An ARROW POINTING INTO A BRACKET, or the words 'Install before', mark the INSTALL-BEFORE / shelf-life date. On Philips AED batteries this is the date by which the battery must be replaced, and it is the one to report.
-- Printed words such as 'EXP', 'Use by' or 'Install before' override any symbol.
+- An ARROW POINTING INTO A BRACKET, or the words 'Install before', mark the INSTALL-BEFORE date. On AED batteries this is usually the date that matters, and the one to report.
+- Printed words such as 'EXP', 'Use by', 'Install before' or 'Replace ... on or before' override any symbol.
+- Barcode labels often repeat dates in GS1 form: '(17)YYMMDD' is the expiry/use-by date and '(11)YYMMDD' the production date; '(10)' introduces the LOT and '(21)' the serial number. A '(17)' date confirms the expiry; a '(11)' date is a manufacture date.
+- A date written as NN/NN/YYYY is ambiguous when both numbers are 12 or less (12/05/2029 could be 12 May or 5 December): report the EARLIER of the two readings and mention the ambiguity in notes. When one number is over 12, it is the day.
 
-Set expiry_date to the USE BY / INSTALL BEFORE date. Set manufacture_date to the factory date when one is visible. If two genuine expiry-type dates are present and you cannot tell which governs, report the EARLIER one and explain the ambiguity in notes — never the later one. If the only date you can read is a manufacture date, set expiry_date to null, passed=false, and say the expiry date was not visible.
+Set expiry_date to the USE BY / INSTALL BEFORE / REPLACE-BY date. Set manufacture_date to the factory date when one is visible. If two genuine expiry-type dates are present and you cannot tell which governs, report the EARLIER one and explain the ambiguity in notes — never the later one. If the only date you can read is a manufacture date, set expiry_date to null, passed=false, and say the expiry date was not visible.
 
-Copy every date you can see, verbatim and with whatever labels it carries, into expiry_raw_text (for example: 'factory 2026-01-13 / install-before 2031-11-30')."""
+Copy every date you can see, verbatim and with whatever labels it carries, into expiry_raw_text (for example: 'factory 2026-01-13 / install-before 2031-11-30', or '(17)221228 / 2022-12-28')."""
 
-_PHILIPS_CONTEXT = (
-    "The device being inspected is a Philips HeartStart FRx or HeartStart "
-    "HS1 AED — a blue-grey rugged plastic body (often carried in an orange "
-    "soft case) with a small flashing green readiness light and a "
-    "single push-button operation. Use this knowledge of Philips FRx/HS1 label placement and "
-    "part appearance to read the image accurately, but do not assume a "
-    "device is a Philips unit if the image clearly shows otherwise — "
-    "flag that in `notes` instead of guessing."
+_FINE_PRINT = (
+    "This is fine print — if it is too small, angled, glared or blurry to "
+    "read with certainty, do not guess: leave the field null, set "
+    "passed=false, and say in notes what the inspector should change (move "
+    "closer, reduce glare, hold steady)."
 )
 
 
@@ -64,20 +67,16 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         section=1,
         order=1,
         title="Serial number",
-        description="Live photo of the manufacturer serial number label.",
+        description="Photo of the manufacturer serial number label.",
         media_type="image",
         required=True,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Find the manufacturer serial number label. On the FRx it is on "
-            "the back of the case; on the HS1 it is on the underside/back "
-            "near the battery compartment, often printed near a barcode. "
-            "Read the serial number exactly as printed (letters and digits, "
-            "keep leading zeros). This is fine print — if it is too small, "
-            "angled, glared, or blurry to read with certainty, do not "
-            "guess: leave serial_number null, set passed=false, and explain "
-            "in notes what the inspector should change (move closer, "
-            "reduce glare, hold steady)."
+            "Find the AED manufacturer's serial number label and read the "
+            "serial number exactly as printed (letters, digits and hyphens; "
+            "keep leading zeros). Do not report a REF/model number, a LOT "
+            "number or a service number as the serial. On GS1 barcode labels "
+            "the serial follows '(21)' — the '(21)' is a field code, not part "
+            f"of the serial. {_FINE_PRINT}"
         ),
     ),
     ChecklistItem(
@@ -89,13 +88,10 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         media_type="image",
         required=True,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Find the electrode pads label — either on the sealed pads "
-            "cartridge/pouch itself or the pads connector cassette.\n\n"
+            "Find the expiry date of the electrode pads, on their cartridge, "
+            "case or sealed pack.\n\n"
             f"{_DATE_SYMBOLS}\n\n"
-            "Normalise expiry_date to YYYY-MM or YYYY-MM-DD. "
-            "This is fine print — if unclear, leave it null, set "
-            "passed=false, and explain what to fix in notes."
+            f"Normalise expiry_date to YYYY-MM or YYYY-MM-DD. {_FINE_PRINT}"
         ),
     ),
     ChecklistItem(
@@ -107,14 +103,10 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         media_type="image",
         required=True,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Find the battery label (Philips FRx/HS1 batteries are usually "
-            "a black or dark-grey pack, model M5070A or similar, that slides "
-            "into the back/bottom of the unit).\n\n"
+            "Find the date by which the AED's battery must be installed or "
+            "replaced.\n\n"
             f"{_DATE_SYMBOLS}\n\n"
-            "Normalise expiry_date to YYYY-MM or YYYY-MM-DD. This is fine "
-            "print — if unclear, leave it null, set passed=false, and "
-            "explain what to fix in notes.\n\n"
+            f"Normalise expiry_date to YYYY-MM or YYYY-MM-DD. {_FINE_PRINT}\n\n"
             "Also try to read the battery's LOT number and serial number if "
             "visible on the same label — set lot_number and "
             "battery_serial_number if legible. These two fields are "
@@ -133,13 +125,12 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         media_type="image",
         required=True,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Determine whether the battery pack is fully and correctly "
-            "inserted/latched into the AED body, with no visible gap, tilt, "
-            "or the release latch left unseated. Set passed=true only if the "
-            "battery is clearly, fully attached. If the photo doesn't show "
-            "the battery compartment clearly enough to judge, set "
-            "passed=false and ask the inspector for a clearer angle in notes."
+            "Determine whether the battery is fully and correctly installed "
+            "in the AED — seated and latched, with no visible gap, tilt or "
+            "raised edge. Set passed=true only if the battery is clearly, "
+            "fully installed. If the photo doesn't show the battery area "
+            "clearly enough to judge, set passed=false and ask for a clearer "
+            "angle in notes."
         ),
     ),
     ChecklistItem(
@@ -147,17 +138,15 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         section=2,
         order=5,
         title="Pads connected",
-        description="Photo confirming the pads connector is plugged into the machine.",
+        description="Photo confirming the pads are connected to the machine.",
         media_type="image",
         required=True,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Determine whether the electrode pads connector is firmly "
-            "plugged into the AED's pads port (on the FRx this is a small "
-            "connector socket on the top edge; on the HS1 the pads "
-            "cartridge slots into the top of the case). Set passed=true only "
-            "if the connection is clearly seated with no visible gap. If "
-            "unclear, set passed=false and ask for a clearer angle in notes."
+            "Determine whether the electrode pads are connected to the AED, "
+            "so it could deliver a shock straight away. Set passed=true only "
+            "if the connection is clearly and fully made. If the photo "
+            "doesn't show it clearly enough to judge, set passed=false and "
+            "ask for a clearer angle in notes."
         ),
     ),
     ChecklistItem(
@@ -165,45 +154,32 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         section=2,
         order=6,
         title="Readiness indicator",
-        description="Short video of the status-light blink pattern.",
+        description="Short video of the readiness indicator.",
         media_type="video",
         required=True,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "WHERE TO LOOK — this is the single most common mistake, avoid "
-            "it: the readiness indicator is a SMALL round status LED, not "
-            "the large green power button. On the FRx it sits just above "
-            "or beside the big green circular ON/OFF button (the button "
-            "printed with a power symbol and the number '1' — that button "
-            "itself is NOT the indicator, ignore its color/state entirely, "
-            "even if it is lit or green). On the HS1 the equivalent small "
-            "status light/window is near the carry-handle end of the case. "
-            "Locate that small LED specifically before judging anything.\n\n"
-            "HOW TO JUDGE IT — a healthy, ready-to-use unit blinks that "
-            "small LED green on a slow cycle; the gap between flashes "
-            "varies by unit and can be as long as 4-5 seconds, so a short "
-            "clip may only catch ONE flash, or catch it right at the very "
-            "start or end of the clip — that is completely normal and is "
-            "NOT a fault. Watch the ENTIRE clip carefully, frame by frame, "
-            "start to finish. If you see even ONE distinct green flash of "
-            "that small LED anywhere in the clip, that alone is sufficient "
-            "evidence: set status='ready', passed=true. Only set "
-            "status='fault' if that small LED is clearly, unambiguously "
-            "lit solid RED, or you can positively confirm it stays "
-            "completely dark/off for the full clip with the LED plainly "
-            "in frame and in focus the whole time. Do not require seeing "
-            "a full on-off-on cycle — one confirmed green flash is enough "
-            "to pass.\n\n"
-            "If you cannot clearly identify the small LED's position or "
-            "color at all in this clip (e.g. it's completely out of frame, "
-            "far too dark to make out any color, or too blurry/shaky to "
-            "tell), set status='unclear', passed=false, and say "
-            "specifically in notes what to fix — e.g. 'record at least "
-            "10 seconds since blinks can be up to 5 seconds apart', 'move "
-            "closer to the small status LED, not the power button', or "
-            "'hold the camera steady and well lit'. Reserve 'unclear' for "
-            "genuinely unusable footage — if the LED is visible at all, "
-            "prefer making a 'ready'/'fault' call over 'unclear'."
+            "Decide whether the AED's readiness indicator shows it is ready "
+            "for use. The device notes below say where the indicator is and "
+            "what 'ready' looks like on this unit — locate that indicator "
+            "first; do not judge any other light or button.\n\n"
+            "Watch the ENTIRE clip, frame by frame, start to finish.\n"
+            "- status='ready', passed=true: the unit's ready signal is "
+            "confirmed. For an indicator that blinks, ONE clear flash "
+            "anywhere in the clip is enough — flashes can be several seconds "
+            "apart, so a short clip may catch only one, even at its very "
+            "start or end. That is normal, not a fault. For an indicator "
+            "that shows a steady symbol, seeing it clearly is enough.\n"
+            "- status='fault', passed=false: a fault signal is plainly "
+            "visible — per the device notes, e.g. a red light or red X — or "
+            "the indicator stays completely dark for the whole clip while "
+            "clearly in frame and in focus.\n"
+            "- status='unclear', passed=false: ONLY when the indicator can't "
+            "be judged at all — out of frame, far too dark, or too blurry or "
+            "shaky. If the indicator is visible, prefer making a ready/fault "
+            "call.\n\n"
+            "In notes, say what you saw; if unclear, say exactly what to fix "
+            "(for example: record at least 10 seconds, move closer to the "
+            "indicator, hold the camera steady in good light)."
         ),
     ),
     # ── Section 3 — Accessories & signage (all optional) ─────────────────
@@ -212,17 +188,17 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         section=3,
         order=7,
         title="Child key / child pads",
-        description="Photo of the paediatric key or child pads, if present.",
+        description="Photo of the infant/child key or child pads, if present.",
         media_type="image",
         required=False,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Determine whether a paediatric/child key (FRx) or child pads "
-            "cartridge (HS1) is present and stored with the unit. Set "
-            "present=true/false and passed=true if present and in good "
-            "condition. This accessory is optional on many deployments — "
-            "if genuinely absent, set present=false, passed=false, and note "
-            "'not present' rather than treating it as unreadable."
+            "Determine whether the AED's infant/child accessory is present "
+            "and stored correctly — the device notes below say what it is on "
+            "this unit. Set present=true/false, and passed=true if it is "
+            "present and in good condition. This accessory is optional on "
+            "many deployments — if it is genuinely absent, set present=false, "
+            "passed=false and note 'not present' rather than treating the "
+            "photo as unreadable."
         ),
     ),
     ChecklistItem(
@@ -234,10 +210,9 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         media_type="image",
         required=False,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Assess the AED wall cabinet or carry case: door/lid closes "
-            "properly, no cracked glass or broken latch, visible and "
-            "unobstructed. Set passed=true if the cabinet looks intact and "
+            "Assess the AED wall cabinet or carry case: the door or lid "
+            "closes properly, no cracked glass or broken latch, and it is "
+            "visible and unobstructed. Set passed=true if it looks intact and "
             "usable, false with a reason in notes otherwise."
         ),
     ),
@@ -250,12 +225,11 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         media_type="image",
         required=False,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
             "Check whether a fast/first response kit (gloves, razor, "
-            "scissors, CPR face shield) is present alongside the AED. Set "
-            "present=true/false and passed=true if present and appears "
-            "complete/unopened. If absent, set present=false, passed=false, "
-            "note 'not present'."
+            "scissors, CPR face shield or pocket mask) is present alongside "
+            "the AED. Set present=true/false and passed=true if present and "
+            "apparently complete or unopened. If absent, set present=false, "
+            "passed=false and note 'not present'."
         ),
     ),
     ChecklistItem(
@@ -267,13 +241,12 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         media_type="image",
         required=False,
         prompt=(
-            f"{_PHILIPS_CONTEXT}\n\n"
-            "Check whether an emergency contact sticker/label (e.g. local "
-            "emergency number, site contact, 'call 911/999/112 first') is "
-            "affixed to the AED unit or its cabinet and legible. Set "
-            "present=true/false and passed=true if present and legible. If "
-            "absent or illegible, set present=false, passed=false, and say "
-            "why in notes."
+            "Check whether an emergency contact sticker or label (a local "
+            "emergency number such as 112 or 108 in India, 911 or 999 "
+            "elsewhere, or a site contact) is fixed to the AED or its cabinet "
+            "and legible. Set present=true/false and passed=true if present "
+            "and legible. If absent or illegible, set present=false, "
+            "passed=false and say why in notes."
         ),
     ),
 ]
