@@ -124,6 +124,7 @@ export default function PipelinePage() {
         <p className="text-caption text-muted-foreground">
           {summary.total} device{summary.total === 1 ? '' : 's'} tracked ·{' '}
           {summary.contactable} with contact details
+          {summary.quoteRequested ? ` · ${summary.quoteRequested} asked for a quote` : ''}
         </p>
       )}
     </div>

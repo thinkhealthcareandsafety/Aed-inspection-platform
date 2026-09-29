@@ -1,6 +1,6 @@
 'use client';
 
-import { Phone, Mail, MessageCircle, BatteryCharging, Zap } from 'lucide-react';
+import { Phone, Mail, MessageCircle, BatteryCharging, Zap, Hand } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { URGENCY, URGENCY_ORDER, describeRemaining, formatDate } from '@/lib/urgency';
 import type { ExpiryUrgency, PipelineRow } from '@/types/insights';
@@ -67,6 +67,16 @@ function Row({ row }: { row: PipelineRow }) {
           <span className="text-headline text-foreground truncate">
             {row.contactName || 'Unnamed contact'}
           </span>
+          {/* They asked us to call — the one row that isn't a cold call. */}
+          {row.quoteRequestedAt && (
+            <span
+              className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-caption font-semibold text-primary"
+              title={`Quote requested ${formatDate(row.quoteRequestedAt)}`}
+            >
+              <Hand className="w-3 h-3" strokeWidth={2.2} />
+              Asked for a quote
+            </span>
+          )}
         </div>
         <p className="text-footnote text-muted-foreground mt-0.5 truncate">
           {[row.aedModel, row.serialNumber && `SN ${row.serialNumber}`]

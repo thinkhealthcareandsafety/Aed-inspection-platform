@@ -236,6 +236,14 @@ export const api = {
         email: { sent: boolean; recipients: string[]; reason?: string };
       }>(`/public/inspections/${id}/complete`),
 
+    /** The customer asked to be quoted for replacement pads, a battery or
+     *  accessories — an opt-in lead, sent to the sales team. */
+    requestReplacement: (id: string, items: import('@/types').ReplacementItem[]) =>
+      apiClient.post<{ replacementRequest: import('@/types').ReplacementRequest }>(
+        `/public/inspections/${id}/replacement-request`,
+        { items },
+      ),
+
     downloadPdf: async (inspectionId: string) => {
       const res = await apiClient.get(`/public/inspections/${inspectionId}/report/pdf`, { responseType: 'blob' });
       const blobUrl = URL.createObjectURL(res.data as Blob);

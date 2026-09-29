@@ -50,6 +50,9 @@ export interface PipelineRow {
   urgency: ExpiryUrgency;
   lastInspectedAt: string;
   inspectionResult: string;
+  /** The customer asked for a quote from their result screen. */
+  quoteRequestedAt?: string;
+  quoteItems?: string[];
 }
 
 export interface PipelineResponse {
@@ -60,6 +63,7 @@ export interface PipelineResponse {
     soon: number;
     ok: number;
     contactable: number;
+    quoteRequested?: number;
   };
   rows: PipelineRow[];
 }

@@ -3,16 +3,39 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Camera, Video, Loader2, RotateCcw, SkipForward, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Camera,
+  ChevronRight,
+  Focus,
+  Hand,
+  Loader2,
+  RotateCcw,
+  SkipForward,
+  SunDim,
+  Timer,
+  Video,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api, BASE_URL } from '@/lib/api';
 import { compressImage } from '@/lib/compress-image';
-import { springSnappy } from '@/lib/motion';
+import { describeExpiry, urgencyOf } from '@/lib/expiry';
+import { readingOf, type Reading } from '@/lib/readings';
+import { URGENCY } from '@/lib/urgency';
+import { EASE_OUT, springSnappy } from '@/lib/motion';
 import { ChecklistIcon } from '@/components/icons';
 import { ReferenceStrip } from './ReferenceStrip';
 import { AnalysisProgress, type AnalysisPhase } from './AnalysisProgress';
+import { StatusDot } from './StatusDot';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
+
+/** How long a fresh pass stays on screen before moving on by itself: long
+ *  enough to read the value back, short enough that nobody reaches for a
+ *  button. */
+const AUTO_ADVANCE_MS = 2200;
 
 function extractApiError(err: unknown): { message?: string; retryable?: boolean } {
   if (axios.isAxiosError(err)) {
@@ -22,29 +45,62 @@ function extractApiError(err: unknown): { message?: string; retryable?: boolean 
   return {};
 }
 
-/** What the AI read off the photo, if it read anything worth showing back.
- *  Seeing "B17C-0051E" appear from a photo is the moment the product becomes
- *  believable, so it gets stated rather than buried in a confidence score. */
-function readValue(result: ChecklistItemResult): string | null {
-  const data = result.aiData as Record<string, unknown> | undefined;
-  if (!data) return null;
-  const serial = typeof data.serial_number === 'string' ? data.serial_number : null;
-  if (serial) return serial;
-  const expiry = typeof data.expiry_date === 'string' ? data.expiry_date : null;
-  return expiry ? formatExpiry(expiry) : null;
+/** A tap of feedback in the hand when a verdict lands — the person is
+ *  looking at the AED, not the screen. Android only; iOS ignores it. */
+function haptic(pattern: number | number[]) {
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    // Unsupported or blocked: silence is fine.
+  }
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** The AI normalises expiries to 'YYYY-MM'. That's the right shape to store
- *  and the wrong one to show a human, so it reads as 'Mar 2027' on screen. */
-function formatExpiry(raw: string): string {
-  const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (full) return `${Number(full[3])} ${MONTHS[Number(full[2]) - 1]} ${full[1]}`;
-  const month = /^(\d{4})-(\d{2})$/.exec(raw);
-  if (month) return `${MONTHS[Number(month[2]) - 1]} ${month[1]}`;
-  return raw;
+/**
+ * Whether a `sticky bottom-0` bar is currently stuck to the viewport rather
+ * than resting in place, read from a sentinel placed right after it. Lets
+ * the bar drop its rounded corners and gain a shadow only while it floats.
+ */
+function useStuckToBottom() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setStuck(!entry.isIntersecting && entry.boundingClientRect.top > 0);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, stuck] as const;
 }
+
+/** The three things that decide whether the AI can read a capture — said
+ *  before the shutter, where they're cheap, instead of after a failed read. */
+const CAPTURE_TIPS: Record<'image' | 'video', { icon: LucideIcon; label: string }[]> = {
+  image: [
+    { icon: Focus, label: 'Fill the frame' },
+    { icon: SunDim, label: 'Avoid glare' },
+    { icon: Hand, label: 'Hold steady' },
+  ],
+  video: [
+    { icon: Timer, label: '10+ seconds' },
+    { icon: Hand, label: 'Hold steady' },
+    { icon: Focus, label: 'Light in frame' },
+  ],
+};
+
+/** An expired date is the one fault a retake can't fix — the way forward is
+ *  a replacement, which the result screen offers a quote for. */
+const EXPIRED_GUIDANCE: Partial<Record<string, string>> = {
+  pads_expiry: "Expired pads can't be fixed on the spot. Carry on — you can ask us for a replacement quote when you finish.",
+  battery_expiry: "An expired battery can't be fixed on the spot. Carry on — you can ask us for a replacement quote when you finish.",
+};
+
+const PRIMARY_BUTTON =
+  'pressable relative overflow-hidden flex-1 flex items-center justify-center gap-2 h-[52px] rounded-2xl bg-primary text-primary-foreground text-headline hover:bg-primary/92 transition-colors disabled:opacity-60';
+const SECONDARY_BUTTON =
+  'pressable flex items-center justify-center gap-1.5 h-[52px] px-4 rounded-2xl bg-secondary text-foreground text-callout font-medium hover:bg-secondary/75 transition-colors disabled:opacity-60';
 
 interface Props {
   item: ChecklistItemMeta;
@@ -53,6 +109,8 @@ interface Props {
   position?: { index: number; total: number };
   inspectionId: string;
   aedModel?: string;
+  /** What moving on leads to — "Next check", or the finish screen. */
+  nextLabel?: string;
   onChange: (result: ChecklistItemResult) => void;
   onDone: (itemId: string) => void;
   uploadFn?: typeof api.checklist.upload;
@@ -62,10 +120,12 @@ interface Props {
 /**
  * The one check the inspector is doing right now, expanded.
  *
- * The previous screen showed all ten at once — twenty identical buttons down
- * a two-thousand-pixel page, which reads as paperwork rather than a guided
- * task. Exactly one is open at a time now, with its reference photo already
- * on screen and a single obvious action.
+ * Three faces: what to capture (with the example already on screen), the
+ * capture being read, and what came back. The result used to be skipped
+ * entirely — the card moved on the instant the AI answered, so the serial
+ * number it had just read off the label was never seen. A pass now holds for
+ * a beat with the reading laid over the photo, then moves on by itself; a
+ * failure stops and says what to do about it.
  */
 export function ActiveCheck({
   item,
@@ -73,6 +133,7 @@ export function ActiveCheck({
   position,
   inspectionId,
   aedModel,
+  nextLabel = 'Next check',
   onChange,
   onDone,
   uploadFn,
@@ -85,18 +146,39 @@ export function ActiveCheck({
   const [uploadFraction, setUploadFraction] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string>();
   const [retryNote, setRetryNote] = useState<string>();
+  /** The verdict arrived in this card just now, as opposed to a finished
+   *  check reopened from the list — only a fresh verdict animates in. */
+  const [fresh, setFresh] = useState(false);
+  /** Armed by a fresh pass; any touch on the card disarms it, because
+   *  someone who has started interacting is in control now. */
+  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [sentinelRef, stuck] = useStuckToBottom();
 
   // Only THIS tab's own in-flight upload makes the card busy. A status of
   // 'analyzing' read back from the server can be stale — a tab closed
   // mid-upload leaves it behind — and treating that as busy used to lock the
   // check with a disabled button and no way to retake.
-  const isBusy = busy;
   const isResolved = result.status === 'pass' || result.status === 'fail';
+  const mode: 'capture' | 'busy' | 'result' = busy ? 'busy' : isResolved ? 'result' : 'capture';
+  const advancing = autoAdvance && result.status === 'pass' && !busy;
 
   // Object URLs hold the capture in memory until released.
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+
+  useEffect(() => {
+    if (!advancing) return;
+    const id = setTimeout(() => onDone(item.id), AUTO_ADVANCE_MS);
+    return () => clearTimeout(id);
+  }, [advancing, onDone, item.id]);
+
+  function openCamera() {
+    // Disarm first: the camera app can take longer than the countdown, and
+    // advancing underneath it would unmount the input the photo returns to.
+    setAutoAdvance(false);
+    inputRef.current?.click();
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -105,6 +187,8 @@ export function ActiveCheck({
 
     const upload = uploadFn ?? api.checklist.upload;
     setBusy(true);
+    setFresh(false);
+    setAutoAdvance(false);
     setRetryNote(undefined);
     setUploadFraction(0);
     setPhase('preparing');
@@ -152,12 +236,14 @@ export function ActiveCheck({
         res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
       }
 
-      onChange(res.data.item);
-      // Hand the inspector straight to the next check — the pause between
-      // "done" and "what now" is where people put the phone down.
-      onDone(item.id);
+      const verdict = res.data.item;
+      onChange(verdict);
+      setFresh(true);
+      setAutoAdvance(verdict.status === 'pass');
+      haptic(verdict.status === 'pass' ? 18 : [30, 60, 30]);
     } catch (err) {
       const { message } = extractApiError(err);
+      setPreviewUrl(undefined);
       onChange({
         ...result,
         status: 'error',
@@ -169,7 +255,6 @@ export function ActiveCheck({
       clearTimeout(fallback);
       setBusy(false);
       setRetryNote(undefined);
-      setPreviewUrl(undefined);
     }
   }
 
@@ -188,152 +273,311 @@ export function ActiveCheck({
     }
   }
 
-  const value = readValue(result);
+  const reading = readingOf(result);
+  const expired = Boolean(reading?.expiry && reading.expiry.days < 0);
+  const expiredGuidance = expired ? EXPIRED_GUIDANCE[item.id] : undefined;
+  const serverMedia = result.mediaUrl ? `${BASE_URL}${result.mediaUrl}` : undefined;
+  const isVideo = item.mediaType === 'video';
 
   return (
-    <motion.div
-      layout="position"
+    <motion.section
+      initial={{ opacity: 0, x: 18 }}
+      animate={{ opacity: 1, x: 0 }}
       transition={springSnappy}
-      className="surface-group p-5"
+      className="surface-card"
+      aria-labelledby={`check-${item.id}`}
+      onPointerDown={() => advancing && setAutoAdvance(false)}
     >
-      <div className="flex items-center gap-2">
-        <ChecklistIcon
-          name={item.icon}
-          className="w-4 h-4 text-muted-foreground shrink-0"
-          strokeWidth={1.9}
-        />
-        <span className="text-caption uppercase tracking-[0.06em] text-muted-foreground">
-          {position ? `Check ${position.index} of ${position.total}` : 'Optional check'}
-        </span>
-      </div>
-
-      <h2 className="text-title text-foreground mt-2.5">{item.title}</h2>
-      <p className="text-body text-muted-foreground mt-1.5">{item.description}</p>
-
-      {/* While analysing, the example photo gives way to the person's own
-          capture: the loader shows what is being looked at, not what to aim at. */}
-      {isBusy ? (
-        <AnalysisProgress
-          itemId={item.id}
-          mediaType={item.mediaType}
-          phase={phase}
-          uploadFraction={uploadFraction}
-          previewUrl={previewUrl}
-          statusNote={retryNote}
-        />
-      ) : (
-        <ReferenceStrip itemId={item.id} aedModel={aedModel} className="mt-4" />
-      )}
-
-      {/* The photo just taken, and what came back from it. */}
-      {result.mediaUrl && isResolved && !isBusy && (
-        <div className="mt-4 rounded-xl overflow-hidden bg-secondary">
-          {result.mediaType === 'video' ? (
-            <video src={`${BASE_URL}${result.mediaUrl}`} controls className="w-full max-h-52 object-contain" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={`${BASE_URL}${result.mediaUrl}`} alt={item.title} className="w-full max-h-52 object-contain" />
+      <div className="px-5 pt-5">
+        <div className="flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+            <ChecklistIcon name={item.icon} className="w-4 h-4 text-foreground/70" strokeWidth={1.9} />
+          </span>
+          <span className="text-caption uppercase tracking-[0.06em] text-muted-foreground">
+            {position ? `Check ${position.index} of ${position.total}` : 'Optional extra'}
+          </span>
+          {isVideo && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
+              <Video className="w-3 h-3" strokeWidth={2.2} />
+              Video
+            </span>
           )}
         </div>
-      )}
 
-      {isResolved && !isBusy && (
-        <div
-          className={cn(
-            'mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5',
-            result.status === 'pass' ? 'bg-emerald-500/8' : 'bg-destructive/8',
-          )}
-        >
-          {result.status === 'pass' ? (
-            <CheckCircle2 className="w-4 h-4 mt-px shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.2} />
-          ) : (
-            <AlertCircle className="w-4 h-4 mt-px shrink-0 text-destructive" strokeWidth={2.2} />
-          )}
-          <div className="min-w-0">
-            {value && (
-              <p className="text-headline font-mono text-foreground">{value}</p>
+        <h2 id={`check-${item.id}`} className="text-title text-foreground mt-3">
+          {item.title}
+        </h2>
+
+        {mode === 'capture' && (
+          <>
+            <p className="text-body text-muted-foreground mt-1">{item.description}</p>
+            <ReferenceStrip itemId={item.id} aedModel={aedModel} className="mt-4" />
+            <ul className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-secondary/60 px-3 py-2">
+              {CAPTURE_TIPS[item.mediaType].map((tip) => (
+                <li key={tip.label} className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                  <tip.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                  {tip.label}
+                </li>
+              ))}
+            </ul>
+            {result.status === 'error' && result.notes && (
+              <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-xl bg-destructive/8 px-3.5 py-3">
+                <AlertCircle className="w-4 h-4 mt-px shrink-0 text-destructive" strokeWidth={2.2} />
+                <p className="text-footnote text-destructive">{result.notes}</p>
+              </div>
             )}
-            <p
-              className={cn(
-                'text-footnote',
-                value && 'mt-0.5',
-                result.status === 'pass' ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
-              )}
-            >
-              {result.notes}
-            </p>
-          </div>
-        </div>
-      )}
+          </>
+        )}
 
-      {result.status === 'error' && result.notes && (
-        <p className="mt-3 text-footnote text-destructive bg-destructive/8 rounded-xl px-3.5 py-3">
-          {result.notes}
-        </p>
-      )}
+        {/* While analysing, the example photo gives way to the person's own
+            capture: the loader shows what is being looked at, not what to aim at. */}
+        {mode === 'busy' && (
+          <AnalysisProgress
+            itemId={item.id}
+            mediaType={item.mediaType}
+            phase={phase}
+            uploadFraction={uploadFraction}
+            previewUrl={previewUrl}
+            statusNote={retryNote}
+          />
+        )}
+
+        {mode === 'result' && (
+          <ResultView
+            passed={result.status === 'pass'}
+            fresh={fresh}
+            isVideo={isVideo}
+            title={item.title}
+            sources={[previewUrl, serverMedia].filter((s): s is string => Boolean(s))}
+            reading={reading}
+            notes={result.notes}
+            guidance={
+              result.status === 'pass'
+                ? undefined
+                : (expiredGuidance ??
+                  'Fix it if you can, then retake. Or carry on — it will be flagged in your report.')
+            }
+          />
+        )}
+      </div>
 
       <input
         ref={inputRef}
         type="file"
-        accept={item.mediaType === 'video' ? 'video/*' : 'image/*'}
+        accept={isVideo ? 'video/*' : 'image/*'}
         capture="environment"
         className="hidden"
         onChange={handleFile}
       />
 
-      {!isBusy && (
-      <div className="flex items-center gap-2 mt-4">
-        <button
-          type="button"
-          disabled={skipping}
-          onClick={() => inputRef.current?.click()}
+      {/* The action rides the bottom of the screen while this card is in
+          view, so it is under the thumb even when the example photo and
+          instructions push it below the fold. */}
+      {mode === 'busy' ? (
+        <div className="h-5" />
+      ) : (
+        <div
           className={cn(
-            'pressable flex-1 flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline transition-colors',
-            isResolved
-              ? 'bg-secondary hover:bg-secondary/80 text-foreground'
-              : 'bg-primary hover:bg-primary/92 text-primary-foreground',
-            skipping && 'opacity-60 pointer-events-none',
+            'sticky bottom-0 z-10 bg-card px-5 pt-4 pb-5 rounded-b-3xl',
+            stuck &&
+              'rounded-none pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-1px_0_hsl(var(--border)),0_-14px_28px_-18px_rgb(0_0_0/0.35)]',
           )}
         >
-          {isResolved ? (
-            <RotateCcw className="w-[18px] h-[18px]" strokeWidth={2} />
-          ) : item.mediaType === 'video' ? (
-            <Video className="w-[18px] h-[18px]" strokeWidth={2} />
-          ) : (
-            <Camera className="w-[18px] h-[18px]" strokeWidth={2} />
+          {/* Secondary on the left, the one filled button on the right —
+              the same place in every state, so the thumb learns it once. */}
+          {mode === 'capture' && (
+            <div className="flex items-center gap-2">
+              {!item.required && (
+                <button type="button" disabled={skipping} onClick={handleSkip} className={SECONDARY_BUTTON}>
+                  {skipping ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <SkipForward className="w-4 h-4" strokeWidth={2} />
+                  )}
+                  Skip
+                </button>
+              )}
+              <button type="button" disabled={skipping} onClick={openCamera} className={PRIMARY_BUTTON}>
+                {isVideo ? (
+                  <Video className="w-[18px] h-[18px]" strokeWidth={2} />
+                ) : (
+                  <Camera className="w-[18px] h-[18px]" strokeWidth={2} />
+                )}
+                {result.status === 'error' ? 'Try again' : isVideo ? 'Record the video' : 'Take the photo'}
+              </button>
+            </div>
           )}
-          {isResolved ? 'Retake' : item.mediaType === 'video' ? 'Record the video' : 'Take the photo'}
-        </button>
 
-        {!item.required && !isResolved && (
-          <button
-            type="button"
-            disabled={skipping}
-            onClick={handleSkip}
-            className="pressable flex items-center justify-center gap-1.5 h-[52px] px-4 rounded-2xl bg-secondary/60 hover:bg-secondary text-callout text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
-          >
-            {skipping ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <SkipForward className="w-4 h-4" strokeWidth={2} />
-            )}
-            Skip
-          </button>
-        )}
-      </div>
-      )}
+          {mode === 'result' && result.status === 'pass' && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={openCamera} className={SECONDARY_BUTTON} aria-label="Retake">
+                <RotateCcw className="w-4 h-4" strokeWidth={2} />
+                Retake
+              </button>
+              <button type="button" onClick={() => onDone(item.id)} className={PRIMARY_BUTTON}>
+                {advancing && (
+                  <motion.span
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 bg-white/20 dark:bg-black/15"
+                    initial={{ width: '0%' }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: AUTO_ADVANCE_MS / 1000, ease: 'linear' }}
+                  />
+                )}
+                <span className="relative flex items-center gap-2">
+                  {nextLabel}
+                  <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.2} />
+                </span>
+              </button>
+            </div>
+          )}
 
-      {isResolved && !isBusy && (
-        <button
-          type="button"
-          onClick={() => onDone(item.id)}
-          className="pressable w-full flex items-center justify-center gap-1 h-10 mt-2 rounded-xl text-callout text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Next check
-          <ChevronRight className="w-4 h-4" strokeWidth={2.2} />
-        </button>
+          {/* A real expiry can't be retaken away, so carrying on leads; any
+              other fault is usually fixable on the spot, so retaking leads. */}
+          {mode === 'result' && result.status === 'fail' && (
+            <div className={cn('flex items-center gap-2', !expired && 'flex-row-reverse')}>
+              <button
+                type="button"
+                onClick={openCamera}
+                className={expired ? SECONDARY_BUTTON : PRIMARY_BUTTON}
+              >
+                {isVideo ? (
+                  <Video className="w-[18px] h-[18px]" strokeWidth={2} />
+                ) : (
+                  <Camera className="w-[18px] h-[18px]" strokeWidth={2} />
+                )}
+                Retake
+              </button>
+              <button
+                type="button"
+                onClick={() => onDone(item.id)}
+                className={expired ? PRIMARY_BUTTON : SECONDARY_BUTTON}
+              >
+                {expired ? nextLabel : 'Carry on'}
+                <ChevronRight className="w-4 h-4" strokeWidth={2.2} />
+              </button>
+            </div>
+          )}
+        </div>
       )}
+      <div ref={sentinelRef} aria-hidden className="h-px -mt-px" />
+    </motion.section>
+  );
+}
+
+/** The capture with its verdict and reading laid over it — the moment the
+ *  AI proves it read the label. */
+function ResultView({
+  passed,
+  fresh,
+  isVideo,
+  title,
+  sources,
+  reading,
+  notes,
+  guidance,
+}: {
+  passed: boolean;
+  fresh: boolean;
+  isVideo: boolean;
+  title: string;
+  /** The local capture first (instant), then the stored copy. */
+  sources: string[];
+  reading: Reading | null;
+  notes?: string;
+  guidance?: string;
+}) {
+  // A HEIC photo or an unplayable codec fails to render. Fall back to the
+  // stored copy, then to no picture at all — the verdict carries it alone.
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const src = sources[sourceIndex];
+  const onError = () => setSourceIndex((i) => i + 1);
+  const urgency = reading?.expiry ? URGENCY[urgencyOf(reading.expiry.days)] : undefined;
+  const UrgencyIcon = urgency?.icon;
+
+  const readingBlock = reading && (
+    <motion.div
+      initial={fresh ? { opacity: 0, y: 8 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...springSnappy, delay: fresh ? 0.28 : 0 }}
+    >
+      <p className="text-caption uppercase tracking-[0.08em] opacity-75">{reading.label}</p>
+      <p className={cn('text-display mt-0.5 break-all', reading.mono && 'font-mono tracking-normal')}>
+        {reading.value}
+      </p>
     </motion.div>
+  );
+
+  return (
+    <div className="mt-4" role="status" aria-live="polite">
+      {src ? (
+        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-secondary">
+          {isVideo ? (
+            <video src={src} muted playsInline autoPlay loop onError={onError} className="w-full h-full object-cover" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={src} alt={`Your photo: ${title}`} onError={onError} className="w-full h-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/0 pointer-events-none" />
+          <Verdict passed={passed} fresh={fresh} className="absolute top-3 left-3" />
+          {readingBlock && <div className="absolute inset-x-4 bottom-3.5 text-white">{readingBlock}</div>}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'rounded-2xl px-4 py-4',
+            passed ? 'bg-emerald-500/10' : 'bg-destructive/8',
+          )}
+        >
+          <Verdict passed={passed} fresh={fresh} />
+          {readingBlock && <div className="mt-3 text-foreground">{readingBlock}</div>}
+        </div>
+      )}
+
+      {reading?.expiry && urgency && UrgencyIcon && (
+        <p
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-callout font-medium text-foreground"
+          style={{ backgroundColor: urgency.tint }}
+        >
+          <UrgencyIcon className="w-4 h-4" strokeWidth={2.1} style={{ color: urgency.color }} />
+          {describeExpiry(reading.expiry.days)}
+        </p>
+      )}
+
+      {notes && <p className="mt-3 text-callout text-muted-foreground">{notes}</p>}
+      {guidance && <p className="mt-2 text-footnote text-foreground/80">{guidance}</p>}
+    </div>
+  );
+}
+
+function Verdict({ passed, fresh, className }: { passed: boolean; fresh: boolean; className?: string }) {
+  return (
+    <motion.span
+      initial={fresh ? { scale: 0.6, opacity: 0 } : false}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-callout font-semibold shadow-sm',
+        passed ? 'bg-emerald-600 text-white' : 'bg-destructive text-destructive-foreground',
+        className,
+      )}
+    >
+      <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+        {passed ? (
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <motion.path
+              d="M5 12.5l4.5 4.5L19 7.5"
+              initial={{ pathLength: fresh ? 0 : 1 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.35, delay: 0.15, ease: EASE_OUT }}
+            />
+          </svg>
+        ) : (
+          <span className="text-[14px] font-bold leading-none">!</span>
+        )}
+      </span>
+      {passed ? 'Passed' : 'Needs attention'}
+    </motion.span>
   );
 }
 
@@ -344,16 +588,29 @@ export function ActiveCheck({
 export function CheckRow({
   item,
   result,
+  index,
   onSelect,
 }: {
   item: ChecklistItemMeta;
   result: ChecklistItemResult;
+  /** Position among required checks, shown while it is still to do. */
+  index?: number;
   onSelect: () => void;
 }) {
-  const value = readValue(result);
-  const done = result.status === 'pass';
+  const reading = readingOf(result);
   const failed = result.status === 'fail' || result.status === 'error';
-  const skipped = result.status === 'skipped';
+  const detail =
+    result.status === 'skipped'
+      ? 'Skipped'
+      : reading
+        ? reading.expiry
+          ? `${reading.value} · ${describeExpiry(reading.expiry.days)}`
+          : reading.value
+        : result.status === 'error'
+          ? 'Didn’t upload — tap to try again'
+          : result.status === 'fail'
+            ? 'Needs attention'
+            : null;
 
   return (
     <button
@@ -361,36 +618,21 @@ export function CheckRow({
       onClick={onSelect}
       className="surface-row w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-secondary/40 transition-colors"
     >
-      <span className="shrink-0">
-        {done ? (
-          <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center">
-            <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.6} fill="none" />
-          </span>
-        ) : failed ? (
-          <span className="w-5 h-5 rounded-full bg-destructive flex items-center justify-center">
-            <AlertCircle className="w-3.5 h-3.5 text-white" strokeWidth={2.6} fill="none" />
-          </span>
-        ) : (
-          <span
-            className={cn(
-              // block, not the default inline: an inline span ignores width
-              // and height, which collapsed this circle into a hairline.
-              'block w-5 h-5 rounded-full border-[1.5px]',
-              skipped ? 'border-border' : 'border-muted-foreground/35',
-            )}
-          />
-        )}
-      </span>
-
+      <StatusDot status={result.status} index={index} />
       <span className="min-w-0 flex-1">
         <span className="block text-callout text-foreground truncate">{item.title}</span>
-        {(value || skipped) && (
-          <span className="block text-caption text-muted-foreground font-mono truncate">
-            {skipped ? 'Skipped' : value}
+        {detail && (
+          <span
+            className={cn(
+              'block text-caption truncate mt-0.5',
+              failed ? 'text-destructive' : 'text-muted-foreground',
+              reading?.mono && 'font-mono',
+            )}
+          >
+            {detail}
           </span>
         )}
       </span>
-
       <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" strokeWidth={2} />
     </button>
   );

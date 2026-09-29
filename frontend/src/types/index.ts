@@ -158,7 +158,16 @@ export interface Inspection {
   capturedImages: string[];
   checklist: ChecklistItemResult[];
   notes?: string;
+  /** Set once the customer asks to be quoted for replacements. */
+  replacementRequest?: ReplacementRequest;
   createdAt: string;
+}
+
+export type ReplacementItem = 'pads' | 'battery' | 'accessories';
+
+export interface ReplacementRequest {
+  items: ReplacementItem[];
+  requestedAt: string;
 }
 
 export interface PaginatedResponse<T> {

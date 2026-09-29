@@ -10,7 +10,9 @@ import type { ChecklistItemId } from '@/types';
 const KIND: Record<'good' | 'bad' | 'neutral', { label: string; color: string; icon?: typeof CheckCircle2 }> = {
   good: { label: 'Correct', color: 'var(--status-good)', icon: CheckCircle2 },
   bad: { label: 'Wrong', color: 'var(--status-critical)', icon: XCircle },
-  neutral: { label: 'Where to look', color: 'hsl(var(--muted-foreground))' },
+  // Labelled too: an unmarked photo directly above a camera button reads as
+  // a live viewfinder, or as a capture that has already been taken.
+  neutral: { label: 'Example', color: 'hsl(var(--muted-foreground))' },
 };
 
 /**
@@ -60,15 +62,13 @@ export function ReferenceStrip({
                 sizes="(max-width: 640px) 45vw, 260px"
                 className="object-cover"
               />
-              {ex.kind !== 'neutral' && (
-                <span
-                  className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-background/92 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-semibold"
-                  style={{ color: kind.color }}
-                >
-                  {KindIcon && <KindIcon className="w-2.5 h-2.5" strokeWidth={2.8} />}
-                  {kind.label}
-                </span>
-              )}
+              <span
+                className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-background/92 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ring-1 ring-black/5"
+                style={{ color: kind.color }}
+              >
+                {KindIcon && <KindIcon className="w-2.5 h-2.5" strokeWidth={2.8} />}
+                {kind.label}
+              </span>
             </div>
             <figcaption className="text-caption text-muted-foreground mt-1.5 leading-snug">
               {ex.caption}

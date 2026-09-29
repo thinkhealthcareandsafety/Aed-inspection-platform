@@ -34,3 +34,10 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
 ];
 
 export const COMING_SOON_MODELS = ['Cardiac Science', 'Defibtech', 'HeartSine', 'Physio-Control'];
+
+/** "Philips FRx" is the stored id; "Philips HeartStart FRx" is what is
+ *  printed on the unit, so it's what the person holding it should read. */
+export function modelDisplayName(id?: string): string {
+  const model = AED_MODEL_OPTIONS.find((m) => m.id === id);
+  return model ? `${model.brand} ${model.name}` : (id ?? 'AED');
+}

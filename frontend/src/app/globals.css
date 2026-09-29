@@ -189,6 +189,36 @@
     transform: scale(0.98);
   }
 
+  /* The one card that is the task right now — lifted a step above the
+     grouped lists around it, so the eye lands on it first. */
+  .surface-card {
+    @apply bg-card rounded-3xl;
+    box-shadow:
+      0 0 0 1px hsl(var(--border) / 0.9),
+      0 14px 32px -20px rgb(0 0 0 / 0.22);
+  }
+
+  /* A single tappable card: the grouped list's surface, standing alone.
+     Declared after .pressable so its transition (which keeps the press
+     scale) wins when both are applied. */
+  .surface-tile {
+    @apply bg-card rounded-2xl;
+    box-shadow:
+      0 0 0 1px hsl(var(--border) / 0.9),
+      0 1px 2px rgb(0 0 0 / 0.04);
+    transition:
+      box-shadow 0.18s cubic-bezier(0.32, 0.72, 0, 1),
+      transform 0.15s cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 0.18s ease;
+  }
+  @media (hover: hover) {
+    .surface-tile:is(button, a):not(:disabled):hover {
+      box-shadow:
+        0 0 0 1px hsl(var(--foreground) / 0.16),
+        0 8px 20px -10px rgb(0 0 0 / 0.16);
+    }
+  }
+
   /* Sheet presentation — same easing as the JS motion tokens so a dialog
      feels like the rest of the app rather than a separate component. */
   .sheet-in {
