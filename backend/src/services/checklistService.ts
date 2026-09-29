@@ -24,6 +24,10 @@ export interface AnalysisResponse {
   battery_serial_number?: string | null;
   present?: boolean | null;
   status?: string | null;
+  manufacture_date?: string | null;
+  /** `notes` in Hindi, when the inspector is using the app in Hindi. The
+   *  English `notes` stays the record: the PDF and the sales team read it. */
+  notes_hi?: string | null;
 }
 
 function syncTopLevelFields(itemId: string, data: AnalysisResponse) {
@@ -132,13 +136,29 @@ async function persistUpload(inspectionId: string, itemId: string, file: Express
   return `/uploads/${inspectionId}/${filename}`;
 }
 
-async function callCvService(itemId: string, file: Express.Multer.File): Promise<AnalysisResponse> {
+/** Languages the inspector's feedback can be written in besides English. */
+export const FEEDBACK_LANGUAGES = ['hi'] as const;
+export type FeedbackLanguage = (typeof FEEDBACK_LANGUAGES)[number];
+
+export function isFeedbackLanguage(value: unknown): value is FeedbackLanguage {
+  return typeof value === 'string' && (FEEDBACK_LANGUAGES as readonly string[]).includes(value);
+}
+
+async function callCvService(
+  itemId: string,
+  file: Express.Multer.File,
+  context: { aedModel?: string; lang?: FeedbackLanguage },
+): Promise<AnalysisResponse> {
   const form = new FormData();
   form.append(
     'file',
     new Blob([file.buffer], { type: file.mimetype || 'application/octet-stream' }),
     file.originalname || itemId,
   );
+  // Which AED is in the photo, so the vision prompt describes that unit and
+  // not another brand's — a ZOLL used to be judged as if it were a Philips.
+  if (context.aedModel) form.append('aed_model', context.aedModel);
+  if (context.lang) form.append('lang', context.lang);
 
   let res: Response;
   try {
@@ -185,6 +205,7 @@ export async function analyzeChecklistItem(
   inspection: IInspection,
   itemId: string,
   file: Express.Multer.File,
+  options: { lang?: FeedbackLanguage } = {},
 ): Promise<{ entry: IChecklistItemResult; inspectionResult: string }> {
   const item = getChecklistItem(itemId);
   if (!item) throw createError(`Unknown checklist item '${itemId}'`, 400, 'BAD_ITEM');
@@ -204,7 +225,7 @@ export async function analyzeChecklistItem(
   try {
     [mediaUrl, analysis] = await Promise.all([
       persistUpload(inspection.inspectionId, item.id, file),
-      callCvService(item.id, file),
+      callCvService(item.id, file, { aedModel: inspection.aedModel, lang: options.lang }),
     ]);
   } catch (err) {
     entry.status = 'error';

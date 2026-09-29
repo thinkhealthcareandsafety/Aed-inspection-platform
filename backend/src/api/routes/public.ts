@@ -14,7 +14,12 @@ import { createError } from '../middleware/error-handler';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { isPublicAedModel, PUBLIC_AED_MODELS } from '../../config/aed-models';
-import { analyzeChecklistItem, skipChecklistItem, completeInspection } from '../../services/checklistService';
+import {
+  analyzeChecklistItem,
+  completeInspection,
+  isFeedbackLanguage,
+  skipChecklistItem,
+} from '../../services/checklistService';
 import { createReportDoc, renderInspectionPdf, generateInspectionPdfBuffer } from '../../services/reportService';
 import {
   sendInspectionReportEmail,
@@ -152,7 +157,15 @@ router.post(
     try {
       if (!req.file) throw createError('No file uploaded', 400, 'NO_FILE');
       const inspection = await loadPublicInspection(req.params.id);
-      const { entry, inspectionResult } = await analyzeChecklistItem(inspection, String(req.params.itemId), req.file);
+      // The inspector's language travels with the upload (a multipart text
+      // field), so feedback follows a mid-inspection switch of language.
+      const lang = isFeedbackLanguage(req.body?.lang) ? req.body.lang : undefined;
+      const { entry, inspectionResult } = await analyzeChecklistItem(
+        inspection,
+        String(req.params.itemId),
+        req.file,
+        { lang },
+      );
       res.json({ item: entry, inspectionResult });
     } catch (err) {
       next(err);
