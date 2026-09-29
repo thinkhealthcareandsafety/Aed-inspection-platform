@@ -179,6 +179,9 @@ export function ReferenceFigure({
   const { src, caption, kind, focus } = example;
   const k = KIND[kind];
   const KindIcon = k.icon;
+  // A drawing says it's a drawing, so nobody hunts for a part that looks
+  // exactly like it.
+  const label = example.illustration && kind === 'neutral' ? 'Illustration' : k.label;
   const lens = showLens && focus && wantsLoupe(focus) ? focus : undefined;
   const lensCorner = lens ? farthestCorner(lens) : undefined;
   const expandCorner = farthestCorner(focus ?? { x: 0.5, y: 0.5, w: 0, h: 0 }, lensCorner);
@@ -207,7 +210,7 @@ export function ReferenceFigure({
         style={{ color: k.color }}
       >
         {KindIcon && <KindIcon className="w-3 h-3" strokeWidth={2.6} />}
-        {k.label}
+        {label}
       </span>
 
       {onOpen && (

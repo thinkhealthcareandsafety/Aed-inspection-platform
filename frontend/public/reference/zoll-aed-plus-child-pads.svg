@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="Illustration: a sealed pack of ZOLL Pedi-padz II child electrodes for the AED Plus, with child placement diagrams, a weight and age limit, and an expiry date">
+  <!-- Drawn from ZOLL's product facts: Pedi-padz II are a separate pack for
+       children under 8 years / 25 kg, with placement diagrams on the
+       package and the expiry date printed on it. Packaging colours are
+       deliberately not asserted. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1F3F7"/>
+      <stop offset="1" stop-color="#E4E8EE"/>
+    </linearGradient>
+    <linearGradient id="foil" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.6" stop-color="#F0F3F7"/>
+      <stop offset="1" stop-color="#DEE4EB"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#1B2433" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#bg)"/>
+
+  <!-- sealed pouch with a crimped top edge -->
+  <g filter="url(#shadow)">
+    <path d="M330 176 L350 156 L370 176 L390 156 L410 176 L430 156 L450 176 L470 156 L490 176 L510 156 L530 176 L550 156 L570 176 L590 156 L610 176 L630 156 L650 176 L670 156 L690 176 L710 156 L730 176 L750 156 L770 176 L790 156 L810 176 L830 156 L850 176 L870 156 L870 752 C870 772 856 786 836 786 L364 786 C344 786 330 772 330 752 Z" fill="url(#foil)"/>
+  </g>
+  <path d="M330 176 L350 156 L370 176 L390 156 L410 176 L430 156 L450 176 L470 156 L490 176 L510 156 L530 176 L550 156 L570 176 L590 156 L610 176 L630 156 L650 176 L670 156 L690 176 L710 156 L730 176 L750 156 L770 176 L790 156 L810 176 L830 156 L850 176 L870 156 L870 752 C870 772 856 786 836 786 L364 786 C344 786 330 772 330 752 Z" fill="none" stroke="#C6CED9" stroke-width="4"/>
+  <path d="M330 206 L870 206" stroke="#D3DAE3" stroke-width="3" stroke-dasharray="10 8"/>
+
+  <!-- product name and use -->
+  <text x="600" y="276" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="50" font-weight="700" fill="#1E2533">Pedi-padz II</text>
+  <text x="600" y="318" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#5B6472">Pediatric electrodes · AED Plus</text>
+
+  <!-- child placement diagrams: front and back -->
+  <g fill="none" stroke="#3A4250" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="386" y="352" width="200" height="222" rx="18" stroke="#CBD2DC" stroke-width="3"/>
+    <rect x="614" y="352" width="200" height="222" rx="18" stroke="#CBD2DC" stroke-width="3"/>
+    <circle cx="486" cy="412" r="30"/>
+    <path d="M436 548 C436 484 454 456 486 456 C518 456 536 484 536 548"/>
+    <circle cx="714" cy="412" r="30"/>
+    <path d="M664 548 C664 484 682 456 714 456 C746 456 764 484 764 548"/>
+  </g>
+  <rect x="470" y="478" width="32" height="42" rx="7" fill="#5C6676"/>
+  <rect x="698" y="474" width="32" height="42" rx="7" fill="#5C6676"/>
+  <text x="486" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#5B6472">Front</text>
+  <text x="714" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#5B6472">Back</text>
+
+  <!-- who they are for -->
+  <text x="600" y="660" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#1E2533">Under 8 yrs · &lt; 25 kg / 55 lbs</text>
+
+  <!-- expiry date beside the hourglass -->
+  <path d="M552 700 L570 700 L561 714 Z M552 728 L570 728 L561 714 Z" fill="#1E2533"/>
+  <text x="582" y="724" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#1E2533">2027-05-31</text>
+</svg>

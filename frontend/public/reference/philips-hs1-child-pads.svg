@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="Illustration: an infant/child pads cartridge for the Philips HS1, marked with a teddy bear icon and a patient-weight limit, with the expiry date on the front">
+  <!-- Only the verified identifying marks are drawn: the teddy bear icon and
+       patient-weight marking, and the expiry date on the front. Colours of
+       the real cartridge are deliberately not asserted. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1F3F7"/>
+      <stop offset="1" stop-color="#E4E8EE"/>
+    </linearGradient>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#E7ECF2" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#1B2433" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#bg)"/>
+
+  <!-- clear cartridge shell, the same outline as the adult cartridge -->
+  <g filter="url(#shadow)">
+    <path d="M420 190 L780 190 C812 190 832 208 836 236 L852 330 C856 350 866 360 872 372 L872 440 C862 452 856 462 854 480 L846 740 C844 776 820 800 786 800 L414 800 C380 800 356 776 354 740 L346 480 C344 462 338 452 328 440 L328 372 C334 360 344 350 348 330 L364 236 C368 208 388 190 420 190 Z" fill="url(#shell)"/>
+  </g>
+  <path d="M420 190 L780 190 C812 190 832 208 836 236 L852 330 C856 350 866 360 872 372 L872 440 C862 452 856 462 854 480 L846 740 C844 776 820 800 786 800 L414 800 C380 800 356 776 354 740 L346 480 C344 462 338 452 328 440 L328 372 C334 360 344 350 348 330 L364 236 C368 208 388 190 420 190 Z" fill="none" stroke="#C3CBD6" stroke-width="4"/>
+  <rect x="392" y="236" width="416" height="528" rx="26" fill="none" stroke="#D6DCE4" stroke-width="3"/>
+
+  <!-- pull tab (colour of the real tab not asserted) -->
+  <rect x="440" y="150" width="320" height="64" rx="12" fill="#D3D8E0"/>
+  <text x="600" y="194" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="4" fill="#4E5766">PULL</text>
+  <path d="M468 172 L488 172 L478 186 Z M712 172 L732 172 L722 186 Z" fill="#4E5766"/>
+
+  <!-- child placement diagram: front and back -->
+  <g fill="none" stroke="#3A4250" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="520" cy="318" r="30"/>
+    <path d="M478 470 C478 402 492 374 520 374 C548 374 562 402 562 470"/>
+    <circle cx="680" cy="318" r="30"/>
+    <path d="M638 470 C638 402 652 374 680 374 C708 374 722 402 722 470"/>
+  </g>
+  <rect x="506" y="400" width="28" height="36" rx="6" fill="#5C6676"/>
+  <rect x="666" y="396" width="28" height="36" rx="6" fill="#5C6676"/>
+
+  <!-- teddy bear icon + weight limit: how an infant/child cartridge is told apart -->
+  <g transform="translate(600 552)" fill="#3A4250">
+    <circle cx="-26" cy="-30" r="13"/>
+    <circle cx="26" cy="-30" r="13"/>
+    <circle cx="0" cy="-8" r="30"/>
+    <ellipse cx="0" cy="44" rx="32" ry="28"/>
+    <circle cx="-28" cy="28" r="11"/>
+    <circle cx="28" cy="28" r="11"/>
+    <circle cx="-11" cy="-14" r="4" fill="#FFFFFF"/>
+    <circle cx="11" cy="-14" r="4" fill="#FFFFFF"/>
+    <ellipse cx="0" cy="0" rx="7" ry="5" fill="#FFFFFF"/>
+  </g>
+  <text x="600" y="660" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#1E2533">&lt; 25 kg / 55 lbs</text>
+
+  <!-- expiry date on the front, beside the hourglass -->
+  <rect x="516" y="690" width="168" height="54" rx="10" fill="#FFFFFF" stroke="#1E2533" stroke-width="3"/>
+  <path d="M534 702 L552 702 L543 716 Z M534 730 L552 730 L543 716 Z" fill="#1E2533"/>
+  <text x="564" y="727" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#1E2533">2027/08</text>
+</svg>

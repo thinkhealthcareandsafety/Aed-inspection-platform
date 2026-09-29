@@ -26,6 +26,13 @@ export interface ReferenceExample {
    * so every example is marked the same way, in both themes.
    */
   focus?: Focus;
+  /**
+   * A drawing, not a photo — labelled as such on screen. Used only where no
+   * genuine photo exists, and drawn from the manufacturer's own description
+   * of the part; details that couldn't be verified (a pack's colour) are
+   * left neutral rather than guessed.
+   */
+  illustration?: boolean;
 }
 
 /*
@@ -114,6 +121,16 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'neutral',
       models: ['Philips HS1'],
     },
+    // Per ZOLL's battery-label instructions: the replacement date is
+    // written on a label stuck directly below the Status Indicator.
+    {
+      src: '/reference/zoll-aed-plus-battery-label.svg',
+      focus: { x: 0.0867, y: 0.4267, w: 0.41, h: 0.1667 },
+      caption: 'The “Replace batteries on or before” label, stuck just below the status window.',
+      kind: 'neutral',
+      models: ['Zoll AED Plus'],
+      illustration: true,
+    },
   ],
 
   battery_attached: [
@@ -197,12 +214,29 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     },
   ],
 
+  // Each unit handles children differently: the FRx takes a key, the HS1 a
+  // separate pads cartridge, the AED Plus a separate pack of pads.
   child_key_pad: [
     {
       src: '/reference/philips-frx-child-key.jpg',
       caption: 'The infant/child key: a blue key with a pink ring.',
       kind: 'neutral',
       models: ['Philips FRx'],
+    },
+    {
+      src: '/reference/philips-hs1-child-pads.svg',
+      focus: { x: 0.3883, y: 0.5556, w: 0.2233, h: 0.1911 },
+      caption: 'An infant/child pads cartridge: look for the teddy bear and the weight limit.',
+      kind: 'neutral',
+      models: ['Philips HS1'],
+      illustration: true,
+    },
+    {
+      src: '/reference/zoll-aed-plus-child-pads.svg',
+      caption: 'Pedi-padz II: a separate pack of child pads, with child placement diagrams.',
+      kind: 'neutral',
+      models: ['Zoll AED Plus'],
+      illustration: true,
     },
   ],
 
@@ -225,6 +259,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       focus: { x: 0.3742, y: 0.6056, w: 0.2533, h: 0.19 },
       caption: 'A sticker with the emergency and site contact numbers, on the AED or its cabinet.',
       kind: 'neutral',
+      illustration: true,
     },
   ],
 };
