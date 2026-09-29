@@ -9,13 +9,18 @@ import multer from 'multer';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { Inspection, REPLACEMENT_ITEMS } from '../../models/Inspection';
+import { ModelRequest } from '../../models/ModelRequest';
 import { createError } from '../middleware/error-handler';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { isPublicAedModel, PUBLIC_AED_MODELS } from '../../config/aed-models';
 import { analyzeChecklistItem, skipChecklistItem, completeInspection } from '../../services/checklistService';
 import { createReportDoc, renderInspectionPdf, generateInspectionPdfBuffer } from '../../services/reportService';
-import { sendInspectionReportEmail, sendReplacementRequestEmail } from '../../services/emailService';
+import {
+  sendInspectionReportEmail,
+  sendModelRequestEmail,
+  sendReplacementRequestEmail,
+} from '../../services/emailService';
 
 const router = Router();
 
@@ -36,6 +41,17 @@ const createSchema = z.object({
 const replacementSchema = z.object({
   items: z.array(z.enum(REPLACEMENT_ITEMS)).min(1).max(REPLACEMENT_ITEMS.length),
 });
+
+const modelRequestSchema = z.object({
+  name: z.string().trim().min(2, 'Name is required').max(120),
+  email: z.string().trim().email('Enter a valid email address'),
+  phone: z.string().trim().min(6, 'Enter a valid mobile number').max(30),
+  brand: z.string().trim().min(2, 'Choose a brand').max(60),
+  model: z.string().trim().max(80).optional(),
+});
+
+/** Asking twice about the same unit is one request, not two emails. */
+const MODEL_REQUEST_DEDUPE_MS = 24 * 60 * 60 * 1000;
 
 async function loadPublicInspection(inspectionId: string | string[]) {
   const inspection = await Inspection.findOne({ inspectionId: String(inspectionId), source: 'public' });
@@ -67,6 +83,48 @@ router.post('/inspections', async (req: Request, res: Response, next: NextFuncti
 
     logger.info('public_inspection.created', { inspectionId: inspection.inspectionId, aedModel: body.aedModel });
     res.status(201).json({ inspection });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      next(createError(err.errors[0]?.message ?? 'Invalid input', 400, 'VALIDATION_ERROR'));
+      return;
+    }
+    next(err);
+  }
+});
+
+// POST /api/v1/public/model-requests — the visitor's AED isn't one the app
+// supports yet. Keep them as a lead instead of losing them at the picker.
+router.post('/model-requests', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = modelRequestSchema.parse(req.body);
+    const email = body.email.toLowerCase();
+
+    // A double tap, a retry or a script must not mail the sales inbox over
+    // and over — the same rule as the report and quote emails.
+    const existing = await ModelRequest.findOne({
+      email,
+      brand: body.brand,
+      createdAt: { $gte: new Date(Date.now() - MODEL_REQUEST_DEDUPE_MS) },
+    });
+    if (existing) {
+      res.json({ request: { brand: existing.brand, model: existing.aedModel, createdAt: existing.createdAt } });
+      return;
+    }
+
+    const { model, ...contact } = body;
+    const request = await ModelRequest.create({ ...contact, email, aedModel: model });
+    logger.info('public.model_requested', { brand: request.brand });
+
+    // The request is kept either way; a mail failure is logged, not shown.
+    await sendModelRequestEmail({
+      name: request.name,
+      email: request.email,
+      phone: request.phone,
+      brand: request.brand,
+      model: request.aedModel,
+    });
+
+    res.status(201).json({ request: { brand: request.brand, model: request.aedModel, createdAt: request.createdAt } });
   } catch (err) {
     if (err instanceof z.ZodError) {
       next(createError(err.errors[0]?.message ?? 'Invalid input', 400, 'VALIDATION_ERROR'));

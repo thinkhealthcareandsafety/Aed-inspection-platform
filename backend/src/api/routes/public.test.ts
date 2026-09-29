@@ -4,6 +4,7 @@ import request from 'supertest';
 jest.mock('../../services/emailService', () => ({
   sendInspectionReportEmail: jest.fn(),
   sendReplacementRequestEmail: jest.fn().mockResolvedValue({ sent: true }),
+  sendModelRequestEmail: jest.fn().mockResolvedValue({ sent: true }),
 }));
 
 jest.mock('../../models/Inspection', () => ({
@@ -11,14 +12,22 @@ jest.mock('../../models/Inspection', () => ({
   Inspection: { findOne: jest.fn() },
 }));
 
+jest.mock('../../models/ModelRequest', () => ({
+  ModelRequest: { findOne: jest.fn(), create: jest.fn() },
+}));
+
 import publicRouter from './public';
 import { errorHandler } from '../middleware/error-handler';
 import { Inspection } from '../../models/Inspection';
-import { sendReplacementRequestEmail } from '../../services/emailService';
+import { ModelRequest } from '../../models/ModelRequest';
+import { sendModelRequestEmail, sendReplacementRequestEmail } from '../../services/emailService';
 import { logger } from '../../utils/logger';
 
 const findOne = Inspection.findOne as jest.Mock;
 const notifySales = sendReplacementRequestEmail as jest.Mock;
+const findRequest = ModelRequest.findOne as jest.Mock;
+const createRequest = ModelRequest.create as jest.Mock;
+const notifyModelRequest = sendModelRequestEmail as jest.Mock;
 
 function makeApp() {
   const app = express();
@@ -53,6 +62,51 @@ beforeAll(() => {
 beforeEach(() => {
   findOne.mockReset();
   notifySales.mockClear();
+  findRequest.mockReset();
+  createRequest.mockReset();
+  notifyModelRequest.mockClear();
+});
+
+describe('POST /public/model-requests', () => {
+  const body = {
+    name: 'Priya Sharma',
+    email: 'Priya@Acme.in',
+    phone: '+919876543210',
+    brand: 'Mindray',
+    model: 'BeneHeart C1A',
+  };
+
+  it('keeps the visitor as a lead and tells the sales team', async () => {
+    findRequest.mockResolvedValue(null);
+    createRequest.mockImplementation(async (doc) => ({ ...doc, createdAt: new Date() }));
+
+    const res = await request(makeApp()).post('/api/v1/public/model-requests').send(body);
+
+    expect(res.status).toBe(201);
+    expect(res.body.request).toMatchObject({ brand: 'Mindray', model: 'BeneHeart C1A' });
+    // Stored lower-cased, so the de-duplication below matches however it was typed.
+    expect(createRequest.mock.calls[0][0]).toMatchObject({ email: 'priya@acme.in', brand: 'Mindray', aedModel: 'BeneHeart C1A' });
+    expect(notifyModelRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers a repeat within a day without emailing again', async () => {
+    findRequest.mockResolvedValue({ brand: 'Mindray', aedModel: 'BeneHeart C1A', createdAt: new Date() });
+
+    const res = await request(makeApp()).post('/api/v1/public/model-requests').send(body);
+
+    expect(res.status).toBe(200);
+    expect(createRequest).not.toHaveBeenCalled();
+    expect(notifyModelRequest).not.toHaveBeenCalled();
+  });
+
+  it('refuses a request without contact details or a brand', async () => {
+    for (const bad of [{ ...body, brand: '' }, { ...body, email: 'not-an-email' }, { brand: 'Mindray' }]) {
+      const res = await request(makeApp()).post('/api/v1/public/model-requests').send(bad);
+      expect(res.status).toBe(400);
+    }
+    expect(createRequest).not.toHaveBeenCalled();
+    expect(notifyModelRequest).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /public/inspections/:id/replacement-request', () => {

@@ -201,3 +201,70 @@ export async function sendReplacementRequestEmail(
     return { sent: false, reason: 'Send failed' };
   }
 }
+
+export interface ModelRequestParams {
+  name: string;
+  email: string;
+  phone: string;
+  brand: string;
+  model?: string;
+}
+
+/**
+ * Tells the sales team that someone with an AED the app doesn't cover yet
+ * asked for help with it. Internal address only; Reply-To is the visitor.
+ */
+export async function sendModelRequestEmail(params: ModelRequestParams): Promise<{ sent: boolean; reason?: string }> {
+  const t = getTransporter();
+  const to = config.REPORT_BCC_EMAIL;
+  if (!to) return { sent: false, reason: 'No recipient' };
+  if (!t) return { sent: false, reason: 'SMTP not configured' };
+
+  const unit = [params.brand, params.model].filter(Boolean).join(' ');
+  const rows: [string, string | undefined][] = [
+    ['AED', unit],
+    ['Name', params.name],
+    ['Phone', params.phone],
+    ['Email', params.email],
+  ];
+  const phoneDigits = params.phone.replace(/\D/g, '');
+
+  try {
+    await t.sendMail({
+      from: config.EMAIL_FROM || config.SMTP_USER,
+      to,
+      replyTo: params.email || undefined,
+      subject: `Unsupported AED: ${unit} (${params.name})`,
+      html: `
+        <div style="font-family: -apple-system, Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
+          <h2 style="margin-bottom: 4px;">An owner of an unlisted AED asked for help</h2>
+          <p style="color: #555; margin-top: 0;">Their model isn't in the app yet, so they couldn't run the inspection themselves. Reply to this email to reach them.</p>
+          <table cellpadding="6" style="border-collapse: collapse; margin-top: 12px;">
+            ${rows
+              .map(
+                ([label, value]) => `
+              <tr>
+                <td style="color: #777; padding-right: 16px; vertical-align: top;">${escapeHtml(label)}</td>
+                <td style="font-weight: 600;">${escapeHtml(value || '—')}</td>
+              </tr>`,
+              )
+              .join('')}
+          </table>
+          ${
+            phoneDigits
+              ? `<p style="margin-top: 16px;"><a href="tel:+${phoneDigits}">Call</a> &middot; <a href="https://wa.me/${phoneDigits}">WhatsApp</a></p>`
+              : ''
+          }
+        </div>
+      `,
+    });
+    logger.info('email.model_request_sent', { brand: params.brand });
+    return { sent: true };
+  } catch (err) {
+    logger.error('email.model_request_failed', {
+      brand: params.brand,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { sent: false, reason: 'Send failed' };
+  }
+}
