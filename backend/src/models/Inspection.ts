@@ -25,6 +25,19 @@ export interface IChecklistItemResult {
 
 export type InspectionSource = 'staff' | 'public';
 
+export const REPLACEMENT_ITEMS = ['pads', 'battery', 'accessories'] as const;
+export type ReplacementItem = (typeof REPLACEMENT_ITEMS)[number];
+
+/**
+ * The customer asked, from their result screen, to be quoted for
+ * replacements. Unlike the expiry dates the pipeline is built from, this is
+ * an explicit request — the one sales contact they have opted into.
+ */
+export interface IReplacementRequest {
+  items: ReplacementItem[];
+  requestedAt: Date;
+}
+
 export interface IInspection extends Document {
   inspectionId: string;
   sessionId: string;
@@ -59,6 +72,7 @@ export interface IInspection extends Document {
   capturedImages: string[];  // file paths or URLs
   checklist: IChecklistItemResult[];
   notes?: string;
+  replacementRequest?: IReplacementRequest;
   cvSessionData?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -81,6 +95,14 @@ const ChecklistItemSchema = new Schema<IChecklistItemResult>(
     aiData: { type: Schema.Types.Mixed },
     uploadedAt: { type: Date },
     analyzedAt: { type: Date },
+  },
+  { _id: false },
+);
+
+const ReplacementRequestSchema = new Schema<IReplacementRequest>(
+  {
+    items: { type: [{ type: String, enum: [...REPLACEMENT_ITEMS] }], required: true },
+    requestedAt: { type: Date, required: true },
   },
   { _id: false },
 );
@@ -136,6 +158,8 @@ const InspectionSchema = new Schema<IInspection>(
     capturedImages: [{ type: String }],
     checklist: { type: [ChecklistItemSchema], default: defaultChecklist },
     notes: { type: String },
+    // Single nested: stays absent until a request is actually made.
+    replacementRequest: { type: ReplacementRequestSchema },
     cvSessionData: { type: Schema.Types.Mixed },
   },
   {

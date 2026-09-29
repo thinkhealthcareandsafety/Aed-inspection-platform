@@ -193,6 +193,10 @@ interface PipelineRow {
   urgency: ExpiryUrgency;
   lastInspectedAt: Date;
   inspectionResult: string;
+  /** Set when the customer asked for a quote themselves — the hottest lead
+   *  on the list, and one they have agreed to be contacted about. */
+  quoteRequestedAt?: Date;
+  quoteItems?: string[];
 }
 
 /**
@@ -251,6 +255,8 @@ async function loadPipeline(): Promise<PipelineRow[]> {
         urgency: urgencyOf(remaining),
         lastInspectedAt: d.startedAt,
         inspectionResult: d.inspectionResult,
+        quoteRequestedAt: d.replacementRequest?.requestedAt,
+        quoteItems: d.replacementRequest?.items,
       };
     })
     .filter((r): r is PipelineRow => r !== null)
@@ -269,6 +275,7 @@ router.get('/pipeline', async (req: Request, res: Response, next: NextFunction) 
       soon: all.filter((r) => r.urgency === 'soon').length,
       ok: all.filter((r) => r.urgency === 'ok').length,
       contactable: all.filter((r) => r.contactPhone || r.contactEmail).length,
+      quoteRequested: all.filter((r) => r.quoteRequestedAt).length,
     };
 
     const urgency = String(req.query.urgency ?? '').trim();
@@ -301,13 +308,14 @@ router.get('/pipeline.csv', async (_req: Request, res: Response, next: NextFunct
     const header = [
       'Name', 'Email', 'Phone', 'AED model', 'Serial number',
       'Pads expiry', 'Battery expiry', 'Next expiry', 'Expires', 'Days remaining',
-      'Urgency', 'Last inspected', 'Result',
+      'Urgency', 'Last inspected', 'Result', 'Quote requested', 'Quote for',
     ];
     const body = rows.map((r) =>
       [
         r.contactName, r.contactEmail, r.contactPhone, r.aedModel, r.serialNumber,
         r.padsExpiry, r.batteryExpiry, r.nextExpiryKind, iso(r.nextExpiryAt), r.daysRemaining,
         r.urgency, iso(r.lastInspectedAt), r.inspectionResult,
+        iso(r.quoteRequestedAt), r.quoteItems?.join(' + '),
       ].map(escape).join(','),
     );
 

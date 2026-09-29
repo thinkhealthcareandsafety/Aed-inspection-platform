@@ -11,6 +11,18 @@ import { logger } from '../utils/logger';
 
 let transporter: Transporter | null | undefined;
 
+/** Names and the like are typed by anonymous visitors; in an HTML email they
+ *  must render as text, never as markup (a "name" carrying a link or a fake
+ *  login form would otherwise arrive in our own inbox looking like ours). */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getTransporter(): Transporter | null {
   if (transporter !== undefined) return transporter;
 
@@ -73,7 +85,7 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
       html: `
         <div style="font-family: -apple-system, Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
           <h2 style="margin-bottom: 4px;">AED Inspection Report</h2>
-          <p style="color: #555; margin-top: 0;">${params.aedModel ?? 'AED'} inspection completed by ${params.guestName ?? 'inspector'}.</p>
+          <p style="color: #555; margin-top: 0;">${escapeHtml(params.aedModel ?? 'AED')} inspection completed by ${escapeHtml(params.guestName ?? 'inspector')}.</p>
           <p><strong>Result:</strong> ${resultLabel}</p>
           <p><strong>Inspection ID:</strong> ${params.inspectionId}</p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">The full report is attached as a PDF.</p>
@@ -99,5 +111,93 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
       error: err instanceof Error ? err.message : String(err),
     });
     return { sent: false, recipients: [...recipients], reason: 'Send failed' };
+  }
+}
+
+export interface ReplacementRequestParams {
+  inspectionId: string;
+  items: string[];
+  aedModel?: string;
+  serialNumber?: string;
+  padsExpiry?: string;
+  batteryExpiry?: string;
+  inspectionResult: string;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+}
+
+const REPLACEMENT_LABEL: Record<string, string> = {
+  pads: 'Pads',
+  battery: 'Battery',
+  accessories: 'Spares / accessories',
+};
+
+/**
+ * Tells the sales team a customer has asked, from their result screen, to be
+ * quoted for replacements. Internal address only — the customer already has
+ * their report — with Reply-To set to the customer, so answering the email
+ * answers them.
+ */
+export async function sendReplacementRequestEmail(
+  params: ReplacementRequestParams,
+): Promise<{ sent: boolean; reason?: string }> {
+  const t = getTransporter();
+  const to = config.REPORT_BCC_EMAIL;
+  if (!to) return { sent: false, reason: 'No recipient' };
+  if (!t) return { sent: false, reason: 'SMTP not configured' };
+
+  const wanted = params.items.map((i) => REPLACEMENT_LABEL[i] ?? i).join(', ');
+  const rows: [string, string | undefined][] = [
+    ['Wants a quote for', wanted],
+    ['Name', params.guestName],
+    ['Phone', params.guestPhone],
+    ['Email', params.guestEmail],
+    ['AED model', params.aedModel],
+    ['Serial number', params.serialNumber],
+    ['Pads expiry', params.padsExpiry],
+    ['Battery expiry', params.batteryExpiry],
+    ['Inspection result', params.inspectionResult],
+    ['Inspection ID', params.inspectionId],
+  ];
+  const phoneDigits = params.guestPhone?.replace(/\D/g, '');
+
+  try {
+    await t.sendMail({
+      from: config.EMAIL_FROM || config.SMTP_USER,
+      to,
+      replyTo: params.guestEmail || undefined,
+      subject: `Quote request: ${wanted} for ${params.aedModel ?? 'AED'} (${params.guestName ?? 'customer'})`,
+      html: `
+        <div style="font-family: -apple-system, Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
+          <h2 style="margin-bottom: 4px;">New replacement quote request</h2>
+          <p style="color: #555; margin-top: 0;">Asked for from the inspection result screen. Reply to this email to reach the customer.</p>
+          <table cellpadding="6" style="border-collapse: collapse; margin-top: 12px;">
+            ${rows
+              .map(
+                ([label, value]) => `
+              <tr>
+                <td style="color: #777; padding-right: 16px; vertical-align: top;">${escapeHtml(label)}</td>
+                <td style="font-weight: 600;">${escapeHtml(value || '—')}</td>
+              </tr>`,
+              )
+              .join('')}
+          </table>
+          ${
+            phoneDigits
+              ? `<p style="margin-top: 16px;"><a href="tel:+${phoneDigits}">Call</a> &middot; <a href="https://wa.me/${phoneDigits}">WhatsApp</a></p>`
+              : ''
+          }
+        </div>
+      `,
+    });
+    logger.info('email.replacement_request_sent', { inspectionId: params.inspectionId });
+    return { sent: true };
+  } catch (err) {
+    logger.error('email.replacement_request_failed', {
+      inspectionId: params.inspectionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { sent: false, reason: 'Send failed' };
   }
 }
