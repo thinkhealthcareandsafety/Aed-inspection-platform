@@ -219,6 +219,21 @@
     }
   }
 
+  /* The ring around a reference photo's focus: one slow outward breath, so
+     the eye finds the part without the photo feeling busy. Held still by the
+     reduced-motion rule below for anyone who has asked for less motion. */
+  .spot-pulse {
+    animation: spot-pulse 2.4s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  }
+
+  /* A swipeable row that still scrolls, minus the scrollbar chrome. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Sheet presentation — same easing as the JS motion tokens so a dialog
      feels like the rest of the app rather than a separate component. */
   .sheet-in {
@@ -237,6 +252,18 @@
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes spot-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  70%,
+  100% {
+    transform: scale(1.14);
+    opacity: 0;
   }
 }
 

@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
 import { modelDisplayName } from '@/lib/aed-models';
 import { readingOf } from '@/lib/readings';
+import { preloadReferenceImages } from '@/lib/reference-examples';
 import { ActiveCheck, CheckRow } from '@/components/inspection/ActiveCheck';
 import { ProgressRail } from '@/components/inspection/ProgressRail';
 import { ContactForm, type ContactFormData } from '@/components/public/ContactForm';
@@ -153,6 +154,11 @@ export default function PublicInspectionPage() {
     };
     return REQUIRED_ITEMS.find((i) => outstanding(i.id))?.id;
   }, [inspection, REQUIRED_ITEMS]);
+
+  // Every example this model's checks will show, fetched while the first
+  // check is being read — so the next one's photo is already on screen.
+  const inspectionModel = inspection?.aedModel;
+  useEffect(() => preloadReferenceImages(inspectionModel), [inspectionModel]);
 
   const [openedOnce, setOpenedOnce] = useState(false);
   useEffect(() => {

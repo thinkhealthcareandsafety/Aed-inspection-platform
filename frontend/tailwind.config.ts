@@ -65,6 +65,13 @@ const config: Config = {
         display: ['1.75rem', { lineHeight: '1.15', letterSpacing: '-0.026em', fontWeight: '600' }],
         'display-lg': ['2.125rem', { lineHeight: '1.08', letterSpacing: '-0.03em', fontWeight: '600' }],
       },
+      /* Tailwind only generates opacity steps of 5, so the /92 hover tint on
+         every filled button and the /8 wash behind error and pass notes were
+         never emitted — those classes silently did nothing. */
+      opacity: {
+        8: '0.08',
+        92: '0.92',
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

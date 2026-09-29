@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="An AED wall cabinet with a yellow emergency-contacts sticker on its door">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1F3F7"/>
+      <stop offset="1" stop-color="#E4E8EE"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EEF3F8"/>
+      <stop offset="0.55" stop-color="#E2E9F1"/>
+      <stop offset="1" stop-color="#D8E1EB"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#1B2433" flood-opacity="0.16"/>
+    </filter>
+    <filter id="sticker-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#1B2433" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#wall)"/>
+  <!-- skirting line, so the cabinet reads as wall-mounted -->
+  <rect y="846" width="1200" height="54" fill="#D9DEE6"/>
+
+  <!-- cabinet -->
+  <g filter="url(#shadow)">
+    <rect x="330" y="118" width="540" height="648" rx="30" fill="#FFFFFF"/>
+  </g>
+  <rect x="330" y="118" width="540" height="648" rx="30" fill="none" stroke="#D3D9E2" stroke-width="3"/>
+
+  <!-- ILCOR-style AED sign on the header band -->
+  <rect x="330" y="118" width="540" height="104" rx="30" fill="#0B8A55"/>
+  <rect x="330" y="176" width="540" height="46" fill="#0B8A55"/>
+  <g transform="translate(600 170)">
+    <path d="M0 30 C-40 4 -52 -22 -34 -38 C-20 -50 -6 -44 0 -32 C6 -44 20 -50 34 -38 C52 -22 40 4 0 30 Z" fill="#FFFFFF"/>
+    <path d="M6 -30 L-10 -2 L2 -2 L-6 20 L14 -10 L2 -10 Z" fill="#0B8A55"/>
+  </g>
+
+  <!-- glazed door -->
+  <rect x="372" y="252" width="456" height="476" rx="18" fill="url(#glass)" stroke="#C9D2DD" stroke-width="3"/>
+  <path d="M430 262 L560 262 L420 560 L390 560 Z" fill="#FFFFFF" opacity="0.35"/>
+  <!-- the AED seen through the glass -->
+  <rect x="468" y="318" width="264" height="206" rx="26" fill="#2F4F83"/>
+  <rect x="512" y="344" width="176" height="118" rx="12" fill="#DDE6F2"/>
+  <circle cx="704" cy="492" r="12" fill="#6FE3A6"/>
+  <!-- door handle -->
+  <rect x="800" y="420" width="14" height="96" rx="7" fill="#AEB8C6"/>
+
+  <!-- the emergency-contacts sticker: what this check is about -->
+  <g filter="url(#sticker-shadow)" transform="rotate(-2 600 632)">
+    <rect x="450" y="560" width="300" height="146" rx="14" fill="#FFD43B"/>
+    <rect x="450" y="560" width="300" height="42" rx="14" fill="#1E2533"/>
+    <rect x="450" y="588" width="300" height="14" fill="#1E2533"/>
+    <text x="600" y="589" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="3" fill="#FFD43B">EMERGENCY</text>
+    <!-- phone glyph -->
+    <circle cx="496" cy="652" r="26" fill="#1E2533"/>
+    <path d="M486 640 C486 637 489 635 491 636 L495 638 C497 639 498 641 497 643 L495 647 C497 652 500 655 505 657 L509 655 C511 654 513 655 514 657 L516 661 C517 663 515 666 512 666 C498 666 486 654 486 640 Z" fill="#FFD43B"/>
+    <text x="534" y="646" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#1E2533">Call 112</text>
+    <text x="534" y="680" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#1E2533">First aider · Ext. 204</text>
+  </g>
+</svg>

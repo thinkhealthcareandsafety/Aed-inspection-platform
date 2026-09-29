@@ -1,19 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
-import Image from 'next/image';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import { getReferenceExamples } from '@/lib/reference-examples';
+import { track } from '@/lib/track';
+import { KIND, ReferenceFigure } from './ReferenceFigure';
 import type { ChecklistItemId } from '@/types';
 
-const KIND: Record<'good' | 'bad' | 'neutral', { label: string; color: string; icon?: typeof CheckCircle2 }> = {
-  good: { label: 'Correct', color: 'var(--status-good)', icon: CheckCircle2 },
-  bad: { label: 'Wrong', color: 'var(--status-critical)', icon: XCircle },
-  // Labelled too: an unmarked photo directly above a camera button reads as
-  // a live viewfinder, or as a capture that has already been taken.
-  neutral: { label: 'Example', color: 'hsl(var(--muted-foreground))' },
-};
+const ReferenceLightbox = dynamic(() => import('./ReferenceLightbox'), { ssr: false });
 
 /**
  * The reference photo, shown inline rather than hidden behind a tap.
@@ -22,6 +17,10 @@ const KIND: Record<'good' | 'bad' | 'neutral', { label: string; color: string; i
  * "the pads expiry date", open a dialog to find out, and then dismiss it
  * before they can raise the camera. Showing the target next to the button is
  * the whole instruction, delivered before the question is asked.
+ *
+ * A right/wrong pair used to sit side by side at half width, too small to
+ * see either. Each now gets the full width, with a Correct / Wrong switch
+ * above that also follows a swipe.
  */
 export function ReferenceStrip({
   itemId,
@@ -33,49 +32,77 @@ export function ReferenceStrip({
   className?: string;
 }) {
   const examples = getReferenceExamples(itemId, aedModel);
-
-  useEffect(() => {
-    if (!examples?.length) return;
-    for (const ex of examples) {
-      const img = new window.Image();
-      img.src = ex.src;
-    }
-  }, [examples]);
+  const [active, setActive] = useState(0);
+  const [enlarged, setEnlarged] = useState<number | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
 
   if (!examples?.length) return null;
+  const multi = examples.length > 1;
+
+  function show(index: number) {
+    // Slides are exactly the scroller's width, with no gap between them.
+    scroller.current?.scrollTo({ left: index * scroller.current.clientWidth, behavior: 'smooth' });
+    setActive(index);
+  }
+
+  function onScroll() {
+    const el = scroller.current;
+    if (!el) return;
+    const width = el.clientWidth || 1;
+    setActive(Math.min(examples!.length - 1, Math.max(0, Math.round(el.scrollLeft / width))));
+  }
+
+  function enlarge(index: number) {
+    setEnlarged(index);
+    // How often the example gets enlarged per check is the clearest signal
+    // of which checks still aren't self-explanatory.
+    track('reference_opened', { itemId, aedModel });
+  }
+
+  const open = enlarged !== null ? examples[enlarged] : undefined;
 
   return (
-    <div className={cn('grid gap-2', examples.length > 1 ? 'grid-cols-2' : 'grid-cols-1', className)}>
-      {examples.map((ex) => {
-        const kind = KIND[ex.kind];
-        const KindIcon = kind.icon;
-        return (
-          <figure key={ex.src} className="min-w-0">
-            <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-secondary">
-              {/* unoptimized: already resized and compressed at build time, so
-                  the on-demand optimiser would only add a cold-start hop. */}
-              <Image
-                src={ex.src}
-                alt={ex.caption}
-                fill
-                unoptimized
-                sizes="(max-width: 640px) 45vw, 260px"
-                className="object-cover"
-              />
-              <span
-                className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-background/92 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-semibold shadow-sm ring-1 ring-black/5"
-                style={{ color: kind.color }}
+    <div className={className}>
+      {multi && (
+        <div role="tablist" aria-label="Examples" className="mb-2.5 inline-flex rounded-xl bg-secondary p-0.5">
+          {examples.map((ex, i) => {
+            const k = KIND[ex.kind];
+            const Icon = k.icon;
+            const selected = active === i;
+            return (
+              <button
+                key={`${ex.src}-${i}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => show(i)}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-caption font-semibold transition-colors',
+                  selected ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
               >
-                {KindIcon && <KindIcon className="w-2.5 h-2.5" strokeWidth={2.8} />}
-                {kind.label}
-              </span>
-            </div>
-            <figcaption className="text-caption text-muted-foreground mt-1.5 leading-snug">
-              {ex.caption}
-            </figcaption>
+                {Icon && <Icon className="h-3.5 w-3.5" strokeWidth={2.4} style={{ color: k.color }} />}
+                {ex.kind === 'neutral' ? `Example ${i + 1}` : k.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div
+        ref={scroller}
+        onScroll={multi ? onScroll : undefined}
+        className={cn(multi && 'no-scrollbar flex snap-x snap-mandatory overflow-x-auto')}
+      >
+        {examples.map((ex, i) => (
+          <figure key={`${ex.src}-${i}`} className={cn('min-w-0', multi && 'w-full shrink-0 snap-center')}>
+            <ReferenceFigure example={ex} priority={i === 0} onOpen={() => enlarge(i)} />
+            <figcaption className="mt-2 text-footnote leading-snug text-muted-foreground">{ex.caption}</figcaption>
           </figure>
-        );
-      })}
+        ))}
+      </div>
+
+      {open && <ReferenceLightbox example={open} onClose={() => setEnlarged(null)} />}
     </div>
   );
 }
