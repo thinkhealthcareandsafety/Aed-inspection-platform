@@ -3,13 +3,16 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AED_MODEL_OPTIONS, COMING_SOON_MODELS } from '@/lib/aed-models';
+import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
 import { screenTransition } from '@/lib/motion';
 import { AedGlyph } from './AedGlyph';
+import { UnlistedModel } from './UnlistedModel';
 
 interface Props {
   selected: string | null;
   starting: boolean;
+  /** Who is choosing — so someone with an unlisted AED can be kept as a lead. */
+  contact?: { name: string; email: string; phone: string } | null;
   onSelect: (modelId: string) => void;
   onBack: () => void;
 }
@@ -25,7 +28,7 @@ const DEVICE_TONE: Record<string, string> = {
   'Zoll AED Plus': 'text-[#447f17] bg-[#76b82a]/15 dark:text-[#a6d96a] dark:bg-[#a6d96a]/10',
 };
 
-export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
+export function ModelSelect({ selected, starting, contact, onSelect, onBack }: Props) {
   return (
     <motion.div {...screenTransition} className="w-full">
       <div className="mb-6 px-1">
@@ -83,12 +86,15 @@ export function ModelSelect({ selected, starting, onSelect, onBack }: Props) {
         })}
       </ul>
 
-      <p className="text-footnote text-muted-foreground mt-4 px-1">
+      <p className="text-footnote text-muted-foreground mt-3 px-1">
         Not sure? The model name is printed on the front of the unit and on the label at the back.
       </p>
-      <p className="text-footnote text-muted-foreground/70 mt-1.5 px-1">
-        Coming soon: {COMING_SOON_MODELS.join(', ')}.
-      </p>
+
+      {contact && (
+        <div className="mt-5">
+          <UnlistedModel contact={contact} disabled={starting} />
+        </div>
+      )}
 
       <button
         type="button"

@@ -77,7 +77,7 @@ export function ReferenceStrip({
                 aria-selected={selected}
                 onClick={() => show(i)}
                 className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-caption font-semibold transition-colors',
+                  'inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3.5 text-caption font-semibold transition-colors',
                   selected ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >

@@ -244,6 +244,19 @@
   }
 }
 
+/* Bottom sheet: rises from the edge the thumb is already at. */
+.sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 @keyframes sheet-in {
   from {
     opacity: 0;

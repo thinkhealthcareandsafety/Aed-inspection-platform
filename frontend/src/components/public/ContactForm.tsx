@@ -8,7 +8,7 @@ import { ArrowRight, Loader2, ShieldCheck, Sparkles, Clock, FileCheck2, IndianRu
 import { cn } from '@/lib/utils';
 import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
-import { isValidEmail } from '@/lib/validators';
+import { isValidEmail, suggestEmailFix } from '@/lib/validators';
 import { screenTransition } from '@/lib/motion';
 
 const schema = z.object({
@@ -39,13 +39,19 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
     register,
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    watch,
+    setValue,
+    formState: { errors, isSubmitting, touchedFields },
   } = useForm<ContactFormData>({
     resolver: zodResolver(schema),
     defaultValues,
     mode: 'onTouched',
     reValidateMode: 'onChange',
   });
+
+  // Offered once the field is left, never mid-typing ("gmail.c" isn't a typo
+  // yet), because the report is emailed: a misspelt domain loses it silently.
+  const emailFix = touchedFields.email ? suggestEmailFix(watch('email') ?? '') : null;
 
   return (
     <motion.div
@@ -113,6 +119,17 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
               placeholder="you@organisation.com"
               className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
             />
+            {emailFix && (
+              <button
+                type="button"
+                onClick={() => setValue('email', emailFix, { shouldValidate: true, shouldDirty: true })}
+                className="mt-1.5 -mx-1 flex min-h-9 items-center rounded-lg px-1 text-left text-footnote text-muted-foreground"
+              >
+                <span>
+                  Did you mean <span className="font-semibold text-primary">{emailFix}</span>?
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="surface-row px-4 pt-2.5 pb-3">

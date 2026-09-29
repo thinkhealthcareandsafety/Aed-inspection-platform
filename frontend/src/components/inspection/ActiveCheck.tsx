@@ -13,6 +13,7 @@ import {
   Loader2,
   RotateCcw,
   SkipForward,
+  Smartphone,
   SunDim,
   Timer,
   Video,
@@ -115,6 +116,9 @@ interface Props {
   onDone: (itemId: string) => void;
   uploadFn?: typeof api.checklist.upload;
   skipFn?: typeof api.checklist.skip;
+  /** Given on a computer, where the capture button opens a file browser:
+   *  offers to carry the inspection over to a phone's camera. */
+  onContinueOnPhone?: () => void;
 }
 
 /**
@@ -138,8 +142,16 @@ export function ActiveCheck({
   onDone,
   uploadFn,
   skipFn,
+  onContinueOnPhone,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Each new check takes focus, so a screen reader announces it instead of
+  // leaving the reader stranded on the button of the check that just ended.
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+  }, []);
   const [busy, setBusy] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [phase, setPhase] = useState<AnalysisPhase>('preparing');
@@ -304,7 +316,12 @@ export function ActiveCheck({
           )}
         </div>
 
-        <h2 id={`check-${item.id}`} className="text-title text-foreground mt-3">
+        <h2
+          ref={headingRef}
+          id={`check-${item.id}`}
+          tabIndex={-1}
+          className="text-title text-foreground mt-3 outline-none"
+        >
           {item.title}
         </h2>
 
@@ -406,6 +423,16 @@ export function ActiveCheck({
                 {result.status === 'error' ? 'Try again' : isVideo ? 'Record the video' : 'Take the photo'}
               </button>
             </div>
+          )}
+          {mode === 'capture' && onContinueOnPhone && (
+            <button
+              type="button"
+              onClick={onContinueOnPhone}
+              className="mx-auto mt-2 flex h-10 items-center gap-1.5 px-3 text-callout text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Smartphone className="h-4 w-4" strokeWidth={2} />
+              On a computer? <span className="font-semibold text-primary">Continue on your phone</span>
+            </button>
           )}
 
           {mode === 'result' && result.status === 'pass' && (

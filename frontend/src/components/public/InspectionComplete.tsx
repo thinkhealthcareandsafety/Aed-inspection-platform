@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { CHECKLIST_ITEMS } from '@/lib/checklist-config';
 import { modelDisplayName } from '@/lib/aed-models';
-import { parsePhoneValue } from '@/lib/countries';
+import { formatPhone } from '@/lib/countries';
 import { describeExpiry, urgencyOf } from '@/lib/expiry';
 import { readingOf } from '@/lib/readings';
 import { URGENCY } from '@/lib/urgency';
@@ -62,13 +62,6 @@ const STATUS_WORD: Record<string, string> = {
  *  the same 90-day line the sales pipeline calls "soon". */
 const REPLACEMENT_WINDOW_DAYS = 90;
 
-/** "+919876543210" as stored, "+91 9876543210" as read. */
-function formatPhone(value?: string): string | undefined {
-  if (!value) return undefined;
-  const { country, nationalDigits } = parsePhoneValue(value);
-  return nationalDigits ? `+${country.dialCode} ${nationalDigits}` : value;
-}
-
 interface Props {
   inspection: Inspection;
   /** Whether the report email went out; null when that isn't known. */
@@ -100,6 +93,30 @@ export function InspectionComplete({
   onReplacementRequested,
 }: Props) {
   const [requesting, setRequesting] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+  const [shareFile, setShareFile] = useState<File | null>(null);
+
+  // Reports get forwarded — to a facilities head, a compliance inbox — and
+  // on a phone the share sheet is how that happens. iOS only allows sharing
+  // straight from the tap, with no network wait in between, so the PDF is
+  // fetched ahead of it, and only where the browser can share files at all.
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const probe = new File([''], 'report.pdf', { type: 'application/pdf' });
+      if (!navigator.canShare?.({ files: [probe] })) return;
+    } catch {
+      return;
+    }
+    setCanShare(true);
+    api.public
+      .fetchPdf(inspection.inspectionId, { skipErrorToast: true })
+      .then((file) => !cancelled && setShareFile(file))
+      .catch(() => !cancelled && setCanShare(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [inspection.inspectionId]);
   const verdict = VERDICT[inspection.inspectionResult];
   const model = modelDisplayName(inspection.aedModel);
   const phone = formatPhone(inspection.guestPhone);
@@ -137,6 +154,19 @@ export function InspectionComplete({
   }, [inspection.checklist]);
 
   const anyExpired = needs.some((n) => n.days < 0);
+
+  async function share() {
+    if (!shareFile) return;
+    try {
+      await navigator.share({
+        files: [shareFile],
+        title: 'AED inspection report',
+        text: `${model}: ${verdict.eyebrow.toLowerCase()}.`,
+      });
+    } catch {
+      // Dismissing the share sheet rejects too; there's nothing to report.
+    }
+  }
 
   async function requestQuote(items: ReplacementItem[]) {
     if (requesting) return;
@@ -226,46 +256,54 @@ export function InspectionComplete({
         <h1 className="text-display text-foreground mt-1.5">{verdict.title}</h1>
         <p className="text-body text-muted-foreground mt-2">{subtitle}</p>
 
-        <div className="mt-6 pt-4 border-t border-foreground/10 flex items-center gap-3 text-left">
-          <div className="min-w-0 flex-1">
-            <p className="text-footnote text-foreground flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 shrink-0 text-muted-foreground" strokeWidth={1.9} />
-              <span className="truncate">
-                {emailed && inspection.guestEmail
-                  ? `Report emailed to ${inspection.guestEmail}`
-                  : 'Email didn’t send — download your report'}
-              </span>
-            </p>
-            <p className="text-caption text-muted-foreground mt-1">
-              Report {inspection.inspectionId.slice(0, 8).toUpperCase()}
-              {completedAt &&
-                ` · ${completedAt.toLocaleString('en-GB', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}`}
-            </p>
+        <div className="mt-6 pt-4 border-t border-foreground/10 text-left">
+          <p className="text-footnote text-foreground flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5 shrink-0 text-muted-foreground" strokeWidth={1.9} />
+            <span className="truncate">
+              {emailed && inspection.guestEmail
+                ? `Report emailed to ${inspection.guestEmail}`
+                : 'Email didn’t send — download your report'}
+            </span>
+          </p>
+          <p className="text-caption text-muted-foreground mt-1">
+            Report {inspection.inspectionId.slice(0, 8).toUpperCase()}
+            {completedAt &&
+              ` · ${completedAt.toLocaleString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`}
+          </p>
+
+          <div className="mt-3.5 flex gap-2">
+            {canShare && (
+              <button
+                type="button"
+                onClick={() => void share()}
+                disabled={!shareFile}
+                className="pressable inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-card text-callout font-semibold text-foreground shadow-[0_0_0_1px_hsl(var(--border))] transition-colors hover:bg-secondary disabled:opacity-70"
+              >
+                {shareFile ? <Share className="h-4 w-4" strokeWidth={2} /> : <Loader2 className="h-4 w-4 animate-spin" />}
+                Share report
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onDownload}
+              disabled={downloading}
+              className={cn(
+                'pressable inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl text-callout font-semibold transition-colors disabled:opacity-70',
+                emailed
+                  ? 'bg-card text-foreground shadow-[0_0_0_1px_hsl(var(--border))] hover:bg-secondary'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/92',
+              )}
+            >
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" strokeWidth={2} />}
+              {downloading ? 'Preparing…' : 'Download PDF'}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onDownload}
-            disabled={downloading}
-            className={cn(
-              'pressable shrink-0 inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl text-callout font-medium transition-colors disabled:opacity-70',
-              emailed
-                ? 'bg-card text-foreground shadow-[0_0_0_1px_hsl(var(--border))] hover:bg-secondary'
-                : 'bg-primary text-primary-foreground hover:bg-primary/92',
-            )}
-          >
-            {downloading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" strokeWidth={2} />
-            )}
-            {downloading ? 'Preparing…' : 'PDF'}
-          </button>
         </div>
       </motion.section>
 

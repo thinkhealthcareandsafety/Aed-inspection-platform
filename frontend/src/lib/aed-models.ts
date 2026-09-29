@@ -33,7 +33,18 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
   },
 ];
 
-export const COMING_SOON_MODELS = ['Cardiac Science', 'Defibtech', 'HeartSine', 'Physio-Control'];
+/** Brands offered to someone whose unit isn't one of the cards — the ones
+ *  most often installed alongside Philips and ZOLL. "Other" catches the rest. */
+export const OTHER_AED_BRANDS = [
+  'Mindray',
+  'Schiller',
+  'HeartSine',
+  'Physio-Control',
+  'Cardiac Science',
+  'Nihon Kohden',
+  'Defibtech',
+  'Other',
+];
 
 /** "Philips FRx" is the stored id; "Philips HeartStart FRx" is what is
  *  printed on the unit, so it's what the person holding it should read. */

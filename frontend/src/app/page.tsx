@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Check, ChevronDown, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Loader2, MoreHorizontal, WifiOff } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
@@ -23,7 +24,12 @@ import { springSnappy } from '@/lib/motion';
 import { track, installTrackingFlush } from '@/lib/track';
 import { usePending } from '@/lib/use-pending';
 import { useElapsed } from '@/lib/use-elapsed';
+import { useIsDesktop, useOnline } from '@/lib/use-device';
+import type { MenuView } from '@/components/public/InspectionMenu';
 import type { ChecklistItemResult, Inspection, ReplacementRequest } from '@/types';
+
+const loadInspectionMenu = () => import('@/components/public/InspectionMenu');
+const InspectionMenu = dynamic(loadInspectionMenu, { ssr: false });
 
 type Step = 'contact' | 'model' | 'inspecting';
 
@@ -54,6 +60,22 @@ function forgetInspection() {
   }
 }
 
+/** Says out loud that the network went, and what that means for the job —
+ *  otherwise the next failed upload reads as the app breaking. */
+function OfflineStrip() {
+  return (
+    <div role="status" className="border-t border-amber-500/25 bg-amber-500/10">
+      <p className="mx-auto flex max-w-md items-start gap-2 px-4 py-2 text-footnote text-foreground">
+        <WifiOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" strokeWidth={2.2} />
+        <span>
+          <span className="font-semibold">No signal.</span> Checks you’ve finished are saved. Move somewhere with
+          signal before the next photo.
+        </span>
+      </p>
+    </div>
+  );
+}
+
 export default function PublicInspectionPage() {
   const [step, setStep] = useState<Step>('contact');
   const [contact, setContact] = useState<ContactFormData | null>(null);
@@ -72,6 +94,10 @@ export default function PublicInspectionPage() {
   /** The one check currently expanded. Null once everything is resolved. */
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showOptional, setShowOptional] = useState(false);
+  /** The header's options sheet, and which face of it is showing. */
+  const [menu, setMenu] = useState<MenuView | null>(null);
+  const isDesktop = useIsDesktop();
+  const online = useOnline();
 
   useEffect(() => {
     track('landing_view');
@@ -81,11 +107,31 @@ export default function PublicInspectionPage() {
   useEffect(() => {
     let cancelled = false;
 
+    // A hand-off link (the QR code on a laptop) names the inspection in the
+    // URL. It's adopted as this device's active inspection and then dropped
+    // from the address bar, so a later refresh or share doesn't carry it.
     let storedId: string | null = null;
     try {
-      storedId = localStorage.getItem(ACTIVE_INSPECTION_KEY);
+      const params = new URLSearchParams(window.location.search);
+      const handedOff = params.get('resume');
+      if (handedOff && /^[0-9a-f-]{36}$/i.test(handedOff)) {
+        storedId = handedOff;
+        rememberInspection(handedOff);
+      }
+      if (handedOff !== null) {
+        params.delete('resume');
+        const rest = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+      }
     } catch {
-      storedId = null;
+      // A malformed URL just means no hand-off.
+    }
+    if (!storedId) {
+      try {
+        storedId = localStorage.getItem(ACTIVE_INSPECTION_KEY);
+      } catch {
+        storedId = null;
+      }
     }
     if (!storedId) {
       setResume('done');
@@ -392,6 +438,34 @@ export default function PublicInspectionPage() {
     setInspection((prev) => (prev ? { ...prev, replacementRequest: request } : prev));
   }, []);
 
+  // The options sheet is code-split; fetch it once the page is idle so the
+  // first tap on "⋯" opens instantly rather than waiting on the network.
+  useEffect(() => {
+    if (step !== 'inspecting') return;
+    const id = window.setTimeout(() => void loadInspectionMenu(), 2500);
+    return () => window.clearTimeout(id);
+  }, [step]);
+
+  /** Mid-inspection escape: the unit in hand isn't the one that was picked. */
+  const handleSwitchModel = useCallback(() => {
+    setMenu(null);
+    handleInspectAnother();
+  }, [handleInspectAnother]);
+
+  const handleStartOver = useCallback(() => {
+    setMenu(null);
+    handleReset();
+    window.scrollTo({ top: 0 });
+  }, [handleReset]);
+
+  /** On a laptop, "Take the photo" opens a file browser. This link reopens
+   *  the same inspection on a phone, where it opens the camera. */
+  const handoffUrl =
+    isDesktop && inspection && typeof window !== 'undefined'
+      ? `${window.location.origin}/?resume=${inspection.inspectionId}`
+      : null;
+  const openHandoff = useCallback(() => setMenu('phone'), []);
+
   const stepIndex: 0 | 1 | 2 = step === 'contact' ? 0 : step === 'model' ? 1 : 2;
 
   // Finishing saves the result, renders the PDF with its photos, and sends it:
@@ -439,6 +513,18 @@ export default function PublicInspectionPage() {
                 <span className="text-foreground font-semibold">{requiredResolvedCount}</span> of{' '}
                 {REQUIRED_ITEM_IDS.length} done
               </span>
+              {!isComplete && (
+                <button
+                  type="button"
+                  onClick={() => setMenu('menu')}
+                  onPointerEnter={() => void loadInspectionMenu()}
+                  aria-label="Inspection options"
+                  aria-haspopup="dialog"
+                  className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <MoreHorizontal className="h-5 w-5" strokeWidth={2} />
+                </button>
+              )}
             </div>
             <ProgressRail
               className="mt-2.5"
@@ -447,6 +533,7 @@ export default function PublicInspectionPage() {
               activeId={isComplete ? null : activeId}
             />
           </div>
+          {!online && <OfflineStrip />}
         </header>
       ) : (
         <>
@@ -456,11 +543,25 @@ export default function PublicInspectionPage() {
             <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
             <span className="text-headline text-foreground">AED Inspect</span>
           </header>
+          {!online && <OfflineStrip />}
 
           <div className="max-w-md w-full mx-auto px-4 pb-6">
             <StepIndicator current={stepIndex} />
           </div>
         </>
+      )}
+
+      {menu && inspection && (
+        <InspectionMenu
+          view={menu}
+          onViewChange={setMenu}
+          onClose={() => setMenu(null)}
+          modelName={modelDisplayName(inspection.aedModel)}
+          doneCount={requiredResolvedCount}
+          onSwitchModel={handleSwitchModel}
+          onStartOver={handleStartOver}
+          handoffUrl={handoffUrl}
+        />
       )}
 
       <div
@@ -488,6 +589,7 @@ export default function PublicInspectionPage() {
               key="model"
               selected={pendingModel}
               starting={starting}
+              contact={contact}
               onSelect={handleSelectModel}
               onBack={() => setStep('contact')}
             />
@@ -528,6 +630,7 @@ export default function PublicInspectionPage() {
                 onDone={handleAdvance}
                 uploadFn={api.public.checklist.upload}
                 skipFn={api.public.checklist.skip}
+                onContinueOnPhone={handoffUrl ? openHandoff : undefined}
               />
             )}
 
@@ -626,7 +729,7 @@ export default function PublicInspectionPage() {
                 <button
                   type="button"
                   onClick={() => setShowOptional((v) => !v)}
-                  className="group-label flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  className="group-label flex h-11 items-center gap-1.5 pb-0 hover:text-foreground transition-colors"
                   aria-expanded={showOptional}
                 >
                   Optional extras ({listed.optional.length})

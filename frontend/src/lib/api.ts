@@ -236,6 +236,14 @@ export const api = {
         email: { sent: boolean; recipients: string[]; reason?: string };
       }>(`/public/inspections/${id}/complete`),
 
+    /** The visitor's AED isn't one the app supports yet: keep them as a
+     *  lead, with the brand, rather than losing them at the picker. */
+    requestModel: (data: { name: string; email: string; phone: string; brand: string; model?: string }) =>
+      apiClient.post<{ request: { brand: string; model?: string; createdAt: string } }>(
+        '/public/model-requests',
+        data,
+      ),
+
     /** The customer asked to be quoted for replacement pads, a battery or
      *  accessories — an opt-in lead, sent to the sales team. */
     requestReplacement: (id: string, items: import('@/types').ReplacementItem[]) =>
@@ -244,12 +252,22 @@ export const api = {
         { items },
       ),
 
+    /** The finished report as a file — for downloading, or for handing to
+     *  the phone's share sheet. */
+    fetchPdf: async (inspectionId: string, opts?: { skipErrorToast?: boolean }): Promise<File> => {
+      const res = await apiClient.get(`/public/inspections/${inspectionId}/report/pdf`, {
+        responseType: 'blob',
+        skipErrorToast: opts?.skipErrorToast,
+      });
+      return new File([res.data as Blob], `aed-inspection-${inspectionId}.pdf`, { type: 'application/pdf' });
+    },
+
     downloadPdf: async (inspectionId: string) => {
-      const res = await apiClient.get(`/public/inspections/${inspectionId}/report/pdf`, { responseType: 'blob' });
-      const blobUrl = URL.createObjectURL(res.data as Blob);
+      const file = await api.public.fetchPdf(inspectionId);
+      const blobUrl = URL.createObjectURL(file);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = `aed-inspection-${inspectionId}.pdf`;
+      link.download = file.name;
       document.body.appendChild(link);
       link.click();
       link.remove();

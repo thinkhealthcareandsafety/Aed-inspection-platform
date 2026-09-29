@@ -27,8 +27,11 @@ export function DialogContent({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 sticky top-0 bg-card/95 backdrop-blur-sm">
           <RadixDialog.Title className="font-display text-sm font-bold tracking-tight">{title}</RadixDialog.Title>
-          <RadixDialog.Close className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <X className="w-4 h-4" />
+          <RadixDialog.Close
+            aria-label="Close"
+            className="-mr-2 w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <X className="w-5 h-5" />
           </RadixDialog.Close>
         </div>
         <div className="p-5">{children}</div>

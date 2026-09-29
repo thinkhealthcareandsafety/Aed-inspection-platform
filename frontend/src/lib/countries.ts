@@ -107,3 +107,10 @@ export function parsePhoneValue(value: string | undefined): { country: Country; 
   if (!match) return { country: fallback, nationalDigits: '' };
   return { country: match, nationalDigits: digits.slice(match.dialCode.length) };
 }
+
+/** "+919876543210" as stored, "+91 9876543210" as read. */
+export function formatPhone(value?: string): string | undefined {
+  if (!value) return undefined;
+  const { country, nationalDigits } = parsePhoneValue(value);
+  return nationalDigits ? `+${country.dialCode} ${nationalDigits}` : value;
+}
