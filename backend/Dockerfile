@@ -23,6 +23,8 @@ COPY package*.json ./
 RUN npm ci --only=production --prefer-offline && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
+# The report's typeface (Geist, OFL) — read at runtime by reportService.
+COPY assets/ ./assets/
 
 # Non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

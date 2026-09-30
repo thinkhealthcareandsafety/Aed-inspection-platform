@@ -53,3 +53,30 @@ export function urgencyOf(days: number): ExpiryUrgency {
   if (days <= 90) return 'soon';
   return 'ok';
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** 'YYYY-MM' reads as 'Nov 2026', 'YYYY-MM-DD' as '31 Dec 2028' — the way the
+ *  web app shows them. Anything else is returned as given. */
+export function formatExpiryLabel(raw: string): string {
+  const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  if (full) return `${Number(full[3])} ${MONTHS[Number(full[2]) - 1]} ${full[1]}`;
+  const month = /^(\d{4})-(\d{2})$/.exec(raw.trim());
+  if (month) return `${MONTHS[Number(month[2]) - 1]} ${month[1]}`;
+  return raw;
+}
+
+/** "Expired 3 months ago", "42 days left", "2+ years left" — the same
+ *  phrasing the customer saw on screen (frontend/src/lib/expiry.ts). */
+export function describeExpiry(days: number): string {
+  if (days < 0) {
+    const ago = -days;
+    if (ago < 45) return ago === 1 ? 'Expired yesterday' : `Expired ${ago} days ago`;
+    const months = Math.round(ago / 30.44);
+    return months < 24 ? `Expired ${months} months ago` : `Expired ${Math.floor(months / 12)}+ years ago`;
+  }
+  if (days === 0) return 'Expires today';
+  if (days < 45) return days === 1 ? '1 day left' : `${days} days left`;
+  const months = Math.round(days / 30.44);
+  return months < 24 ? `${months} months left` : `${Math.floor(months / 12)}+ years left`;
+}

@@ -33,7 +33,7 @@ export const en = {
     facts: [
       { label: 'Free', sub: 'No charge' },
       { label: '3 min', sub: 'Six photos' },
-      { label: 'PDF report', sub: 'Emailed' },
+      { label: 'PDF report', sub: 'See a sample' },
     ],
     name: 'Full name',
     namePlaceholder: 'Jane Doe',
@@ -49,6 +49,14 @@ export const en = {
     privacy: 'We use your details only to send this report. No marketing lists, no sharing.',
     submit: 'Start free inspection',
     photosPrivate: 'Your photos are never shared or published',
+  },
+
+  sample: {
+    title: 'Sample report',
+    intro: 'Emailed the moment you finish: the verdict, what to do next, and every check with its photo.',
+    pageAlt: (n: number, total: number) => `Sample report, page ${n} of ${total}`,
+    open: 'Open PDF',
+    start: 'Start free inspection',
   },
 
   phone: {

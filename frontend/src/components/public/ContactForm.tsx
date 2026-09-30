@@ -1,6 +1,7 @@
 'use client';
 
-import { Fragment, useEffect, useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,6 +13,17 @@ import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
 import { isValidEmail, suggestEmailFix } from '@/lib/validators';
 import { screenTransition } from '@/lib/motion';
 import { useI18n, type Messages } from '@/i18n';
+import { preloadSampleReport } from '@/lib/sample-report';
+import { track } from '@/lib/track';
+
+const loadSampleReport = () => import('./SampleReport');
+const SampleReport = dynamic(loadSampleReport, { ssr: false });
+
+/** Fetched ahead of the tap, so the sheet opens straight away. */
+function warmSampleReport() {
+  void loadSampleReport();
+  preloadSampleReport();
+}
 
 function contactSchema(errors: Messages['contact']['errors']) {
   return z.object({
@@ -47,6 +59,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
     watch,
     setValue,
     trigger,
+    setFocus,
     formState: { errors, isSubmitting, touchedFields, submitCount },
   } = useForm<ContactFormData>({
     resolver: zodResolver(schema),
@@ -54,6 +67,15 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
     mode: 'onTouched',
     reValidateMode: 'onChange',
   });
+
+  const [sampleOpen, setSampleOpen] = useState(false);
+
+  // The sheet's code is tiny and off the critical path; fetch it once the
+  // page has settled so the first tap never waits on the network.
+  useEffect(() => {
+    const id = window.setTimeout(() => void loadSampleReport(), 3000);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // An error already on screen is re-said in the language just picked.
   const hasErrors = Object.keys(errors).length > 0;
@@ -97,12 +119,38 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
       <ul className="grid grid-cols-3 gap-2 mb-6 px-1">
         {t.facts.map((f, i) => {
           const Icon = FACT_ICONS[i];
+          const content = (
+            <>
+              <Icon className="w-4 h-4 mx-auto text-muted-foreground" strokeWidth={1.9} />
+              <p className="text-callout text-foreground mt-1.5 leading-none">{f.label}</p>
+              <p className={cn('text-caption mt-1', i === 2 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+                {f.sub}
+              </p>
+            </>
+          );
           return (
-          <li key={i} className="surface-group px-3 py-3 text-center">
-            <Icon className="w-4 h-4 mx-auto text-muted-foreground" strokeWidth={1.9} />
-            <p className="text-callout text-foreground mt-1.5 leading-none">{f.label}</p>
-            <p className="text-caption text-muted-foreground mt-1">{f.sub}</p>
-          </li>
+            <li key={i} className="surface-group text-center">
+              {/* The report is the one fact that can be shown rather than
+                  claimed: this tile opens a real sample of it. */}
+              {i === 2 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSampleOpen(true);
+                    track('sample_report_opened');
+                  }}
+                  onPointerEnter={warmSampleReport}
+                  onTouchStart={warmSampleReport}
+                  onFocus={warmSampleReport}
+                  aria-haspopup="dialog"
+                  className="pressable block h-full w-full px-3 py-3 transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary rounded-2xl"
+                >
+                  {content}
+                </button>
+              ) : (
+                <div className="px-3 py-3">{content}</div>
+              )}
+            </li>
           );
         })}
       </ul>
@@ -190,6 +238,15 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
           {t.photosPrivate}
         </span>
       </div>
+      {sampleOpen && (
+        <SampleReport
+          onClose={() => setSampleOpen(false)}
+          onStart={() => {
+            setSampleOpen(false);
+            requestAnimationFrame(() => setFocus('name'));
+          }}
+        />
+      )}
     </motion.div>
   );
 }

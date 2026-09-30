@@ -32,6 +32,8 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   REPORT_BCC_EMAIL: z.string().default('aedsmartx@gmail.com'),
+  // Reports print times in the customers' zone, not the server's UTC.
+  REPORT_TIMEZONE: z.string().default('Asia/Kolkata'),
 });
 
 const parsed = envSchema.safeParse(process.env);

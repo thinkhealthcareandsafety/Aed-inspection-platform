@@ -1,4 +1,4 @@
-import { toExpiryDate, daysUntil, urgencyOf } from './expiry';
+import { toExpiryDate, daysUntil, urgencyOf, formatExpiryLabel, describeExpiry } from './expiry';
 
 describe('toExpiryDate', () => {
   it('reads a month-only label as the END of that month', () => {
@@ -51,5 +51,34 @@ describe('urgencyOf', () => {
     expect(urgencyOf(31)).toBe('soon');
     expect(urgencyOf(90)).toBe('soon');
     expect(urgencyOf(91)).toBe('ok');
+  });
+});
+
+describe('formatExpiryLabel', () => {
+  it('reads a month-only expiry the way the app shows it', () => {
+    expect(formatExpiryLabel('2026-11')).toBe('Nov 2026');
+  });
+
+  it('keeps the day when there is one', () => {
+    expect(formatExpiryLabel('2028-12-31')).toBe('31 Dec 2028');
+  });
+
+  it('leaves anything else alone', () => {
+    expect(formatExpiryLabel('unreadable')).toBe('unreadable');
+  });
+});
+
+describe('describeExpiry', () => {
+  it('counts days close in, then months, then years', () => {
+    expect(describeExpiry(1)).toBe('1 day left');
+    expect(describeExpiry(30)).toBe('30 days left');
+    expect(describeExpiry(63)).toBe('2 months left');
+    expect(describeExpiry(900)).toBe('2+ years left');
+  });
+
+  it('says how long ago a lapsed date expired', () => {
+    expect(describeExpiry(0)).toBe('Expires today');
+    expect(describeExpiry(-1)).toBe('Expired yesterday');
+    expect(describeExpiry(-100)).toBe('Expired 3 months ago');
   });
 });

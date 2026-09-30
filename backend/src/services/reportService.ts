@@ -2,19 +2,22 @@
  * Renders an inspection into a branded PDF report.
  *
  * This document is the artifact the customer keeps and hands to an auditor,
- * so it's laid out as a real report — brand header, result banner, device
- * spec grid, results table and a photo-evidence appendix — rather than a
- * dump of label/value lines.
+ * so it reads top-down the way they do: the verdict, what to do next, the
+ * device and who inspected it, then every check with its own photo, what
+ * the AI read off it and the result — evidence beside the claim, rather than
+ * a results table and a separate photo appendix to cross-reference.
  *
- * Shared by the download route (streams straight to the HTTP response) and
- * the email service (collects into a Buffer for attachment) so the layout
- * only lives in one place.
+ * Shared by the download route (streams straight to the HTTP response), the
+ * email service (collects into a Buffer for attachment) and the landing
+ * page's sample (src/scripts/sample-report.ts), so the layout only lives in
+ * one place and the sample can never promise more than the real thing.
  */
 import PDFDocument from 'pdfkit';
 import path from 'path';
 import fs from 'fs';
 import { CHECKLIST_ITEMS, getChecklistItem } from '../config/checklist-items';
 import { config } from '../config/env';
+import { daysUntil, describeExpiry, formatExpiryLabel, toExpiryDate, urgencyOf } from '../utils/expiry';
 
 // ── Design tokens — mirrors the web app's palette ──────────────────────────
 const COLOR = {
@@ -22,10 +25,11 @@ const COLOR = {
   inkMuted: '#5a5f72',
   inkLight: '#8b8fa3',
   primary: '#33409e',
+  primaryTint: '#eef0f9',
   onPrimary: '#c3c9e9',
   white: '#ffffff',
   line: '#e4e2de',
-  lineSoft: '#f4f2ef',
+  lineSoft: '#f0eeea',
   ok: '#1d7a4c',
   okTint: '#e7f5ec',
   warn: '#a15c05',
@@ -38,31 +42,143 @@ const COLOR = {
 
 const PAGE = { width: 595.28, height: 841.89, margin: 45 };
 const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2;
-const HEADER_HEIGHT = 88;
+const RIGHT_EDGE = PAGE.margin + CONTENT_WIDTH;
+const HEADER_HEIGHT = 80;
 /** Content must never run below this — the footer band lives underneath. */
 const BODY_BOTTOM = PAGE.height - 52;
 /** Continuation pages leave room for the running header. */
-const CONTINUATION_TOP = PAGE.margin + 24;
+const CONTINUATION_TOP = PAGE.margin + 26;
 
 const SECTION_TITLES: Record<number, string> = {
-  1: 'Consumables & Identification',
-  2: 'Physical Status',
-  3: 'Accessories & Signage',
+  1: 'Consumables & identification',
+  2: 'Physical status',
+  3: 'Accessories & signage',
 };
 
-type Swatch = { color: string; tint: string; label: string };
+const MODEL_NAMES: Record<string, string> = {
+  'Philips FRx': 'Philips HeartStart FRx',
+  'Philips HS1': 'Philips HeartStart HS1',
+  'Zoll AED Plus': 'ZOLL AED Plus',
+};
 
-function resultSwatch(result: string): Swatch {
-  switch (result) {
-    case 'PASS':
-      return { color: COLOR.ok, tint: COLOR.okTint, label: 'PASS' };
-    case 'FAIL':
-      return { color: COLOR.bad, tint: COLOR.badTint, label: 'FAIL' };
-    case 'REVIEW':
-      return { color: COLOR.warn, tint: COLOR.warnTint, label: 'NEEDS REVIEW' };
-    default:
-      return { color: COLOR.neutral, tint: COLOR.neutralTint, label: 'INCOMPLETE' };
+/** How often a routine visual check is suggested after this one. */
+const NEXT_CHECK_DAYS = 30;
+/** Consumables inside this window get an "order ahead" step — the same 90
+ *  days the result screen and the sales pipeline call "soon". */
+const REPLACEMENT_WINDOW_DAYS = 90;
+
+// ── Type ───────────────────────────────────────────────────────────────────
+// Geist, the web app's own typeface, so the report and the screen it came
+// from look like one product. Falls back to the PDF built-ins if the files
+// are ever missing, so a packaging slip can't stop reports going out.
+const FONT_DIR = path.join(__dirname, '..', '..', 'assets', 'fonts');
+const FONT_FILES = {
+  regular: 'Geist-Regular.ttf',
+  medium: 'Geist-Medium.ttf',
+  semibold: 'Geist-SemiBold.ttf',
+  bold: 'Geist-Bold.ttf',
+  mono: 'GeistMono-Medium.ttf',
+} as const;
+type Face = keyof typeof FONT_FILES;
+const BUILT_IN: Record<Face, string> = {
+  regular: 'Helvetica',
+  medium: 'Helvetica',
+  semibold: 'Helvetica-Bold',
+  bold: 'Helvetica-Bold',
+  mono: 'Courier-Bold',
+};
+const FACE: Record<Face, string> = { ...BUILT_IN };
+
+function registerFonts(doc: PDFKit.PDFDocument): void {
+  for (const face of Object.keys(FONT_FILES) as Face[]) {
+    const file = path.join(FONT_DIR, FONT_FILES[face]);
+    if (fs.existsSync(file)) {
+      doc.registerFont(`report-${face}`, file);
+      FACE[face] = `report-${face}`;
+    } else {
+      FACE[face] = BUILT_IN[face];
+    }
   }
+}
+
+function font(doc: PDFKit.PDFDocument, face: Face, size: number, color: string): PDFKit.PDFDocument {
+  return doc.font(FACE[face]).fontSize(size).fillColor(color);
+}
+
+// ── Dates ──────────────────────────────────────────────────────────────────
+// Times are shown in the customers' own zone (the server runs on UTC), and
+// say which zone they are in.
+function zoneLabel(date: Date): string {
+  try {
+    return (
+      new Intl.DateTimeFormat('en-IN', { timeZone: config.REPORT_TIMEZONE, timeZoneName: 'short' })
+        .formatToParts(date)
+        .find((p) => p.type === 'timeZoneName')?.value ?? ''
+    );
+  } catch {
+    return '';
+  }
+}
+
+function formatDateTime(value: unknown): string {
+  if (!value) return 'Not recorded';
+  const date = new Date(value as string);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const text = date.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: config.REPORT_TIMEZONE,
+  });
+  const zone = zoneLabel(date);
+  return zone ? `${text} ${zone}` : text;
+}
+
+function formatDay(date: Date): string {
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: config.REPORT_TIMEZONE,
+  });
+}
+
+/** Stored as "+919876543210"; printed the way it's read aloud. */
+function formatPhone(raw: string): string {
+  const india = /^\+91(\d{5})(\d{5})$/.exec(raw.replace(/\s/g, ''));
+  return india ? `+91 ${india[1]} ${india[2]}` : raw;
+}
+
+function formatDuration(seconds?: number): string | undefined {
+  if (!seconds || seconds <= 0) return undefined;
+  const s = Math.round(seconds);
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+}
+
+// ── Reading the inspection ─────────────────────────────────────────────────
+type Swatch = { color: string; tint: string; label: string };
+type Entry = Record<string, any>;
+
+interface Ctx {
+  inspection: Record<string, any>;
+  checklist: Entry[];
+  /** The moment the report speaks from: expiry countdowns and the next
+   *  check are counted from the inspection, not from whenever it's opened. */
+  asOf: Date;
+  model: string;
+  shortId: string;
+  sample: boolean;
+  generatedAt: Date;
+}
+
+function itemMeta(entry: Entry) {
+  return getChecklistItem(entry.itemId) ?? CHECKLIST_ITEMS.find((i) => i.id === entry.itemId);
+}
+
+function itemTitle(entry: Entry): string {
+  return itemMeta(entry)?.title ?? String(entry.itemId).replace(/_/g, ' ');
 }
 
 function itemSwatch(status: string): Swatch {
@@ -70,8 +186,9 @@ function itemSwatch(status: string): Swatch {
     case 'pass':
       return { color: COLOR.ok, tint: COLOR.okTint, label: 'PASS' };
     case 'fail':
+      return { color: COLOR.bad, tint: COLOR.badTint, label: 'FAIL' };
     case 'error':
-      return { color: COLOR.bad, tint: COLOR.badTint, label: status === 'error' ? 'ERROR' : 'FAIL' };
+      return { color: COLOR.bad, tint: COLOR.badTint, label: 'NOT READ' };
     case 'skipped':
       return { color: COLOR.neutral, tint: COLOR.neutralTint, label: 'SKIPPED' };
     case 'uploaded':
@@ -82,30 +199,71 @@ function itemSwatch(status: string): Swatch {
   }
 }
 
-function mediaUrlToDiskPath(mediaUrl: string): string {
-  return path.join(config.UPLOAD_DIR, mediaUrl.replace(/^\/uploads\//, ''));
+const URGENCY_COLOR = { expired: COLOR.bad, critical: COLOR.warn, soon: COLOR.warn, ok: COLOR.ok };
+
+interface Expiry {
+  label: string;
+  /** Printed to the day ("on 15 Oct 2026") rather than the month ("in Nov 2026"). */
+  exact: boolean;
+  days: number;
+  describe: string;
+  color: string;
 }
 
-function formatDate(value: unknown): string {
-  if (!value) return 'Not recorded';
-  const date = new Date(value as string);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function expiryOf(raw: unknown, asOf: Date): Expiry | undefined {
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  const at = toExpiryDate(raw);
+  if (!at) return { label: raw, exact: false, days: Number.NaN, describe: '', color: COLOR.inkMuted };
+  const days = daysUntil(at, asOf);
+  return {
+    label: formatExpiryLabel(raw),
+    exact: /^\d{4}-\d{2}-\d{2}$/.test(raw.trim()),
+    days,
+    describe: describeExpiry(days),
+    color: URGENCY_COLOR[urgencyOf(days)],
+  };
 }
 
-/** Starts a fresh page, leaving headroom for the running header. */
+const STATUS_WORD: Record<string, { text: string; color: string }> = {
+  ready: { text: 'Ready', color: COLOR.ok },
+  fault: { text: 'Fault', color: COLOR.bad },
+  unclear: { text: 'Unclear', color: COLOR.warn },
+};
+
+/** What the AI read off a capture, as it should be shown back. */
+function readingOf(entry: Entry, asOf: Date): { text: string; mono?: boolean; sub?: Expiry } | undefined {
+  const ai = (entry.aiData ?? {}) as Record<string, unknown>;
+  if (typeof ai.serial_number === 'string' && ai.serial_number.trim()) {
+    return { text: ai.serial_number.trim(), mono: true };
+  }
+  const expiry = expiryOf(ai.expiry_date, asOf);
+  if (expiry) return { text: expiry.label, sub: expiry.describe ? expiry : undefined };
+  if (entry.itemId === 'readiness_indicator' && typeof ai.status === 'string') {
+    const word = STATUS_WORD[ai.status.toLowerCase()];
+    if (word) return { text: word.text };
+  }
+  return undefined;
+}
+
+function consumableExpiry(ctx: Ctx, itemId: 'pads_expiry' | 'battery_expiry'): Expiry | undefined {
+  const entry = ctx.checklist.find((c) => c.itemId === itemId);
+  const raw = entry?.aiData?.expiry_date ?? (itemId === 'pads_expiry' ? ctx.inspection.padsExpiry : ctx.inspection.batteryExpiry);
+  return expiryOf(raw, ctx.asOf);
+}
+
+/** Required checks, plus optional extras that were actually done. An
+ *  optional check nobody attempted isn't a finding, and listing it as "not
+ *  done" made a clean pass look unfinished. */
+function reportedEntries(ctx: Ctx): Entry[] {
+  return ctx.checklist.filter((c) => c.required || ['pass', 'fail', 'skipped'].includes(c.status));
+}
+
+// ── Drawing primitives ─────────────────────────────────────────────────────
 function newPage(doc: PDFKit.PDFDocument): void {
   doc.addPage();
   doc.y = CONTINUATION_TOP;
 }
 
-/** Breaks to a new page when `needed` points of vertical space aren't left. */
 function ensureSpace(doc: PDFKit.PDFDocument, needed: number): void {
   if (doc.y + needed > BODY_BOTTOM) newPage(doc);
 }
@@ -126,166 +284,307 @@ function drawLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number, c
     .restore();
 }
 
-function pill(
-  doc: PDFKit.PDFDocument,
-  text: string,
-  x: number,
-  y: number,
-  swatch: Swatch,
-  opts: { solid?: boolean; fontSize?: number } = {},
-): number {
-  const fontSize = opts.fontSize ?? 7.5;
-  doc.font('Helvetica-Bold').fontSize(fontSize);
-  const textWidth = doc.widthOfString(text, { characterSpacing: 0.4 });
-  const width = textWidth + 14;
+function pillWidth(doc: PDFKit.PDFDocument, text: string, fontSize: number): number {
+  font(doc, 'semibold', fontSize, COLOR.ink);
+  return doc.widthOfString(text, { characterSpacing: 0.5 }) + 14;
+}
+
+function pill(doc: PDFKit.PDFDocument, text: string, x: number, y: number, swatch: Swatch, fontSize = 7): number {
+  const width = pillWidth(doc, text, fontSize);
   const height = fontSize + 8;
-
-  doc.roundedRect(x, y, width, height, height / 2).fill(opts.solid ? swatch.color : swatch.tint);
-  doc
-    .fillColor(opts.solid ? COLOR.white : swatch.color)
-    .text(text, x + 7, y + (height - fontSize) / 2 + 0.5, { characterSpacing: 0.4, lineBreak: false });
-
+  doc.roundedRect(x, y, width, height, height / 2).fill(swatch.tint);
+  font(doc, 'semibold', fontSize, swatch.color).text(text, x + 7, y + 4.2, { characterSpacing: 0.5, lineBreak: false });
   return width;
 }
 
+function drawSectionLabel(doc: PDFKit.PDFDocument, text: string): void {
+  ensureSpace(doc, 40);
+  font(doc, 'semibold', 7.5, COLOR.primary).text(text.toUpperCase(), PAGE.margin, doc.y, {
+    characterSpacing: 1.1,
+    lineBreak: false,
+  });
+  const y = doc.y + 13;
+  doc.moveTo(PAGE.margin, y).lineTo(RIGHT_EDGE, y).lineWidth(0.7).strokeColor(COLOR.line).stroke();
+  doc.y = y + 13;
+}
+
 // ── Header band (first page only) ──────────────────────────────────────────
-function drawHeaderBand(doc: PDFKit.PDFDocument): void {
+function drawHeaderBand(doc: PDFKit.PDFDocument, ctx: Ctx): void {
   doc.rect(0, 0, PAGE.width, HEADER_HEIGHT).fill(COLOR.primary);
 
-  drawLogo(doc, PAGE.margin, 30, 20, COLOR.white);
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(15)
-    .fillColor(COLOR.white)
-    .text('AED Inspect', PAGE.margin + 27, 31, { lineBreak: false });
-  doc
-    .font('Helvetica')
-    .fontSize(8)
-    .fillColor(COLOR.onPrimary)
-    .text('Automated AED inspection', PAGE.margin + 27, 48, { lineBreak: false });
+  drawLogo(doc, PAGE.margin, 28, 20, COLOR.white);
+  font(doc, 'semibold', 15, COLOR.white).text('AED Inspect', PAGE.margin + 27, 27, { lineBreak: false });
+  font(doc, 'regular', 8, COLOR.onPrimary).text('AED inspection report', PAGE.margin + 27, 46, { lineBreak: false });
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(9)
-    .fillColor(COLOR.white)
-    .text('INSPECTION REPORT', PAGE.margin, 36, {
-      width: CONTENT_WIDTH,
-      align: 'right',
-      characterSpacing: 1.2,
+  if (ctx.sample) {
+    const label = 'SAMPLE REPORT';
+    font(doc, 'semibold', 7.5, COLOR.white);
+    const width = doc.widthOfString(label, { characterSpacing: 1 }) + 18;
+    doc
+      .roundedRect(RIGHT_EDGE - width, 25, width, 18, 9)
+      .fillOpacity(0.16)
+      .fill(COLOR.white)
+      .fillOpacity(1);
+    font(doc, 'semibold', 7.5, COLOR.white).text(label, RIGHT_EDGE - width + 9, 30.5, {
+      characterSpacing: 1,
       lineBreak: false,
     });
-  doc
-    .font('Helvetica')
-    .fontSize(8)
-    .fillColor(COLOR.onPrimary)
-    .text('Think Healthcare and Safety', PAGE.margin, 50, {
+    font(doc, 'regular', 8, COLOR.onPrimary).text('A fictional inspection, for illustration', PAGE.margin, 50, {
       width: CONTENT_WIDTH,
       align: 'right',
       lineBreak: false,
     });
+  } else {
+    font(doc, 'semibold', 10, COLOR.white).text(`Report ${ctx.shortId}`, PAGE.margin, 28, {
+      width: CONTENT_WIDTH,
+      align: 'right',
+      lineBreak: false,
+    });
+    font(doc, 'regular', 8, COLOR.onPrimary).text('Think Healthcare and Safety', PAGE.margin, 45, {
+      width: CONTENT_WIDTH,
+      align: 'right',
+      lineBreak: false,
+    });
+  }
 
-  doc.y = HEADER_HEIGHT + 24;
+  doc.y = HEADER_HEIGHT + 22;
 }
 
-// ── Result banner ──────────────────────────────────────────────────────────
-function drawResultBanner(doc: PDFKit.PDFDocument, inspection: Record<string, any>): void {
-  const swatch = resultSwatch(inspection.inspectionResult);
-  const checklist: any[] = inspection.checklist ?? [];
-  const required = checklist.filter((c) => c.required);
-  const passed = required.filter((c) => c.status === 'pass').length;
+// ── Verdict ────────────────────────────────────────────────────────────────
+function verdictOf(ctx: Ctx): Swatch & { title: string; detail: string } {
+  const required = ctx.checklist.filter((c) => c.required);
+  const n = required.length;
+  const failed = required.filter((c) => c.status === 'fail').length;
+  const done = required.filter((c) => c.status === 'pass' || c.status === 'fail').length;
+  const model = ctx.model;
+  switch (ctx.inspection.inspectionResult) {
+    case 'PASS':
+      return {
+        color: COLOR.ok,
+        tint: COLOR.okTint,
+        label: 'PASS',
+        title: 'Ready for use',
+        detail: `All ${n} required checks passed · ${model}`,
+      };
+    case 'FAIL':
+      return {
+        color: COLOR.bad,
+        tint: COLOR.badTint,
+        label: 'FAIL',
+        title: 'Not ready for use',
+        detail: `${failed} of ${n} required checks failed · ${model}`,
+      };
+    case 'REVIEW':
+      return {
+        color: COLOR.warn,
+        tint: COLOR.warnTint,
+        label: 'NEEDS REVIEW',
+        title: 'Needs a closer look',
+        detail: `Some checks couldn't be confirmed from the photos · ${model}`,
+      };
+    default:
+      return {
+        color: COLOR.neutral,
+        tint: COLOR.neutralTint,
+        label: 'INCOMPLETE',
+        title: 'Inspection incomplete',
+        detail: `${done} of ${n} required checks done · ${model}`,
+      };
+  }
+}
 
+function drawVerdictMark(doc: PDFKit.PDFDocument, result: string, cx: number, cy: number, color: string): void {
+  const r = 17;
+  doc.circle(cx, cy, r).fill(color);
+  if (result === 'PASS') {
+    doc
+      .save()
+      .translate(cx - 10, cy - 10)
+      .scale(20 / 24)
+      .path('M5 12.5l4.5 4.5L19 7.5')
+      .lineWidth(3)
+      .lineCap('round')
+      .lineJoin('round')
+      .strokeColor(COLOR.white)
+      .stroke()
+      .restore();
+  } else {
+    const glyph = result === 'FAIL' ? '!' : result === 'REVIEW' ? '?' : '–';
+    font(doc, 'bold', 18, COLOR.white).text(glyph, cx - r, cy - 11.5, { width: r * 2, align: 'center', lineBreak: false });
+  }
+}
+
+function drawVerdict(doc: PDFKit.PDFDocument, ctx: Ctx): void {
+  const v = verdictOf(ctx);
   const top = doc.y;
-  const height = 58;
+  const height = 86;
 
-  doc.roundedRect(PAGE.margin, top, CONTENT_WIDTH, height, 8).fill(swatch.tint);
-  doc.rect(PAGE.margin, top, 4, height).fill(swatch.color);
+  doc.roundedRect(PAGE.margin, top, CONTENT_WIDTH, height, 10).fill(v.tint);
+  drawVerdictMark(doc, ctx.inspection.inspectionResult, PAGE.margin + 38, top + height / 2, v.color);
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(20)
-    .fillColor(swatch.color)
-    .text(swatch.label, PAGE.margin + 20, top + 13, { lineBreak: false });
+  const x = PAGE.margin + 72;
+  font(doc, 'semibold', 7.5, v.color).text(v.label, x, top + 17, { characterSpacing: 1.2, lineBreak: false });
+  font(doc, 'semibold', 19, COLOR.ink).text(v.title, x, top + 29, { lineBreak: false });
+  font(doc, 'regular', 8.5, COLOR.inkMuted).text(v.detail, x, top + 57, {
+    width: CONTENT_WIDTH - 72 - 150,
+    lineBreak: false,
+    ellipsis: true,
+  });
 
-  doc
-    .font('Helvetica')
-    .fontSize(8.5)
-    .fillColor(COLOR.inkMuted)
-    .text(
-      `${passed} of ${required.length} required checks passed${
-        inspection.aedModel ? ` · ${inspection.aedModel}` : ''
-      }`,
-      PAGE.margin + 20,
-      top + 37,
-      { lineBreak: false },
+  font(doc, 'regular', 6.8, COLOR.inkLight).text('INSPECTED', PAGE.margin, top + 22, {
+    width: CONTENT_WIDTH - 20,
+    align: 'right',
+    characterSpacing: 0.8,
+    lineBreak: false,
+  });
+  font(doc, 'semibold', 9.5, COLOR.ink).text(formatDateTime(ctx.inspection.startedAt), PAGE.margin, top + 34, {
+    width: CONTENT_WIDTH - 20,
+    align: 'right',
+    lineBreak: false,
+  });
+  const duration = formatDuration(ctx.inspection.durationSeconds);
+  if (duration) {
+    font(doc, 'regular', 8, COLOR.inkMuted).text(`Took ${duration}`, PAGE.margin, top + 49, {
+      width: CONTENT_WIDTH - 20,
+      align: 'right',
+      lineBreak: false,
+    });
+  }
+
+  doc.y = top + height + 14;
+}
+
+// ── Next steps ─────────────────────────────────────────────────────────────
+type Step = { tone: 'bad' | 'warn' | 'muted'; text: string };
+
+function nextSteps(ctx: Ctx): { steps: Step[]; supply: boolean } {
+  const steps: Step[] = [];
+  let supply = false;
+  const consumables = [
+    { itemId: 'pads_expiry' as const, noun: 'the pads', order: 'replacement pads', it: 'they', s: '' },
+    { itemId: 'battery_expiry' as const, noun: 'the battery', order: 'a replacement battery', it: 'it', s: 's' },
+  ];
+
+  for (const entry of ctx.checklist.filter((c) => c.required)) {
+    const consumable = consumables.find((c) => c.itemId === entry.itemId);
+    const expiry = consumable ? consumableExpiry(ctx, consumable.itemId) : undefined;
+
+    const when = expiry ? `${expiry.exact ? 'on' : 'in'} ${expiry.label}` : '';
+    if (consumable && expiry && expiry.days < 0) {
+      steps.push({ tone: 'bad', text: `Replace ${consumable.noun} — ${consumable.it} expired ${when}.` });
+      supply = true;
+    } else if (entry.status === 'fail') {
+      const note = String(entry.notes ?? '').trim().replace(/\.$/, '');
+      steps.push({
+        tone: 'bad',
+        text: `${itemTitle(entry)}${note ? `: ${note}` : ' failed'}. Put it right, then inspect again.`,
+      });
+    } else if (entry.status === 'error') {
+      steps.push({ tone: 'warn', text: `${itemTitle(entry)} couldn't be read from the photo. Check it again.` });
+    } else if (entry.status !== 'pass') {
+      steps.push({ tone: 'warn', text: `${itemTitle(entry)} wasn't checked. Include it next time.` });
+    } else if (consumable && expiry && expiry.days <= REPLACEMENT_WINDOW_DAYS) {
+      steps.push({
+        tone: 'warn',
+        text: `Order ${consumable.order} — ${consumable.it} expire${consumable.s} ${when} (${expiry.describe.toLowerCase()}).`,
+      });
+      supply = true;
+    }
+  }
+
+  const next = new Date(ctx.asOf.getTime() + NEXT_CHECK_DAYS * 86_400_000);
+  steps.push({ tone: 'muted', text: `Next routine check due by ${formatDay(next)}.` });
+  return { steps, supply };
+}
+
+function drawNextSteps(doc: PDFKit.PDFDocument, ctx: Ctx): void {
+  const { steps, supply } = nextSteps(ctx);
+  const pad = 16;
+  const textX = PAGE.margin + pad + 13;
+  const textWidth = CONTENT_WIDTH - pad * 2 - 13;
+  const gap = 6;
+
+  font(doc, 'regular', 9, COLOR.ink);
+  const heights = steps.map((s) => doc.heightOfString(s.text, { width: textWidth, lineGap: 1.5 }));
+  const supplyText = `Think Healthcare and Safety supplies pads, batteries and accessories for the ${ctx.model} — inspector.aedsmartx.com`;
+  font(doc, 'regular', 7.8, COLOR.inkMuted);
+  const supplyHeight = supply ? doc.heightOfString(supplyText, { width: textWidth + 13, lineGap: 1 }) + 10 : 0;
+  const height = pad + 16 + heights.reduce((a, b) => a + b, 0) + gap * (steps.length - 1) + supplyHeight + pad - 2;
+
+  ensureSpace(doc, height + 12);
+  const top = doc.y;
+  doc.roundedRect(PAGE.margin, top, CONTENT_WIDTH, height, 10).lineWidth(0.8).strokeColor(COLOR.line).stroke();
+
+  font(doc, 'semibold', 7.5, COLOR.primary).text('NEXT STEPS', PAGE.margin + pad, top + pad, {
+    characterSpacing: 1.1,
+    lineBreak: false,
+  });
+
+  let y = top + pad + 16;
+  steps.forEach((step, i) => {
+    const dot = step.tone === 'bad' ? COLOR.bad : step.tone === 'warn' ? COLOR.warn : COLOR.inkLight;
+    doc.circle(PAGE.margin + pad + 3, y + 5.2, 2.6).fill(dot);
+    font(doc, step.tone === 'muted' ? 'regular' : 'medium', 9, step.tone === 'muted' ? COLOR.inkMuted : COLOR.ink).text(
+      step.text,
+      textX,
+      y,
+      { width: textWidth, lineGap: 1.5 },
     );
+    y += heights[i] + gap;
+  });
 
-  doc
-    .font('Helvetica')
-    .fontSize(7.5)
-    .fillColor(COLOR.inkLight)
-    .text('INSPECTED', PAGE.margin, top + 16, {
-      width: CONTENT_WIDTH - 20,
-      align: 'right',
-      characterSpacing: 0.8,
-      lineBreak: false,
+  if (supply) {
+    y += 4;
+    doc
+      .moveTo(PAGE.margin + pad, y - 5)
+      .lineTo(RIGHT_EDGE - pad, y - 5)
+      .lineWidth(0.5)
+      .strokeColor(COLOR.lineSoft)
+      .stroke();
+    font(doc, 'regular', 7.8, COLOR.inkMuted).text(supplyText, PAGE.margin + pad, y + 2, {
+      width: textWidth + 13,
+      lineGap: 1,
     });
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(9.5)
-    .fillColor(COLOR.ink)
-    .text(formatDate(inspection.startedAt), PAGE.margin, top + 28, {
-      width: CONTENT_WIDTH - 20,
-      align: 'right',
-      lineBreak: false,
-    });
+  }
 
-  doc.y = top + height + 26;
+  doc.y = top + height + 20;
 }
 
-function drawSectionLabel(doc: PDFKit.PDFDocument, text: string): void {
-  ensureSpace(doc, 34);
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(8)
-    .fillColor(COLOR.primary)
-    .text(text.toUpperCase(), PAGE.margin, doc.y, { characterSpacing: 1, lineBreak: false });
-  const y = doc.y + 12;
-  doc.moveTo(PAGE.margin, y).lineTo(PAGE.margin + CONTENT_WIDTH, y).lineWidth(0.8).strokeColor(COLOR.line).stroke();
-  doc.y = y + 12;
-}
+// ── Detail grids ───────────────────────────────────────────────────────────
+type Detail = { label: string; value: string; mono?: boolean; sub?: { text: string; color: string } };
 
-// ── Device / inspection detail grid ────────────────────────────────────────
-function drawDetailGrid(doc: PDFKit.PDFDocument, pairs: [string, string][]): void {
-  const gutter = 18;
+function drawDetailGrid(doc: PDFKit.PDFDocument, details: Detail[]): void {
+  const gutter = 20;
   const colWidth = (CONTENT_WIDTH - gutter) / 2;
-  const rowHeight = 32;
 
-  for (let i = 0; i < pairs.length; i += 2) {
+  for (let i = 0; i < details.length; i += 2) {
+    const row = details.slice(i, i + 2);
+    const rowHeight = row.some((d) => d.sub) ? 44 : 34;
     ensureSpace(doc, rowHeight);
     const top = doc.y;
 
-    for (let c = 0; c < 2; c++) {
-      const pair = pairs[i + c];
-      if (!pair) continue;
+    row.forEach((d, c) => {
       const x = PAGE.margin + c * (colWidth + gutter);
-
-      doc
-        .font('Helvetica')
-        .fontSize(6.8)
-        .fillColor(COLOR.inkLight)
-        .text(pair[0].toUpperCase(), x, top, { width: colWidth, characterSpacing: 0.7, lineBreak: false });
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(10)
-        .fillColor(COLOR.ink)
-        .text(pair[1], x, top + 11, { width: colWidth, ellipsis: true, lineBreak: false });
-    }
+      font(doc, 'regular', 6.8, COLOR.inkLight).text(d.label.toUpperCase(), x, top, {
+        width: colWidth,
+        characterSpacing: 0.7,
+        lineBreak: false,
+      });
+      font(doc, d.mono ? 'mono' : 'semibold', d.mono ? 9.8 : 10.2, COLOR.ink).text(d.value, x, top + 11, {
+        width: colWidth,
+        ellipsis: true,
+        lineBreak: false,
+      });
+      if (d.sub) {
+        font(doc, 'medium', 8, d.sub.color).text(d.sub.text, x, top + 25, { width: colWidth, lineBreak: false });
+      }
+    });
 
     const bottom = top + rowHeight;
-    if (i + 2 < pairs.length) {
+    if (i + 2 < details.length) {
       doc
         .moveTo(PAGE.margin, bottom - 8)
-        .lineTo(PAGE.margin + CONTENT_WIDTH, bottom - 8)
+        .lineTo(RIGHT_EDGE, bottom - 8)
         .lineWidth(0.5)
         .strokeColor(COLOR.lineSoft)
         .stroke();
@@ -293,181 +592,209 @@ function drawDetailGrid(doc: PDFKit.PDFDocument, pairs: [string, string][]): voi
     doc.y = bottom;
   }
 
-  doc.y += 14;
+  doc.y += 16;
 }
 
-// ── Checklist results table ────────────────────────────────────────────────
-function drawChecklistTable(doc: PDFKit.PDFDocument, inspection: Record<string, any>): void {
-  const checklist: any[] = inspection.checklist ?? [];
-  const statusColX = PAGE.margin + CONTENT_WIDTH - 78;
-  const textWidth = statusColX - PAGE.margin - 16;
+function deviceDetails(ctx: Ctx): Detail[] {
+  const i = ctx.inspection;
+  const pads = consumableExpiry(ctx, 'pads_expiry');
+  const battery = consumableExpiry(ctx, 'battery_expiry');
+  const status = typeof i.statusIndicator === 'string' ? STATUS_WORD[i.statusIndicator.toLowerCase()] : undefined;
+  const lot = [i.batteryLot, i.batterySerialNumber].filter(Boolean).join(' / ');
+
+  const details: Detail[] = [
+    { label: 'AED model', value: ctx.model },
+    { label: 'Serial number', value: i.serialNumber ?? 'Not read', mono: Boolean(i.serialNumber) },
+    {
+      label: 'Pads expiry',
+      value: pads?.label ?? 'Not read',
+      sub: pads?.describe ? { text: pads.describe, color: pads.color } : undefined,
+    },
+    {
+      label: 'Battery expiry',
+      value: battery?.label ?? 'Not read',
+      sub: battery?.describe ? { text: battery.describe, color: battery.color } : undefined,
+    },
+    { label: 'Readiness indicator', value: status?.text ?? i.statusIndicator ?? 'Not checked' },
+  ];
+  if (lot) details.push({ label: 'Battery lot / serial', value: lot });
+  return details;
+}
+
+function inspectionDetails(ctx: Ctx): Detail[] {
+  const i = ctx.inspection;
+  const details: Detail[] = [
+    { label: 'Inspected by', value: i.guestName ?? i.inspector?.name ?? 'Not recorded' },
+    { label: 'Email', value: i.guestEmail ?? i.inspector?.email ?? 'Not provided' },
+  ];
+  if (i.guestPhone) details.push({ label: 'Phone', value: formatPhone(String(i.guestPhone)) });
+  if (i.locationId) details.push({ label: 'Location', value: String(i.locationId) });
+  details.push({ label: 'Report', value: ctx.shortId, mono: true });
+  return details;
+}
+
+// ── Checks, each with its evidence ─────────────────────────────────────────
+const THUMB_W = 80;
+const THUMB_H = 60;
+const STATUS_COL = 86;
+
+function mediaUrlToDiskPath(mediaUrl: string): string {
+  return path.join(config.UPLOAD_DIR, mediaUrl.replace(/^\/uploads\//, ''));
+}
+
+function drawThumbnail(doc: PDFKit.PDFDocument, entry: Entry, x: number, y: number): void {
+  const mediaType = entry.mediaType ?? itemMeta(entry)?.mediaType;
+  const radius = 6;
+
+  if (entry.mediaUrl && mediaType === 'image') {
+    const diskPath = mediaUrlToDiskPath(entry.mediaUrl);
+    if (fs.existsSync(diskPath)) {
+      doc.save();
+      let drawn = false;
+      try {
+        doc.roundedRect(x, y, THUMB_W, THUMB_H, radius).clip();
+        doc.image(diskPath, x, y, { cover: [THUMB_W, THUMB_H], align: 'center', valign: 'center' });
+        drawn = true;
+      } catch {
+        // Corrupt or unsupported image — a placeholder is drawn below.
+      }
+      doc.restore();
+      if (drawn) {
+        doc.roundedRect(x, y, THUMB_W, THUMB_H, radius).lineWidth(0.6).strokeColor(COLOR.line).stroke();
+        return;
+      }
+    }
+  }
+
+  if (entry.mediaUrl && mediaType === 'video') {
+    // A video can't be printed; the tile says one was taken and read.
+    doc.roundedRect(x, y, THUMB_W, THUMB_H, radius).fill(COLOR.primaryTint);
+    const cx = x + THUMB_W / 2;
+    const cy = y + THUMB_H / 2 - 6;
+    doc.circle(cx, cy, 11).fill(COLOR.white);
+    doc
+      .moveTo(cx - 3.2, cy - 5.5)
+      .lineTo(cx + 5.8, cy)
+      .lineTo(cx - 3.2, cy + 5.5)
+      .closePath()
+      .fill(COLOR.primary);
+    font(doc, 'medium', 7, COLOR.primary).text('Video', x, y + THUMB_H - 15, {
+      width: THUMB_W,
+      align: 'center',
+      lineBreak: false,
+    });
+    return;
+  }
+
+  doc.roundedRect(x, y, THUMB_W, THUMB_H, radius).fill(COLOR.neutralTint);
+  font(doc, 'regular', 7, COLOR.inkLight).text(entry.mediaUrl ? 'Photo unavailable' : 'No photo', x, y + THUMB_H / 2 - 4, {
+    width: THUMB_W,
+    align: 'center',
+    lineBreak: false,
+  });
+}
+
+function drawCheckRow(doc: PDFKit.PDFDocument, ctx: Ctx, entry: Entry, first: boolean): void {
+  const swatch = itemSwatch(entry.status);
+  const title = itemTitle(entry);
+  const required = itemMeta(entry)?.required ?? entry.required;
+  const reading = entry.status === 'pass' || entry.status === 'fail' ? readingOf(entry, ctx.asOf) : undefined;
+  // A capture the AI never read carries the upload error, which is for the
+  // inspector at the time, not for the record.
+  const notes =
+    entry.status === 'error'
+      ? 'The AI couldn’t analyse this capture, so this check has no result.'
+      : String(entry.notes ?? '').trim();
+
+  const textX = PAGE.margin + THUMB_W + 16;
+  const textWidth = CONTENT_WIDTH - THUMB_W - 16 - STATUS_COL;
+
+  font(doc, 'regular', 8, COLOR.inkMuted);
+  const notesHeight = notes ? Math.min(doc.heightOfString(notes, { width: textWidth, lineGap: 1.2 }), 32) : 0;
+  const contentHeight = 14 + (reading ? 15 : 0) + (notes ? notesHeight + 2 : 0);
+  const rowHeight = Math.max(THUMB_H, contentHeight) + 20;
+
+  ensureSpace(doc, rowHeight);
+  const top = doc.y;
+  if (!first && top > CONTINUATION_TOP + 1) {
+    doc.moveTo(PAGE.margin, top).lineTo(RIGHT_EDGE, top).lineWidth(0.6).strokeColor(COLOR.lineSoft).stroke();
+  }
+
+  const y = top + 10;
+  drawThumbnail(doc, entry, PAGE.margin, y);
+
+  font(doc, 'semibold', 10, COLOR.ink).text(title, textX, y + 1, { width: textWidth, lineBreak: false, ellipsis: true });
+  if (!required) {
+    const w = doc.widthOfString(title);
+    font(doc, 'medium', 6.3, COLOR.inkLight).text('OPTIONAL', textX + Math.min(w, textWidth - 40) + 6, y + 3.6, {
+      characterSpacing: 0.6,
+      lineBreak: false,
+    });
+  }
+
+  let lineY = y + 16;
+  if (reading) {
+    font(doc, reading.mono ? 'mono' : 'semibold', reading.mono ? 9 : 9.2, COLOR.ink).text(reading.text, textX, lineY, {
+      lineBreak: false,
+      continued: Boolean(reading.sub),
+    });
+    if (reading.sub) {
+      font(doc, 'medium', 8.2, reading.sub.color).text(`  ·  ${reading.sub.describe}`, { lineBreak: false });
+    }
+    lineY += 15;
+  }
+  if (notes) {
+    font(doc, 'regular', 8, COLOR.inkMuted).text(notes, textX, lineY, {
+      width: textWidth,
+      height: notesHeight,
+      lineGap: 1.2,
+      ellipsis: true,
+    });
+  }
+
+  const statusWidth = pillWidth(doc, swatch.label, 7);
+  pill(doc, swatch.label, RIGHT_EDGE - statusWidth, y, swatch);
+  if (typeof entry.confidence === 'number' && (entry.status === 'pass' || entry.status === 'fail')) {
+    font(doc, 'regular', 7, COLOR.inkLight).text(`Confidence ${Math.round(entry.confidence * 100)}%`, RIGHT_EDGE - STATUS_COL, y + 20, {
+      width: STATUS_COL,
+      align: 'right',
+      lineBreak: false,
+    });
+  }
+
+  doc.y = top + rowHeight;
+}
+
+function drawChecks(doc: PDFKit.PDFDocument, ctx: Ctx): void {
+  const entries = reportedEntries(ctx);
+  // Never strand the heading at the foot of a page: it goes over with at
+  // least its first row.
+  ensureSpace(doc, 40 + 26 + THUMB_H + 20);
+  drawSectionLabel(doc, 'Checks');
 
   for (const section of [1, 2, 3]) {
-    const entries = checklist.filter((c) => c.section === section);
-    if (!entries.length) continue;
+    const rows = entries.filter((c) => c.section === section);
+    if (!rows.length) continue;
 
-    ensureSpace(doc, 40);
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(8.5)
-      .fillColor(COLOR.ink)
-      .text(`${section}. ${SECTION_TITLES[section]}`, PAGE.margin, doc.y, { lineBreak: false });
-    doc.y += 16;
-
-    entries.forEach((entry, idx) => {
-      const meta = getChecklistItem(entry.itemId) ?? CHECKLIST_ITEMS.find((i) => i.id === entry.itemId);
-      const title = meta?.title ?? entry.itemId.replace(/_/g, ' ');
-      const swatch = itemSwatch(entry.status);
-
-      const notes: string = entry.notes ?? '';
-      const notesHeight = notes
-        ? Math.min(doc.font('Helvetica').fontSize(7.5).heightOfString(notes, { width: textWidth }), 19)
-        : 0;
-      const rowHeight = 22 + notesHeight;
-
-      ensureSpace(doc, rowHeight + 4);
-      const top = doc.y;
-
-      if (idx % 2 === 1) {
-        doc.rect(PAGE.margin, top - 3, CONTENT_WIDTH, rowHeight).fill(COLOR.lineSoft);
-      }
-
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(9)
-        .fillColor(COLOR.ink)
-        .text(title, PAGE.margin + 8, top + 1, { width: textWidth, ellipsis: true, lineBreak: false });
-
-      if (!meta?.required) {
-        const titleWidth = doc.font('Helvetica-Bold').fontSize(9).widthOfString(title);
-        doc
-          .font('Helvetica')
-          .fontSize(6.5)
-          .fillColor(COLOR.inkLight)
-          .text('OPTIONAL', PAGE.margin + 12 + Math.min(titleWidth, textWidth - 46), top + 3, {
-            characterSpacing: 0.5,
-            lineBreak: false,
-          });
-      }
-
-      if (notes) {
-        doc
-          .font('Helvetica')
-          .fontSize(7.5)
-          .fillColor(COLOR.inkMuted)
-          .text(notes, PAGE.margin + 8, top + 13, { width: textWidth, height: notesHeight, ellipsis: true });
-      }
-
-      pill(doc, swatch.label, statusColX, top, swatch);
-
-      if (typeof entry.confidence === 'number') {
-        doc
-          .font('Helvetica')
-          .fontSize(7)
-          .fillColor(COLOR.inkLight)
-          .text(`${Math.round(entry.confidence * 100)}% confidence`, statusColX, top + 15, {
-            width: 78,
-            lineBreak: false,
-          });
-      }
-
-      doc.y = top + rowHeight;
-    });
-
-    doc.y += 10;
+    ensureSpace(doc, 26 + THUMB_H + 20);
+    font(doc, 'semibold', 8.5, COLOR.inkMuted).text(SECTION_TITLES[section], PAGE.margin, doc.y, { lineBreak: false });
+    doc.y += 12;
+    rows.forEach((entry, i) => drawCheckRow(doc, ctx, entry, i === 0));
+    doc.y += 12;
   }
 
-  doc.y += 4;
-}
-
-// ── Photo evidence appendix ────────────────────────────────────────────────
-function drawEvidence(doc: PDFKit.PDFDocument, inspection: Record<string, any>): void {
-  const checklist: any[] = inspection.checklist ?? [];
-  const captured = checklist.filter((c) => c.mediaUrl);
-  if (!captured.length) return;
-
-  ensureSpace(doc, 60);
-  drawSectionLabel(doc, 'Photo evidence');
-
-  const cols = 3;
-  const gutter = 14;
-  const cellWidth = (CONTENT_WIDTH - gutter * (cols - 1)) / cols;
-  const imageHeight = cellWidth * 0.75;
-  const cellHeight = imageHeight + 34;
-
-  for (let i = 0; i < captured.length; i += cols) {
-    ensureSpace(doc, cellHeight);
-    const top = doc.y;
-
-    for (let c = 0; c < cols; c++) {
-      const entry = captured[i + c];
-      if (!entry) continue;
-
-      const x = PAGE.margin + c * (cellWidth + gutter);
-      const meta = getChecklistItem(entry.itemId) ?? CHECKLIST_ITEMS.find((it) => it.id === entry.itemId);
-      const title = meta?.title ?? entry.itemId.replace(/_/g, ' ');
-      const swatch = itemSwatch(entry.status);
-
-      doc.roundedRect(x, top, cellWidth, imageHeight, 5).fill(COLOR.lineSoft);
-
-      let drawn = false;
-      if (entry.mediaType === 'image') {
-        const diskPath = mediaUrlToDiskPath(entry.mediaUrl);
-        try {
-          if (fs.existsSync(diskPath)) {
-            doc.save();
-            doc.roundedRect(x, top, cellWidth, imageHeight, 5).clip();
-            doc.image(diskPath, x, top, { cover: [cellWidth, imageHeight], align: 'center', valign: 'center' });
-            doc.restore();
-            drawn = true;
-          }
-        } catch {
-          // Corrupt or unreadable image — fall through to the placeholder.
-        }
-      }
-
-      if (!drawn) {
-        doc
-          .font('Helvetica')
-          .fontSize(7.5)
-          .fillColor(COLOR.inkLight)
-          .text(
-            entry.mediaType === 'video' ? 'Video captured\nview in platform' : 'Photo unavailable',
-            x,
-            top + imageHeight / 2 - 10,
-            { width: cellWidth, align: 'center' },
-          );
-      }
-
-      doc
-        .roundedRect(x, top, cellWidth, imageHeight, 5)
-        .lineWidth(0.6)
-        .strokeColor(COLOR.line)
-        .stroke();
-
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(8)
-        .fillColor(COLOR.ink)
-        .text(title, x, top + imageHeight + 7, { width: cellWidth - 34, ellipsis: true, lineBreak: false });
-
-      pill(doc, swatch.label, x + cellWidth - 32, top + imageHeight + 5, swatch, { fontSize: 6 });
-    }
-
-    doc.y = top + cellHeight;
-  }
+  const disclaimer =
+    'An AI-assisted visual inspection, made from photos and video taken on site. It supports the manufacturer’s maintenance schedule and does not replace it.';
+  font(doc, 'regular', 7.2, COLOR.inkLight);
+  const h = doc.heightOfString(disclaimer, { width: CONTENT_WIDTH, lineGap: 1 });
+  ensureSpace(doc, h + 4);
+  doc.text(disclaimer, PAGE.margin, doc.y, { width: CONTENT_WIDTH, lineGap: 1 });
 }
 
 // ── Footer + running header, drawn across all pages at the end ─────────────
-function drawPageFurniture(doc: PDFKit.PDFDocument, inspection: Record<string, any>): void {
+function drawPageFurniture(doc: PDFKit.PDFDocument, ctx: Ctx): void {
   const range = doc.bufferedPageRange();
-  const generated = new Date().toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const serial = ctx.inspection.serialNumber;
 
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
@@ -477,105 +804,105 @@ function drawPageFurniture(doc: PDFKit.PDFDocument, inspection: Record<string, a
     // blank page — once per page, each carrying an orphaned page number.
     doc.page.margins.bottom = 0;
 
-    // Running header on continuation pages only — page 1 has the brand band.
     if (i > 0) {
       drawLogo(doc, PAGE.margin, PAGE.margin - 12, 11, COLOR.primary);
+      font(doc, 'semibold', 8, COLOR.ink).text('AED inspection report', PAGE.margin + 16, PAGE.margin - 11, {
+        lineBreak: false,
+      });
+      font(doc, 'regular', 7.5, COLOR.inkLight).text(
+        [ctx.model, serial ? `SN ${serial}` : undefined, ctx.sample ? 'Sample' : `Report ${ctx.shortId}`]
+          .filter(Boolean)
+          .join('  ·  '),
+        PAGE.margin,
+        PAGE.margin - 10,
+        { width: CONTENT_WIDTH, align: 'right', lineBreak: false },
+      );
       doc
-        .font('Helvetica-Bold')
-        .fontSize(8)
-        .fillColor(COLOR.ink)
-        .text('AED Inspection Report', PAGE.margin + 16, PAGE.margin - 11, { lineBreak: false });
-      doc
-        .font('Helvetica')
-        .fontSize(7.5)
-        .fillColor(COLOR.inkLight)
-        .text(inspection.serialNumber ? `Serial ${inspection.serialNumber}` : inspection.aedModel ?? '', PAGE.margin, PAGE.margin - 11, {
-          width: CONTENT_WIDTH,
-          align: 'right',
-          lineBreak: false,
-        });
-      doc
-        .moveTo(PAGE.margin, PAGE.margin + 4)
-        .lineTo(PAGE.margin + CONTENT_WIDTH, PAGE.margin + 4)
+        .moveTo(PAGE.margin, PAGE.margin + 5)
+        .lineTo(RIGHT_EDGE, PAGE.margin + 5)
         .lineWidth(0.6)
         .strokeColor(COLOR.line)
         .stroke();
     }
 
-    const footerY = PAGE.height - 38;
-    doc
-      .moveTo(PAGE.margin, footerY)
-      .lineTo(PAGE.margin + CONTENT_WIDTH, footerY)
-      .lineWidth(0.6)
-      .strokeColor(COLOR.line)
-      .stroke();
+    const footerY = PAGE.height - 40;
+    doc.moveTo(PAGE.margin, footerY).lineTo(RIGHT_EDGE, footerY).lineWidth(0.6).strokeColor(COLOR.line).stroke();
 
-    doc
-      .font('Helvetica')
-      .fontSize(7)
-      .fillColor(COLOR.inkLight)
-      .text('Powered by Think Healthcare and Safety · inspector.aedsmartx.com', PAGE.margin, footerY + 9, {
-        lineBreak: false,
-      });
-    doc
-      .font('Helvetica')
-      .fontSize(7)
-      .fillColor(COLOR.inkLight)
-      .text(`Generated ${generated}`, PAGE.margin, footerY + 19, { lineBreak: false });
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(7.5)
-      .fillColor(COLOR.inkMuted)
-      .text(`Page ${i + 1} of ${range.count}`, PAGE.margin + CONTENT_WIDTH - 60, footerY + 13, {
-        width: 60,
-        align: 'right',
-        lineBreak: false,
-      });
+    font(doc, 'regular', 7, COLOR.inkLight).text(
+      'Think Healthcare and Safety  ·  inspector.aedsmartx.com',
+      PAGE.margin,
+      footerY + 9,
+      { lineBreak: false },
+    );
+    font(doc, 'regular', 6.5, COLOR.inkLight).text(
+      ctx.sample
+        ? `Sample report: a fictional inspection, for illustration only  ·  Generated ${formatDateTime(ctx.generatedAt)}`
+        : `Inspection ID ${ctx.inspection.inspectionId}  ·  Generated ${formatDateTime(ctx.generatedAt)}`,
+      PAGE.margin,
+      footerY + 19,
+      { lineBreak: false },
+    );
+    font(doc, 'semibold', 7.5, COLOR.inkMuted).text(`Page ${i + 1} of ${range.count}`, RIGHT_EDGE - 80, footerY + 13, {
+      width: 80,
+      align: 'right',
+      lineBreak: false,
+    });
   }
 }
 
 /** A PDFDocument configured for this report — buffered so footers can be
  *  stamped across every page once the total page count is known. */
 export function createReportDoc(): PDFKit.PDFDocument {
-  return new PDFDocument({ size: 'A4', margin: PAGE.margin, bufferPages: true });
+  const doc = new PDFDocument({
+    size: 'A4',
+    margin: PAGE.margin,
+    bufferPages: true,
+    info: { Title: 'AED inspection report', Author: 'Think Healthcare and Safety', Creator: 'AED Inspect' },
+  });
+  registerFonts(doc);
+  return doc;
+}
+
+export interface RenderOptions {
+  /** Marks the report as a sample (the landing page's example). */
+  sample?: boolean;
+  /** Fixes the "generated" stamp — for the sample, so re-rendering it
+   *  doesn't change the file. */
+  generatedAt?: Date;
 }
 
 /** Writes the full report into a document from createReportDoc(). The caller
  *  owns piping and calling .end(). */
-export function renderInspectionPdf(doc: PDFKit.PDFDocument, inspection: Record<string, any>): void {
-  const inspectorName = inspection.guestName ?? inspection.inspector?.name ?? 'Unknown';
-  const inspectorEmail = inspection.guestEmail ?? inspection.inspector?.email;
-  const batteryLot = [inspection.batteryLot, inspection.batterySerialNumber].filter(Boolean).join(' / ');
+export function renderInspectionPdf(
+  doc: PDFKit.PDFDocument,
+  inspection: Record<string, any>,
+  options: RenderOptions = {},
+): void {
+  registerFonts(doc);
+  const asOfRaw = inspection.completedAt ?? inspection.startedAt;
+  const asOf = asOfRaw && !Number.isNaN(new Date(asOfRaw).getTime()) ? new Date(asOfRaw) : new Date();
+  const ctx: Ctx = {
+    inspection,
+    checklist: inspection.checklist ?? [],
+    asOf,
+    model: MODEL_NAMES[inspection.aedModel] ?? inspection.aedModel ?? 'AED',
+    shortId: String(inspection.inspectionId ?? '').slice(0, 8).toUpperCase(),
+    sample: Boolean(options.sample),
+    generatedAt: options.generatedAt ?? new Date(),
+  };
 
-  drawHeaderBand(doc);
-  drawResultBanner(doc, inspection);
+  drawHeaderBand(doc, ctx);
+  drawVerdict(doc, ctx);
+  drawNextSteps(doc, ctx);
 
-  drawSectionLabel(doc, 'Device details');
-  drawDetailGrid(doc, [
-    ['AED model', inspection.aedModel ?? 'Not specified'],
-    ['Serial number', inspection.serialNumber ?? 'Not captured'],
-    ['Pads expiry', inspection.padsExpiry ?? 'Not captured'],
-    ['Battery expiry', inspection.batteryExpiry ?? 'Not captured'],
-    ['Battery lot / serial', batteryLot || 'Not captured'],
-    ['Readiness indicator', inspection.statusIndicator ?? 'Not checked'],
-  ]);
+  drawSectionLabel(doc, 'Device');
+  drawDetailGrid(doc, deviceDetails(ctx));
 
-  drawSectionLabel(doc, 'Inspection details');
-  drawDetailGrid(doc, [
-    ['Inspected by', inspectorName],
-    ['Contact', inspectorEmail ?? 'Not provided'],
-    ['Phone', inspection.guestPhone ?? 'Not provided'],
-    ['Location', inspection.locationId ?? 'Not specified'],
-    ['Duration', inspection.durationSeconds ? `${Math.round(inspection.durationSeconds)} seconds` : 'Not recorded'],
-    ['Inspection ID', inspection.inspectionId],
-  ]);
+  drawSectionLabel(doc, 'Inspection');
+  drawDetailGrid(doc, inspectionDetails(ctx));
 
-  drawSectionLabel(doc, 'Checklist results');
-  drawChecklistTable(doc, inspection);
-
-  drawEvidence(doc, inspection);
-
-  drawPageFurniture(doc, inspection);
+  drawChecks(doc, ctx);
+  drawPageFurniture(doc, ctx);
 }
 
 /** Renders the report into an in-memory Buffer (for email attachments). */

@@ -31,7 +31,8 @@ export type TrackedEvent =
   | 'reference_opened'
   | 'inspection_resumed'
   | 'report_downloaded'
-  | 'language_changed';
+  | 'language_changed'
+  | 'sample_report_opened';
 
 interface EventPayload {
   inspectionId?: string;
