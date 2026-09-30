@@ -228,7 +228,7 @@ export default function PublicInspectionPage() {
       return s === 'pending' || s === 'error' || s === 'analyzing';
     };
     return {
-      checklist: ALL_ITEMS.filter((i) => i.id !== activeId && (i.required || !outstanding(i.id))),
+      checklist: ALL_ITEMS.filter((i) => i.required || i.id === activeId || !outstanding(i.id)),
       optional: ALL_ITEMS.filter((i) => i.id !== activeId && !i.required && outstanding(i.id)),
     };
   }, [inspection, activeId, ALL_ITEMS]);
@@ -699,7 +699,9 @@ export default function PublicInspectionPage() {
             {listed.checklist.length > 0 && (
               <section>
                 <div className="group-label">{m.inspection.checklist}</div>
-                <div className="surface-group">
+                <div className="relative -mx-2">
+                  {/* The line the dots sit on: 8px row padding + half a dot. */}
+                  <span aria-hidden className="absolute left-5 top-6 bottom-6 w-px -translate-x-1/2 bg-border" />
                   {listed.checklist.map((item) => {
                     const result = inspection.checklist.find((c) => c.itemId === item.id);
                     if (!result) return null;
@@ -710,6 +712,7 @@ export default function PublicInspectionPage() {
                         item={item}
                         result={result}
                         index={index >= 0 ? index + 1 : undefined}
+                        current={item.id === activeId}
                         onSelect={() => openCheck(item.id)}
                       />
                     );
@@ -735,7 +738,7 @@ export default function PublicInspectionPage() {
                   />
                 </button>
                 {showOptional && (
-                  <div className="surface-group fade-in">
+                  <div className="-mx-2 fade-in">
                     {listed.optional.map((item) => {
                       const result = inspection.checklist.find((c) => c.itemId === item.id);
                       if (!result) return null;

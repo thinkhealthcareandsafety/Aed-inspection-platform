@@ -314,16 +314,16 @@ export function ActiveCheck({
       initial={{ opacity: 0, x: 18 }}
       animate={{ opacity: 1, x: 0 }}
       transition={springSnappy}
-      className="surface-card"
+      className="surface-card active-card"
       aria-labelledby={`check-${item.id}`}
       onPointerDown={() => advancing && setAutoAdvance(false)}
     >
       <div className="px-5 pt-5">
         <div className="flex items-center gap-2.5">
-          <span className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-            <ChecklistIcon name={item.icon} className="w-4 h-4 text-foreground/70" strokeWidth={1.9} />
+          <span className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <ChecklistIcon name={item.icon} className="w-[18px] h-[18px]" strokeWidth={1.9} />
           </span>
-          <span className="text-caption uppercase tracking-[0.06em] text-muted-foreground">
+          <span className="text-caption font-semibold uppercase tracking-[0.06em] text-primary">
             {position ? m.check.position(position.index, position.total) : m.check.optionalExtra}
           </span>
           {isVideo && (
@@ -347,9 +347,9 @@ export function ActiveCheck({
           <>
             <p className="text-body text-muted-foreground mt-1">{copy.description}</p>
             <ReferenceStrip itemId={item.id} aedModel={aedModel} className="mt-4" />
-            <ul className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-secondary/60 px-3 py-2">
+            <ul className="mt-3.5 flex flex-wrap gap-x-4 gap-y-1.5">
               {captureTips(item.mediaType, aedModel, m.check.tips).map((tip) => (
-                <li key={tip.label} className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                <li key={tip.label} className="inline-flex items-center gap-1.5 text-caption text-muted-foreground">
                   <tip.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
                   {tip.label}
                 </li>
@@ -624,24 +624,32 @@ function Verdict({ passed, fresh, className }: { passed: boolean; fresh: boolean
 }
 
 /**
- * A check that isn't the current one: one line, tappable to reopen. Keeps the
- * whole job visible without putting ten camera buttons on screen at once.
+ * One stop on the route under the open check: a dot on the line, the check's
+ * name, and — once done — what the AI read. It used to be a boxed list of
+ * identical grey rows with chevrons, the same weight as the card above it,
+ * so the page read as two forms stacked. Now the card is the one surface,
+ * and this is the map beside it: where you are, what's done, what's left.
+ * Tappable, to reopen a finished check or jump to another.
  */
 export function CheckRow({
   item,
   result,
   index,
+  current,
   onSelect,
 }: {
   item: ChecklistItemMeta;
   result: ChecklistItemResult;
   /** Position among required checks, shown while it is still to do. */
   index?: number;
+  /** The check open in the card above. */
+  current?: boolean;
   onSelect: () => void;
 }) {
   const { m } = useI18n();
   const reading = readingOf(result, m);
   const failed = result.status === 'fail' || result.status === 'error';
+  const resolved = failed || result.status === 'pass' || result.status === 'skipped';
   const detail =
     result.status === 'skipped'
       ? m.check.row.skipped
@@ -659,12 +667,28 @@ export function CheckRow({
     <button
       type="button"
       onClick={onSelect}
-      className="surface-row w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-secondary/40 transition-colors"
+      aria-current={current ? 'step' : undefined}
+      className={cn(
+        'group relative w-full flex items-center gap-3.5 rounded-xl px-2 py-2.5 text-left transition-colors',
+        current ? 'bg-primary/[0.06]' : 'hover:bg-secondary/50',
+      )}
     >
-      <StatusDot status={result.status} index={index} />
+      <StatusDot
+        status={current ? undefined : result.status}
+        index={index}
+        current={current}
+        className="relative z-10"
+      />
       <span className="min-w-0 flex-1">
-        <span className="block text-callout text-foreground truncate">{itemCopy(m, item).title}</span>
-        {detail && (
+        <span
+          className={cn(
+            'block text-callout truncate',
+            current ? 'font-semibold text-foreground' : resolved ? 'text-foreground' : 'text-foreground/70',
+          )}
+        >
+          {itemCopy(m, item).title}
+        </span>
+        {detail && !current && (
           <span
             className={cn(
               'block text-caption truncate mt-0.5',
@@ -676,7 +700,13 @@ export function CheckRow({
           </span>
         )}
       </span>
-      <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" strokeWidth={2} />
+      {current ? (
+        <span className="shrink-0 text-caption font-semibold uppercase tracking-[0.06em] text-primary">
+          {m.check.row.now}
+        </span>
+      ) : (
+        resolved && <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" strokeWidth={2} />
+      )}
     </button>
   );
 }

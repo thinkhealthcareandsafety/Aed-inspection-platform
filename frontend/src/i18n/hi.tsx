@@ -168,6 +168,7 @@ export const hi: Messages = {
       skipped: 'छोड़ी गई',
       uploadFailed: 'अपलोड नहीं हुई — फिर से कोशिश करने के लिए टैप करें',
       needsAttention: 'ध्यान दें',
+      now: 'अभी',
     },
   },
 

@@ -168,6 +168,7 @@ export const en = {
       skipped: 'Skipped',
       uploadFailed: 'Didn’t upload — tap to try again',
       needsAttention: 'Needs attention',
+      now: 'Now',
     },
   },
 
