@@ -19,8 +19,6 @@ export const hi: Messages = {
     close: 'बंद करें',
   },
 
-  trust: { since: '2011 से CPR और AED ट्रेनिंग', facts: ['AHA और ISO प्रमाणित', '70,000+ लोग प्रशिक्षित'] },
-
   steps: { details: 'विवरण', model: 'मॉडल', inspect: 'जाँच' },
 
   contact: {

@@ -24,9 +24,6 @@ export const en = {
     close: 'Close',
   },
 
-  /** Think Health's own published facts (thinkhealth.in), under its logo. */
-  trust: { since: 'CPR & AED training since 2011', facts: ['AHA & ISO certified', '70,000+ people trained'] },
-
   steps: { details: 'Details', model: 'Model', inspect: 'Inspect' },
 
   contact: {
