@@ -11,6 +11,8 @@ export interface Focus {
 export interface ReferenceExample {
   src: string;
   caption: string;
+  /** The same caption in Hindi. */
+  captionHi: string;
   kind: 'good' | 'bad' | 'neutral';
   /**
    * Which AED models this photo actually depicts. Omit only when the photo is
@@ -60,6 +62,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: FRX_BACK,
       focus: { x: 0.3898, y: 0.7757, w: 0.1405, h: 0.1195 },
       caption: 'The “SN” label at the bottom of the back panel.',
+      captionHi: 'पीछे वाले पैनल के नीचे लगा “SN” लेबल।',
       kind: 'neutral',
       models: ['Philips FRx'],
     },
@@ -67,6 +70,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: HS1_BACK,
       focus: { x: 0.3808, y: 0.8011, w: 0.1479, h: 0.135 },
       caption: 'The “SN” label at the bottom of the back panel.',
+      captionHi: 'पीछे वाले पैनल के नीचे लगा “SN” लेबल।',
       kind: 'neutral',
       models: ['Philips HS1'],
     },
@@ -74,6 +78,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/zoll-aed-plus-back.jpg',
       focus: { x: 0.2524, y: 0.5678, w: 0.2635, h: 0.1186 },
       caption: 'The barcode label on the back, just below the handle.',
+      captionHi: 'पीछे, हैंडल के ठीक नीचे लगा बारकोड लेबल।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
     },
@@ -87,6 +92,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: FRX_PADS,
       focus: { x: 0.4648, y: 0.6642, w: 0.1148, h: 0.0667 },
       caption: 'SMART Pads II: the date beside the ⌛ on the label near the bottom of the case.',
+      captionHi: 'SMART Pads II: केस के नीचे लगे लेबल पर ⌛ के पास छपी तारीख।',
       kind: 'neutral',
       models: ['Philips FRx'],
     },
@@ -94,6 +100,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/philips-hs1-pads.jpg',
       focus: { x: 0.4471, y: 0.6931, w: 0.115, h: 0.0668 },
       caption: 'Pads cartridge: the date beside the ⌛, just below the body diagram.',
+      captionHi: 'पैड्स कार्ट्रिज: शरीर वाली तस्वीर के ठीक नीचे, ⌛ के पास छपी तारीख।',
       kind: 'neutral',
       models: ['Philips HS1'],
     },
@@ -101,6 +108,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/zoll-aed-plus-pads.jpg',
       focus: { x: 0.5152, y: 0.476, w: 0.1025, h: 0.048 },
       caption: 'CPR-D-padz box: the date beside the ⌛ on the front label.',
+      captionHi: 'CPR-D-padz डिब्बा: आगे के लेबल पर ⌛ के पास छपी तारीख।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
     },
@@ -111,6 +119,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: FRX_BACK,
       focus: { x: 0.1556, y: 0.3529, w: 0.1088, h: 0.2794 },
       caption: 'The label on the battery: use the “Install before” date.',
+      captionHi: 'बैटरी पर लगा लेबल: “Install before” वाली तारीख देखें।',
       kind: 'neutral',
       models: ['Philips FRx'],
     },
@@ -118,6 +127,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: HS1_BACK,
       focus: { x: 0.1041, y: 0.3321, w: 0.1301, h: 0.3139 },
       caption: 'The label on the battery: use the install-before date, not the factory date.',
+      captionHi: 'बैटरी पर लगा लेबल: install-before वाली तारीख देखें, फ़ैक्टरी वाली नहीं।',
       kind: 'neutral',
       models: ['Philips HS1'],
     },
@@ -127,6 +137,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/zoll-aed-plus-battery-label.svg',
       focus: { x: 0.0867, y: 0.4267, w: 0.41, h: 0.1667 },
       caption: 'The “Replace batteries on or before” label, stuck just below the status window.',
+      captionHi: 'स्टेटस विंडो के ठीक नीचे चिपका “Replace batteries on or before” लेबल।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
       illustration: true,
@@ -138,6 +149,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: FRX_BACK,
       focus: { x: 0.1364, y: 0.1507, w: 0.259, h: 0.7169 },
       caption: 'Battery pushed fully into the back, flush with the case.',
+      captionHi: 'बैटरी पीछे पूरी अंदर तक लगी है, केस के बराबर।',
       kind: 'good',
       models: ['Philips FRx'],
     },
@@ -145,6 +157,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: HS1_BACK,
       focus: { x: 0.0877, y: 0.1277, w: 0.2959, h: 0.7646 },
       caption: 'Battery pushed fully into the back, flush with the case.',
+      captionHi: 'बैटरी पीछे पूरी अंदर तक लगी है, केस के बराबर।',
       kind: 'good',
       models: ['Philips HS1'],
     },
@@ -152,6 +165,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/zoll-aed-plus-battery-fitted.jpg',
       focus: { x: 0.0345, y: 0.0879, w: 0.931, h: 0.7908 },
       caption: 'All ten cells seated in the battery well.',
+      captionHi: 'बैटरी खाने में सभी दस सेल ठीक से लगे हैं।',
       kind: 'good',
       models: ['Zoll AED Plus'],
     },
@@ -159,6 +173,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/zoll-aed-plus-battery-missing.jpg',
       focus: { x: 0.0879, y: 0.3191, w: 0.8339, h: 0.434 },
       caption: 'Battery well empty. This needs fixing.',
+      captionHi: 'बैटरी खाना खाली है। इसे ठीक करना होगा।',
       kind: 'bad',
       models: ['Zoll AED Plus'],
     },
@@ -169,6 +184,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: FRX_PADS,
       focus: { x: 0.487, y: 0.8494, w: 0.1722, h: 0.1333 },
       caption: 'This blue plug must be pushed firmly into the AED’s pads socket.',
+      captionHi: 'यह नीला प्लग AED के पैड्स सॉकेट में पूरा, मज़बूती से लगा होना चाहिए।',
       kind: 'neutral',
       models: ['Philips FRx'],
     },
@@ -176,6 +192,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: HS1_FRONT,
       focus: { x: 0.274, y: 0.0312, w: 0.4989, h: 0.8693 },
       caption: 'Pads cartridge clicked flat into the front of the unit.',
+      captionHi: 'पैड्स कार्ट्रिज मशीन के आगे पूरी तरह बैठा हुआ।',
       kind: 'good',
       models: ['Philips HS1'],
     },
@@ -183,6 +200,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: ZOLL_FRONT,
       focus: { x: 0.5205, y: 0.4182, w: 0.0545, h: 0.1697 },
       caption: 'Pads cable plugged into its socket.',
+      captionHi: 'पैड्स की केबल अपने सॉकेट में लगी है।',
       kind: 'good',
       models: ['Zoll AED Plus'],
     },
@@ -190,6 +208,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/zoll-aed-plus-pads-unplugged.jpg',
       focus: { x: 0.2739, y: 0.5177, w: 0.0665, h: 0.1383 },
       caption: 'Socket empty, pads not plugged in. This needs fixing.',
+      captionHi: 'सॉकेट खाली है, पैड्स नहीं लगे। इसे ठीक करना होगा।',
       kind: 'bad',
       models: ['Zoll AED Plus'],
     },
@@ -200,8 +219,11 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
   readiness_indicator: [
     {
       src: HS1_FRONT,
-      focus: { x: 0.7878, y: 0.108, w: 0.0597, h: 0.1364 },
-      caption: 'The small light just above the power button, not the button itself. HS1 shown.',
+      // The Ready light itself — the small oval above the button, which the
+      // ring used to take in along with the button it says not to film.
+      focus: { x: 0.797, y: 0.1056, w: 0.04, h: 0.05 },
+      caption: 'The small green Ready light beside the power button, not the button itself. HS1 shown.',
+      captionHi: 'पावर बटन के पास की छोटी हरी Ready लाइट, बटन खुद नहीं। तस्वीर में HS1 है।',
       kind: 'neutral',
       models: PHILIPS,
     },
@@ -209,6 +231,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: ZOLL_FRONT,
       focus: { x: 0.5659, y: 0.7667, w: 0.0682, h: 0.0576 },
       caption: 'The status window on the handle, to the left of the power button.',
+      captionHi: 'हैंडल पर, पावर बटन के बाईं ओर की स्टेटस विंडो।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
     },
@@ -220,6 +243,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     {
       src: '/reference/philips-frx-child-key.jpg',
       caption: 'The infant/child key: a blue key with a pink ring.',
+      captionHi: 'इन्फ़ैंट/चाइल्ड Key: गुलाबी रिंग वाली नीली Key।',
       kind: 'neutral',
       models: ['Philips FRx'],
     },
@@ -227,6 +251,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/philips-hs1-child-pads.svg',
       focus: { x: 0.3883, y: 0.5556, w: 0.2233, h: 0.1911 },
       caption: 'An infant/child pads cartridge: look for the teddy bear and the weight limit.',
+      captionHi: 'इन्फ़ैंट/चाइल्ड पैड्स कार्ट्रिज: टेडी बियर का निशान और वज़न की सीमा देखें।',
       kind: 'neutral',
       models: ['Philips HS1'],
       illustration: true,
@@ -234,6 +259,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     {
       src: '/reference/zoll-aed-plus-child-pads.svg',
       caption: 'Pedi-padz II: a separate pack of child pads, with child placement diagrams.',
+      captionHi: 'Pedi-padz II: बच्चों के पैड्स का अलग पैकेट, जिस पर उन्हें लगाने की तस्वीरें हैं।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
       illustration: true,
@@ -241,13 +267,19 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
   ],
 
   aed_cabinet: [
-    { src: '/reference/aed-cabinet.jpg', caption: 'Wall cabinet, door closed, clearly signed.', kind: 'good' },
+    {
+      src: '/reference/aed-cabinet.jpg',
+      caption: 'Wall cabinet, door closed, clearly signed.',
+      captionHi: 'दीवार पर लगा कैबिनेट: दरवाज़ा बंद, साफ़ निशान के साथ।',
+      kind: 'good',
+    },
   ],
 
   first_response_kit: [
     {
       src: '/reference/rescue-kit.jpg',
       caption: 'Rescue kit pouch, with gloves, razor, scissors and mask inside.',
+      captionHi: 'रेस्क्यू किट का पाउच, जिसमें दस्ताने, रेज़र, कैंची और मास्क हों।',
       kind: 'good',
     },
   ],
@@ -258,11 +290,17 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       src: '/reference/emergency-contacts.svg',
       focus: { x: 0.3742, y: 0.6056, w: 0.2533, h: 0.19 },
       caption: 'A sticker with the emergency and site contact numbers, on the AED or its cabinet.',
+      captionHi: 'इमरजेंसी और साइट के संपर्क नंबरों वाला स्टिकर, AED या उसके कैबिनेट पर।',
       kind: 'neutral',
       illustration: true,
     },
   ],
 };
+
+/** An example's caption in the language showing. */
+export function captionOf(example: ReferenceExample, lang: string): string {
+  return lang === 'hi' ? example.captionHi : example.caption;
+}
 
 /**
  * Returns the reference photos for a checklist item, narrowed to the AED

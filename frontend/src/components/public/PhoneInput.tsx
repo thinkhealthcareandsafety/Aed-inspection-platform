@@ -5,11 +5,13 @@ import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   COUNTRIES,
+  countryName,
   flagEmoji,
   isValidNationalNumber,
   parsePhoneValue,
   type Country,
 } from '@/lib/countries';
+import { useI18n } from '@/i18n';
 
 interface Props {
   value: string;
@@ -21,6 +23,7 @@ interface Props {
 }
 
 export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) {
+  const { lang, m } = useI18n();
   const initial = useRef(parsePhoneValue(value)).current;
   const [country, setCountry] = useState<Country>(initial.country);
   const [digits, setDigits] = useState(initial.nationalDigits);
@@ -57,15 +60,12 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
   const filtered = COUNTRIES.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
+      countryName(c, lang).toLowerCase().includes(search.toLowerCase()) ||
       c.dialCode.includes(search.replace('+', '')),
   );
 
   const valid = isValidNationalNumber(country, digits);
   const touchedInvalid = digits.length > 0 && !valid;
-  const lengthHint =
-    country.minLength === country.maxLength
-      ? `${country.minLength} digits`
-      : `${country.minLength}-${country.maxLength} digits`;
 
   function selectCountry(c: Country) {
     setCountry(c);
@@ -89,7 +89,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1 shrink-0 -ml-0.5 px-1 py-0.5 rounded-md text-body hover:bg-secondary transition-colors disabled:opacity-60"
-          aria-label="Select country"
+          aria-label={m.phone.selectCountry}
         >
           <span className="text-[15px] leading-none">{flagEmoji(country.iso2)}</span>
           <span className="font-mono text-callout text-muted-foreground">+{country.dialCode}</span>
@@ -115,7 +115,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
         <p className="text-footnote text-destructive mt-1">{error}</p>
       ) : touchedInvalid ? (
         <p className="text-footnote text-destructive mt-1">
-          {country.name} numbers need {lengthHint} ({digits.length} so far)
+          {m.phone.lengthHint(countryName(country, lang), country.minLength, country.maxLength, digits.length)}
         </p>
       ) : null}
 
@@ -128,14 +128,14 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
                 ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search country or code…"
+                placeholder={m.phone.search}
                 className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg bg-secondary border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <p className="px-3 py-3 text-xs text-muted-foreground text-center">No matches</p>
+              <p className="px-3 py-3 text-xs text-muted-foreground text-center">{m.phone.noMatches}</p>
             )}
             {filtered.map((c) => (
               <button
@@ -148,7 +148,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
                 )}
               >
                 <span className="text-base leading-none shrink-0">{flagEmoji(c.iso2)}</span>
-                <span className="flex-1 min-w-0 truncate">{c.name}</span>
+                <span className="flex-1 min-w-0 truncate">{countryName(c, lang)}</span>
                 <span className="font-mono text-xs text-muted-foreground shrink-0">+{c.dialCode}</span>
               </button>
             ))}

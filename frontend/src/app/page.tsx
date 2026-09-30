@@ -20,6 +20,8 @@ import { InspectionComplete } from '@/components/public/InspectionComplete';
 import { StepIndicator } from '@/components/public/StepIndicator';
 import { BrandFooter } from '@/components/public/BrandFooter';
 import { PulseLogo } from '@/components/icons';
+import { LanguageSwitch } from '@/components/public/LanguageSwitch';
+import { useI18n } from '@/i18n';
 import { springSnappy } from '@/lib/motion';
 import { track, installTrackingFlush } from '@/lib/track';
 import { usePending } from '@/lib/use-pending';
@@ -63,13 +65,13 @@ function forgetInspection() {
 /** Says out loud that the network went, and what that means for the job —
  *  otherwise the next failed upload reads as the app breaking. */
 function OfflineStrip() {
+  const { m } = useI18n();
   return (
     <div role="status" className="border-t border-amber-500/25 bg-amber-500/10">
       <p className="mx-auto flex max-w-md items-start gap-2 px-4 py-2 text-footnote text-foreground">
         <WifiOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" strokeWidth={2.2} />
         <span>
-          <span className="font-semibold">No signal.</span> Checks you’ve finished are saved. Move somewhere with
-          signal before the next photo.
+          <span className="font-semibold">{m.inspection.offlineTitle}</span> {m.inspection.offlineBody}
         </span>
       </p>
     </div>
@@ -77,6 +79,7 @@ function OfflineStrip() {
 }
 
 export default function PublicInspectionPage() {
+  const { lang, m } = useI18n();
   const [step, setStep] = useState<Step>('contact');
   const [contact, setContact] = useState<ContactFormData | null>(null);
   const [starting, setStarting] = useState(false);
@@ -274,12 +277,12 @@ export default function PublicInspectionPage() {
       const s = inspection?.checklist.find((c) => c.itemId === id)?.status;
       return s === 'pending' || s === 'error';
     };
-    if (ALL_ITEMS.some((i) => i.required && outstanding(i.id))) return 'Next check';
+    if (ALL_ITEMS.some((i) => i.required && outstanding(i.id))) return m.check.next.check;
     if (activeItem && !activeItem.required && ALL_ITEMS.some((i) => !i.required && outstanding(i.id))) {
-      return 'Next extra';
+      return m.check.next.extra;
     }
-    return 'Review & finish';
-  }, [inspection, activeId, activeItem, ALL_ITEMS]);
+    return m.check.next.finish;
+  }, [inspection, activeId, activeItem, ALL_ITEMS, m]);
 
   useEffect(() => {
     if (allRequiredResolved && inspection) {
@@ -309,13 +312,13 @@ export default function PublicInspectionPage() {
         setStep('inspecting');
         track('inspection_started', { inspectionId: res.data.inspection.inspectionId, aedModel });
       } catch {
-        toast.error('Could not start inspection. Please try again.');
+        toast.error(m.inspection.startFailed);
       } finally {
         setStarting(false);
         setPendingModel(null);
       }
     },
-    [contact, starting],
+    [contact, starting, m],
   );
 
   /** Read outside the state updater so tracking fires once per real change,
@@ -366,11 +369,11 @@ export default function PublicInspectionPage() {
       // The result screen says whether the email went out, so no toast.
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
-      toast.error('Could not finalize inspection');
+      toast.error(m.inspection.finishFailed);
     } finally {
       setCompleting(false);
     }
-  }, [inspection]);
+  }, [inspection, m]);
 
   /**
    * Move to the next outstanding check once one is finished. Required checks
@@ -462,7 +465,7 @@ export default function PublicInspectionPage() {
    *  the same inspection on a phone, where it opens the camera. */
   const handoffUrl =
     isDesktop && inspection && typeof window !== 'undefined'
-      ? `${window.location.origin}/?resume=${inspection.inspectionId}`
+      ? `${window.location.origin}/?resume=${inspection.inspectionId}${lang === 'hi' ? '&lang=hi' : ''}`
       : null;
   const openHandoff = useCallback(() => setMenu('phone'), []);
 
@@ -472,12 +475,7 @@ export default function PublicInspectionPage() {
   // a few seconds, so the button says which of those it is on rather than
   // sitting on one word.
   const finishingElapsed = useElapsed(completing);
-  const finishingLabel =
-    finishingElapsed < 1200
-      ? 'Saving your inspection…'
-      : finishingElapsed < 4000
-        ? 'Building your PDF report…'
-        : 'Sending your report…';
+  const finishingLabel = m.inspection.finishing[finishingElapsed < 1200 ? 0 : finishingElapsed < 4000 ? 1 : 2];
 
   /** After a refresh the live send-result is gone, but the inspection records
    *  whether the report was emailed — enough to keep the confirmation true. */
@@ -490,12 +488,8 @@ export default function PublicInspectionPage() {
   const inspecting = resume === 'done' && step === 'inspecting' && inspection !== null;
   const readyToFinish = !isComplete && !activeItem && allRequiredResolved;
 
-  const expiredNames = expired.map((i) => (i.id === 'pads_expiry' ? 'pads' : 'battery'));
-  const expiredSentence = expiredNames.length
-    ? `The expired ${expiredNames.join(' and ')} ${
-        expiredNames.length > 1 || expiredNames[0] === 'pads' ? 'need' : 'needs'
-      } replacing — you can ask us for a quote when you finish.`
-    : '';
+  const expiredKinds = expired.map((i) => (i.id === 'pads_expiry' ? ('pads' as const) : ('battery' as const)));
+  const expiredSentence = expiredKinds.length ? m.inspection.ready.expired(expiredKinds) : '';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -509,16 +503,23 @@ export default function PublicInspectionPage() {
               <span className="text-headline text-foreground truncate min-w-0 flex-1">
                 {modelDisplayName(inspection.aedModel)}
               </span>
-              <span className="text-callout tabular-nums text-muted-foreground shrink-0">
-                <span className="text-foreground font-semibold">{requiredResolvedCount}</span> of{' '}
-                {REQUIRED_ITEM_IDS.length} done
-              </span>
+              {!isComplete && (
+                <span className="text-callout tabular-nums text-muted-foreground shrink-0">
+                  {m.inspection.doneCount(
+                    <span className="text-foreground font-semibold">{requiredResolvedCount}</span>,
+                    REQUIRED_ITEM_IDS.length,
+                  )}
+                </span>
+              )}
+              {/* With the job done there is no options menu, so the language
+                  switch sits in the bar itself for reading the result. */}
+              {isComplete && <LanguageSwitch className="-mr-2" />}
               {!isComplete && (
                 <button
                   type="button"
                   onClick={() => setMenu('menu')}
                   onPointerEnter={() => void loadInspectionMenu()}
-                  aria-label="Inspection options"
+                  aria-label={m.inspection.options}
                   aria-haspopup="dialog"
                   className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
@@ -541,7 +542,8 @@ export default function PublicInspectionPage() {
               wordmark sits over the content instead of drifting to the far edge. */}
           <header className="max-w-md w-full mx-auto px-4 pt-5 pb-4 flex items-center gap-2.5">
             <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
-            <span className="text-headline text-foreground">AED Inspect</span>
+            <span className="text-headline text-foreground flex-1">{m.common.brand}</span>
+            <LanguageSwitch className="-my-1.5 -mr-2" />
           </header>
           {!online && <OfflineStrip />}
 
@@ -574,7 +576,7 @@ export default function PublicInspectionPage() {
           <div className="flex flex-col items-center justify-center gap-3 py-24">
             <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
             {resume === 'restoring' && (
-              <p className="text-callout text-muted-foreground">Picking up where you left off…</p>
+              <p className="text-callout text-muted-foreground">{m.inspection.restoring}</p>
             )}
           </div>
         )}
@@ -657,18 +659,14 @@ export default function PublicInspectionPage() {
                 </span>
                 <h2 className="text-title text-foreground mt-4">
                   {failedRequired.length === 0
-                    ? `All ${REQUIRED_ITEM_IDS.length} checks done`
-                    : failedRequired.length === 1
-                      ? '1 check needs attention'
-                      : `${failedRequired.length} checks need attention`}
+                    ? m.inspection.ready.allDone(REQUIRED_ITEM_IDS.length)
+                    : m.inspection.ready.needAttention(failedRequired.length)}
                 </h2>
                 <p className="text-body text-muted-foreground mt-1.5">
                   {failedRequired.length === 0
-                    ? 'Finish to get your PDF report by email.'
+                    ? m.inspection.ready.finishHint
                     : [
-                        fixable.length
-                          ? 'Most faults take under a minute to put right. Fix it and retake the photo, and it can still pass.'
-                          : '',
+                        fixable.length ? m.inspection.ready.fixable : '',
                         expiredSentence,
                       ]
                         .filter(Boolean)
@@ -683,7 +681,7 @@ export default function PublicInspectionPage() {
                         onClick={() => openCheck(item.id)}
                         className="pressable h-10 px-3.5 rounded-xl bg-secondary hover:bg-secondary/75 text-callout font-medium text-foreground transition-colors"
                       >
-                        Retake {item.title.toLowerCase()}
+                        {m.inspection.ready.retake(m.items[item.id]?.title ?? item.title)}
                       </button>
                     ))}
                   </div>
@@ -694,7 +692,7 @@ export default function PublicInspectionPage() {
                     onClick={() => openCheck(listed.optional[0].id)}
                     className="mt-5 h-10 px-3 text-callout font-medium text-primary hover:text-primary/80 transition-colors"
                   >
-                    Add the {listed.optional.length} optional checks too
+                    {m.inspection.ready.addOptional(listed.optional.length)}
                   </button>
                 )}
               </motion.section>
@@ -702,7 +700,7 @@ export default function PublicInspectionPage() {
 
             {listed.checklist.length > 0 && (
               <section>
-                <div className="group-label">Checklist</div>
+                <div className="group-label">{m.inspection.checklist}</div>
                 <div className="surface-group">
                   {listed.checklist.map((item) => {
                     const result = inspection.checklist.find((c) => c.itemId === item.id);
@@ -732,7 +730,7 @@ export default function PublicInspectionPage() {
                   className="group-label flex h-11 items-center gap-1.5 pb-0 hover:text-foreground transition-colors"
                   aria-expanded={showOptional}
                 >
-                  Optional extras ({listed.optional.length})
+                  {m.inspection.optionalExtras(listed.optional.length)}
                   <ChevronDown
                     className={cn('w-3.5 h-3.5 transition-transform', showOptional && 'rotate-180')}
                     strokeWidth={2.2}
@@ -766,7 +764,7 @@ export default function PublicInspectionPage() {
                   className="pressable w-full flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline bg-primary hover:bg-primary/92 text-primary-foreground transition-colors disabled:opacity-60 shadow-[0_12px_28px_-14px_hsl(var(--primary)/0.7)]"
                 >
                   {completing && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {completing ? finishingLabel : 'Finish & email my report'}
+                  {completing ? finishingLabel : m.inspection.finish}
                 </motion.button>
               </div>
             )}

@@ -62,7 +62,7 @@
     <rect x="134" y="450" width="30" height="16" rx="2" fill="#1E2533"/>
     <rect x="164" y="454" width="5" height="8" rx="1" fill="#1E2533"/>
     <path d="M137 474 L161 474 L149 488 Z M137 502 L161 502 L149 488 Z" fill="#1E2533"/>
-    <text x="196" y="500" font-family="'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive" font-size="38" font-style="italic" font-weight="700" fill="#C0262D">12 / 05 / 2029</text>
+    <text x="196" y="500" font-family="'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive" font-size="38" font-style="italic" font-weight="700" fill="#C0262D">25 / 05 / 2029</text>
     <path d="M190 510 L566 510" stroke="#1E2533" stroke-width="3" stroke-linecap="round"/>
   </g>
 </svg>

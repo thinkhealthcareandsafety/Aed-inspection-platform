@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
-import { getReferenceExamples } from '@/lib/reference-examples';
+import { captionOf, getReferenceExamples } from '@/lib/reference-examples';
+import { useI18n } from '@/i18n';
 import { track } from '@/lib/track';
 import { KIND, ReferenceFigure } from './ReferenceFigure';
 import type { ChecklistItemId } from '@/types';
@@ -31,6 +32,7 @@ export function ReferenceStrip({
   aedModel?: string;
   className?: string;
 }) {
+  const { lang, m } = useI18n();
   const examples = getReferenceExamples(itemId, aedModel);
   const [active, setActive] = useState(0);
   const [enlarged, setEnlarged] = useState<number | null>(null);
@@ -64,7 +66,7 @@ export function ReferenceStrip({
   return (
     <div className={className}>
       {multi && (
-        <div role="tablist" aria-label="Examples" className="mb-2.5 inline-flex rounded-xl bg-secondary p-0.5">
+        <div role="tablist" aria-label={m.reference.examples} className="mb-2.5 inline-flex rounded-xl bg-secondary p-0.5">
           {examples.map((ex, i) => {
             const k = KIND[ex.kind];
             const Icon = k.icon;
@@ -82,7 +84,7 @@ export function ReferenceStrip({
                 )}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" strokeWidth={2.4} style={{ color: k.color }} />}
-                {ex.kind === 'neutral' ? `Example ${i + 1}` : k.label}
+                {ex.kind === 'neutral' ? m.reference.exampleN(i + 1) : m.reference[k.label]}
               </button>
             );
           })}
@@ -97,7 +99,7 @@ export function ReferenceStrip({
         {examples.map((ex, i) => (
           <figure key={`${ex.src}-${i}`} className={cn('min-w-0', multi && 'w-full shrink-0 snap-center')}>
             <ReferenceFigure example={ex} priority={i === 0} onOpen={() => enlarge(i)} />
-            <figcaption className="mt-2 text-footnote leading-snug text-muted-foreground">{ex.caption}</figcaption>
+            <figcaption className="mt-2 text-footnote leading-snug text-muted-foreground">{captionOf(ex, lang)}</figcaption>
           </figure>
         ))}
       </div>

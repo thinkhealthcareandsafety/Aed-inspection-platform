@@ -27,6 +27,8 @@ export interface ChecklistAiData {
   passed: boolean;
   confidence: number;
   notes: string;
+  /** The same feedback in Hindi, when the upload asked for it. */
+  notes_hi?: string | null;
   serial_number?: string | null;
   expiry_date?: string | null;
   expiry_raw_text?: string | null;

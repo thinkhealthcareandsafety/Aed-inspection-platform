@@ -90,7 +90,7 @@
      premium products (Stripe, Linear, Vercel) lean on, rather than pairing
      in a second, quirkier display face. */
   .font-display {
-    font-family: var(--font-sans), 'Geist', sans-serif;
+    font-family: var(--font-sans), 'Geist', var(--font-deva), sans-serif;
     letter-spacing: -0.02em;
   }
 
@@ -306,4 +306,36 @@ canvas.bbox-canvas {
   top: 0;
   left: 0;
   pointer-events: none;
+}
+
+/* Hindi. Devanagari hangs its vowel marks above the headline and below the
+   baseline, and has no capitals: the tight negative tracking and short
+   leading tuned for Geist crush the joined letters and clip the marks. So
+   in Hindi every step of the type scale gets neutral tracking and taller
+   lines. Declared outside the layers so it outranks the utilities, and
+   !important so it also beats the few inline letter-spacings. */
+html:lang(hi) body,
+html:lang(hi) :is(
+    .text-caption, .text-footnote, .text-callout, .text-body, .text-headline,
+    .text-title, .text-display, .text-display-lg, .group-label, .font-display
+  ) {
+  letter-spacing: 0 !important;
+}
+html:lang(hi) :is(.text-display, .text-display-lg) {
+  line-height: 1.4;
+}
+html:lang(hi) .text-title {
+  line-height: 1.45;
+}
+html:lang(hi) .text-headline {
+  line-height: 1.5;
+}
+html:lang(hi) :is(.text-body, .text-callout) {
+  line-height: 1.7;
+}
+html:lang(hi) :is(.text-footnote, .text-caption) {
+  line-height: 1.6;
+}
+html:lang(hi) .leading-none {
+  line-height: 1.3;
 }

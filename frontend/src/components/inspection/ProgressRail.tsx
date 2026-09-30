@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { springSoft } from '@/lib/motion';
+import { useI18n } from '@/i18n';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
 
@@ -22,6 +23,7 @@ export function ProgressRail({
   activeId: string | null;
   className?: string;
 }) {
+  const { m } = useI18n();
   const statusOf = (id: string) => checklist.find((c) => c.itemId === id)?.status;
   const done = items.filter((i) => statusOf(i.id) === 'pass' || statusOf(i.id) === 'fail').length;
 
@@ -29,7 +31,7 @@ export function ProgressRail({
     <div
       className={cn('flex items-center gap-1', className)}
       role="progressbar"
-      aria-label="Required checks done"
+      aria-label={m.inspection.requiredDone}
       aria-valuemin={0}
       aria-valuemax={items.length}
       aria-valuenow={done}

@@ -3,17 +3,18 @@
 import Image from 'next/image';
 import { CheckCircle2, Maximize2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Focus, ReferenceExample } from '@/lib/reference-examples';
+import { captionOf, type Focus, type ReferenceExample } from '@/lib/reference-examples';
+import { useI18n } from '@/i18n';
 
 export const KIND: Record<
   ReferenceExample['kind'],
-  { label: string; color: string; icon?: typeof CheckCircle2 }
+  { label: 'correct' | 'wrong' | 'example'; color: string; icon?: typeof CheckCircle2 }
 > = {
-  good: { label: 'Correct', color: 'var(--status-good)', icon: CheckCircle2 },
-  bad: { label: 'Wrong', color: 'var(--status-critical)', icon: XCircle },
+  good: { label: 'correct', color: 'var(--status-good)', icon: CheckCircle2 },
+  bad: { label: 'wrong', color: 'var(--status-critical)', icon: XCircle },
   // Labelled too: an unmarked photo directly above a camera button reads as
   // a live viewfinder, or as a capture that has already been taken.
-  neutral: { label: 'Example', color: 'hsl(var(--muted-foreground))' },
+  neutral: { label: 'example', color: 'hsl(var(--muted-foreground))' },
 };
 
 type Corner = 'tr' | 'bl' | 'br';
@@ -125,6 +126,7 @@ export function closeupZoom(f: Focus): number {
  * tapping it used to show the same picture at the same size.
  */
 export function ReferenceCloseup({ example }: { example: ReferenceExample & { focus: Focus } }) {
+  const { lang, m } = useI18n();
   const f = example.focus;
   const zoom = closeupZoom(f);
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -137,7 +139,7 @@ export function ReferenceCloseup({ example }: { example: ReferenceExample & { fo
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={example.src}
-        alt={`Close-up: ${example.caption}`}
+        alt={`${m.reference.closeUp}: ${captionOf(example, lang)}`}
         draggable={false}
         style={{
           position: 'absolute',
@@ -149,7 +151,7 @@ export function ReferenceCloseup({ example }: { example: ReferenceExample & { fo
         }}
       />
       <span className="absolute top-2.5 left-2.5 inline-flex items-center rounded-full bg-background/92 backdrop-blur-sm px-2 py-0.5 text-[11px] font-semibold text-muted-foreground shadow-sm ring-1 ring-black/5">
-        Close-up
+        {m.reference.closeUp}
       </span>
     </div>
   );
@@ -176,12 +178,14 @@ export function ReferenceFigure({
   /** Makes the figure a button that enlarges it. */
   onOpen?: () => void;
 }) {
-  const { src, caption, kind, focus } = example;
+  const { lang, m } = useI18n();
+  const { src, kind, focus } = example;
+  const caption = captionOf(example, lang);
   const k = KIND[kind];
   const KindIcon = k.icon;
   // A drawing says it's a drawing, so nobody hunts for a part that looks
   // exactly like it.
-  const label = example.illustration && kind === 'neutral' ? 'Illustration' : k.label;
+  const label = example.illustration && kind === 'neutral' ? m.reference.illustration : m.reference[k.label];
   const lens = showLens && focus && wantsLoupe(focus) ? focus : undefined;
   const lensCorner = lens ? farthestCorner(lens) : undefined;
   const expandCorner = farthestCorner(focus ?? { x: 0.5, y: 0.5, w: 0, h: 0 }, lensCorner);
@@ -218,7 +222,7 @@ export function ReferenceFigure({
           <button
             type="button"
             onClick={onOpen}
-            aria-label={`Enlarge example: ${caption}`}
+            aria-label={m.reference.enlarge(caption)}
             className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rounded-2xl"
           />
           <span

@@ -1,0 +1,380 @@
+import type { ReactNode } from 'react';
+import type { Messages } from './en';
+
+/**
+ * हिन्दी — written the way site staff actually speak, not formal
+ * Sanskritised Hindi: everyday words, with the product words people use
+ * (AED, पैड्स, बैटरी, सीरियल नंबर, एक्सपायरी) left as they say them.
+ * Typed against the English file, so nothing can be missing.
+ */
+export const hi: Messages = {
+  lang: 'hi',
+  selfName: 'हिन्दी',
+  switchTo: 'View in English',
+  locale: 'hi-IN',
+
+  common: {
+    brand: 'AED Inspect',
+    poweredBy: (company: ReactNode): ReactNode => <>{company} द्वारा संचालित</>,
+    close: 'बंद करें',
+  },
+
+  steps: { details: 'विवरण', model: 'मॉडल', inspect: 'जाँच' },
+
+  contact: {
+    eyebrow: 'AI से तुरंत जाँच',
+    title: ['क्या आपका AED', 'किसी की जान बचाने', 'के लिए तैयार है?'],
+    intro:
+      'अपने डिफ़िब्रिलेटर की छह चीज़ों की फ़ोटो लें। हमारा AI हर लेबल पढ़कर तुरंत बताता है कि इमरजेंसी में यह मशीन काम करेगी या नहीं।',
+    facts: [
+      { label: 'मुफ़्त', sub: 'कोई शुल्क नहीं' },
+      { label: '3 मिनट', sub: 'छह फ़ोटो' },
+      { label: 'PDF रिपोर्ट', sub: 'ईमेल पर' },
+    ],
+    name: 'पूरा नाम',
+    namePlaceholder: 'जैसे: प्रिया शर्मा',
+    email: 'ईमेल पता',
+    emailPlaceholder: 'you@organisation.com',
+    didYouMean: (fix: ReactNode): ReactNode => <>क्या आपका मतलब {fix} था?</>,
+    phone: 'मोबाइल नंबर',
+    errors: {
+      name: 'अपना पूरा नाम लिखें',
+      email: 'सही ईमेल पता लिखें',
+      phone: 'चुने गए देश के लिए सही मोबाइल नंबर लिखें',
+    },
+    privacy: 'हम आपकी जानकारी का इस्तेमाल सिर्फ़ यह रिपोर्ट भेजने के लिए करते हैं। कोई मार्केटिंग लिस्ट नहीं, किसी से शेयर नहीं।',
+    submit: 'मुफ़्त जाँच शुरू करें',
+    photosPrivate: 'आपकी फ़ोटो कभी शेयर या पब्लिश नहीं की जातीं',
+  },
+
+  phone: {
+    selectCountry: 'देश चुनें',
+    search: 'देश या कोड खोजें…',
+    noMatches: 'कुछ नहीं मिला',
+    lengthHint: (country: string, min: number, max: number, sofar: number) =>
+      `${country} के नंबर में ${min === max ? `${min} अंक` : `${min}-${max} अंक`} होते हैं (अभी ${sofar})`,
+  },
+
+  model: {
+    title: ['आप कौन-सा AED', 'जाँच रहे हैं?'],
+    intro: 'आपकी जाँचें और उदाहरण फ़ोटो इसी मॉडल के हिसाब से होंगी।',
+    settingUp: 'आपकी चेकलिस्ट तैयार हो रही है…',
+    notSure: 'पक्का नहीं पता? मॉडल का नाम मशीन के आगे और पीछे के लेबल पर छपा होता है।',
+    editDetails: 'अपना विवरण बदलें',
+    hints: {
+      'Philips FRx': 'नीला-सलेटी, ऊँचाई से ज़्यादा चौड़ा',
+      'Philips HS1': 'गहरा नीला और खड़ा, साथ में कैरी स्ट्रैप',
+      'Zoll AED Plus': 'चमकीला हरा, ऊपर हैंडल बना हुआ',
+    },
+  },
+
+  unlisted: {
+    title: 'मेरा AED लिस्ट में नहीं है',
+    subtitle: 'बताइए कौन-सा है, हम उसकी जाँच में आपकी मदद करेंगे।',
+    brandLabel: 'कौन-सा ब्रांड है?',
+    other: 'अन्य',
+    modelLabel: 'मॉडल',
+    modelOptional: '(अगर पता हो)',
+    modelPlaceholder: 'जैसे: मशीन के आगे छपा नाम',
+    chooseBrand: 'ब्रांड चुनें',
+    ask: (brand: string | null) => `मेरे ${brand ?? 'AED'} के लिए मदद माँगें`,
+    sending: 'भेजा जा रहा है…',
+    contactOn: (phone: string) => `हम आपसे ${phone} पर संपर्क करेंगे। कोई बाध्यता नहीं।`,
+    thanks: (name?: string) => (name ? `धन्यवाद, ${name}` : 'धन्यवाद'),
+    notCovered: (unit: string | null, phone?: string) =>
+      `यह ऐप अभी ${unit ?? 'आपके AED'} की जाँच नहीं करता। हमारी टीम ${
+        phone ? `${phone} पर ` : ''
+      }आपसे संपर्क करके जाँच में मदद करेगी।`,
+  },
+
+  inspection: {
+    doneCount: (done: ReactNode, total: number): ReactNode => (
+      <>
+        {total} में से {done} पूरे
+      </>
+    ),
+    options: 'जाँच के विकल्प',
+    requiredDone: 'पूरी हुई ज़रूरी जाँचें',
+    restoring: 'जहाँ छोड़ा था, वहीं से शुरू कर रहे हैं…',
+    startFailed: 'जाँच शुरू नहीं हो पाई। फिर से कोशिश करें।',
+    finishFailed: 'जाँच पूरी नहीं हो पाई। फिर से कोशिश करें।',
+    offlineTitle: 'सिग्नल नहीं है।',
+    offlineBody: 'पूरी हो चुकी जाँचें सेव हैं। अगली फ़ोटो से पहले सिग्नल वाली जगह पर जाएँ।',
+    checklist: 'चेकलिस्ट',
+    optionalExtras: (n: number) => `वैकल्पिक जाँचें (${n})`,
+    finish: 'पूरा करें और रिपोर्ट ईमेल करें',
+    finishing: ['आपकी जाँच सेव हो रही है…', 'आपकी PDF रिपोर्ट बन रही है…', 'आपकी रिपोर्ट भेजी जा रही है…'],
+    ready: {
+      allDone: (n: number) => `सभी ${n} जाँचें पूरी`,
+      needAttention: (n: number) => (n === 1 ? '1 जाँच पर ध्यान देना है' : `${n} जाँचों पर ध्यान देना है`),
+      finishHint: 'पूरा करें और PDF रिपोर्ट ईमेल पर पाएँ।',
+      fixable: 'ज़्यादातर गड़बड़ियाँ एक मिनट में ठीक हो जाती हैं। ठीक करके फिर से फ़ोटो लें, जाँच पास हो सकती है।',
+      expired: (kinds: Array<'pads' | 'battery'>) => {
+        const after = ' — जाँच पूरी करने के बाद आप हमसे कोटेशन माँग सकते हैं।';
+        if (kinds.length > 1) return `एक्सपायर हो चुके पैड्स और बैटरी बदलने होंगे${after}`;
+        return kinds[0] === 'pads'
+          ? `एक्सपायर हो चुके पैड्स बदलने होंगे${after}`
+          : `एक्सपायर हो चुकी बैटरी बदलनी होगी${after}`;
+      },
+      retake: (title: string) => `दोबारा जाँचें: ${title}`,
+      addOptional: (n: number) => `${n} वैकल्पिक जाँचें भी करें`,
+    },
+  },
+
+  check: {
+    position: (index: number, total: number) => `जाँच ${index} / ${total}`,
+    optionalExtra: 'वैकल्पिक जाँच',
+    video: 'वीडियो',
+    tips: {
+      fillFrame: 'पूरा फ़्रेम भरें',
+      avoidGlare: 'चमक से बचें',
+      holdSteady: 'स्थिर रखें',
+      seconds: (n: number) => `${n}+ सेकंड`,
+      lightInFrame: 'इंडिकेटर फ़्रेम में',
+    },
+    takePhoto: 'फ़ोटो लें',
+    recordVideo: 'वीडियो रिकॉर्ड करें',
+    tryAgain: 'फिर से कोशिश करें',
+    skip: 'छोड़ें',
+    retake: 'फिर से लें',
+    carryOn: 'आगे बढ़ें',
+    next: { check: 'अगली जाँच', extra: 'अगली वैकल्पिक जाँच', finish: 'देखें और पूरा करें' },
+    onComputer: 'कंप्यूटर पर हैं?',
+    continueOnPhone: 'फ़ोन पर जारी रखें',
+    passed: 'पास',
+    needsAttention: 'ध्यान दें',
+    yourPhoto: (title: string) => `आपकी फ़ोटो: ${title}`,
+    faultGuidance: 'हो सके तो ठीक करें और फिर से फ़ोटो लें। या आगे बढ़ें — यह आपकी रिपोर्ट में दर्ज होगा।',
+    expiredGuidance: {
+      pads: 'एक्सपायर पैड्स मौके पर ठीक नहीं हो सकते। आगे बढ़ें — जाँच पूरी होने पर आप हमसे नए पैड्स का कोटेशन माँग सकते हैं।',
+      battery:
+        'एक्सपायर बैटरी मौके पर ठीक नहीं हो सकती। आगे बढ़ें — जाँच पूरी होने पर आप हमसे नई बैटरी का कोटेशन माँग सकते हैं।',
+    },
+    uploadFailed: (video: boolean) =>
+      video
+        ? 'यह वीडियो अपलोड नहीं हो पाया — अपना कनेक्शन जाँचें और फिर से कोशिश करें।'
+        : 'यह फ़ोटो अपलोड नहीं हो पाई — अपना कनेक्शन जाँचें और फिर से कोशिश करें।',
+    busyRetrying: 'AI सेवा व्यस्त है — फिर से कोशिश कर रहे हैं…',
+    row: {
+      skipped: 'छोड़ी गई',
+      uploadFailed: 'अपलोड नहीं हुई — फिर से कोशिश करने के लिए टैप करें',
+      needsAttention: 'ध्यान दें',
+    },
+  },
+
+  analysis: {
+    preparing: (video: boolean) => (video ? 'आपका वीडियो तैयार हो रहा है' : 'आपकी फ़ोटो तैयार हो रही है'),
+    uploading: (video: boolean, percent: number) =>
+      video ? `आपका वीडियो अपलोड हो रहा है… ${percent}%` : `आपकी फ़ोटो अपलोड हो रही है… ${percent}%`,
+    reading: {
+      serial_number: 'सीरियल नंबर पढ़ रहे हैं',
+      pads_expiry: 'पैड्स की एक्सपायरी डेट पढ़ रहे हैं',
+      battery_expiry: 'बैटरी की तारीख पढ़ रहे हैं',
+      battery_attached: 'देख रहे हैं कि बैटरी ठीक से लगी है',
+      pads_connected: 'देख रहे हैं कि पैड्स जुड़े हैं',
+    },
+    looking: 'आपकी फ़ोटो देख रहे हैं',
+    comparing: 'चेकलिस्ट से मिलान कर रहे हैं',
+    videoFrames: 'वीडियो से फ़्रेम निकाल रहे हैं',
+    videoWatching: 'स्टेटस इंडिकेटर देख रहे हैं',
+    videoConfirming: 'नतीजा पक्का कर रहे हैं',
+    slow: 'सामान्य से थोड़ा ज़्यादा समय लग रहा है — कृपया रुकें',
+    videoNote: 'वीडियो में आमतौर पर करीब 15 सेकंड लगते हैं। यह स्क्रीन खुली रखें।',
+    captureAlt: 'आपकी फ़ोटो, जाँच जारी',
+  },
+
+  items: {
+    serial_number: {
+      title: 'सीरियल नंबर',
+      description: 'AED के पीछे लगे लेबल की फ़ोटो लें, ताकि सीरियल नंबर साफ़ दिखे।',
+      byModel: {
+        'Philips FRx': 'पीछे वाले पैनल के नीचे लगे छोटे “SN” लेबल की फ़ोटो इतने पास से लें कि पढ़ा जा सके।',
+        'Philips HS1': 'पीछे वाले पैनल के नीचे लगे छोटे “SN” लेबल की फ़ोटो इतने पास से लें कि पढ़ा जा सके।',
+        'Zoll AED Plus': 'पीछे, हैंडल के ठीक नीचे लगे बारकोड लेबल की फ़ोटो इतने पास से लें कि पढ़ा जा सके।',
+      },
+    },
+    pads_expiry: {
+      title: 'पैड्स की एक्सपायरी',
+      description: 'पैड्स के पैकेट पर छपी एक्सपायरी डेट की फ़ोटो लें।',
+      byModel: {
+        'Philips FRx': 'स्लेटी SMART Pads II केस पर नीचे लगे छोटे लेबल की एक्सपायरी डेट की फ़ोटो लें।',
+        'Philips HS1': 'पैड्स कार्ट्रिज पर शरीर वाली तस्वीर के ठीक नीचे छपी एक्सपायरी डेट की फ़ोटो लें।',
+        'Zoll AED Plus': 'पैड्स के पैकेट या उसके डिब्बे पर ⌛ निशान के पास छपी एक्सपायरी डेट की फ़ोटो लें।',
+      },
+    },
+    battery_expiry: {
+      title: 'बैटरी की एक्सपायरी',
+      description: 'बैटरी के लेबल पर छपी तारीख की फ़ोटो लें।',
+      byModel: {
+        'Philips FRx': 'पीछे लगी नीली बैटरी के लेबल की फ़ोटो लें, जिसमें “Install before” वाली तारीख दिखे।',
+        'Philips HS1': 'पीछे लगी नीली बैटरी के लेबल की फ़ोटो लें, जिसमें install-before वाली तारीख दिखे।',
+        'Zoll AED Plus': 'हैंडल पर स्टेटस विंडो के ठीक नीचे लगे “Replace batteries on or before” लेबल की फ़ोटो लें।',
+      },
+    },
+    battery_attached: {
+      title: 'बैटरी लगी है',
+      description: 'बैटरी की फ़ोटो लें, जिसमें दिखे कि वह पूरी तरह अंदर बैठी है।',
+      byModel: {
+        'Philips FRx': 'AED के पीछे की फ़ोटो लें, जिसमें नीली बैटरी पूरी अंदर और बराबर में बैठी दिखे।',
+        'Philips HS1': 'AED के पीछे की फ़ोटो लें, जिसमें नीली बैटरी पूरी अंदर और बराबर में बैठी दिखे।',
+        'Zoll AED Plus': 'पीछे के बैटरी खाने की फ़ोटो लें: ढक्कन बंद और लॉक, या सभी दस सेल ठीक से लगे हुए।',
+      },
+    },
+    pads_connected: {
+      title: 'पैड्स जुड़े हैं',
+      description: 'AED में लगे पैड्स कनेक्टर की फ़ोटो लें।',
+      byModel: {
+        'Philips FRx': 'AED के पैड्स सॉकेट में पूरी तरह लगे नीले पैड्स प्लग की फ़ोटो लें।',
+        'Philips HS1': 'AED के आगे की फ़ोटो लें: पैड्स कार्ट्रिज लगा हो और हरा PULL हैंडल नीचे हो।',
+        'Zoll AED Plus': 'ढक्कन उठाकर सॉकेट में लगी पैड्स की केबल की फ़ोटो लें।',
+      },
+    },
+    readiness_indicator: {
+      title: 'रेडीनेस इंडिकेटर',
+      description: 'AED के रेडी इंडिकेटर का कम से कम 10 सेकंड का वीडियो बनाएँ, फ़ोन स्थिर रखें।',
+      byModel: {
+        'Philips FRx':
+          'छोटी हरी Ready लाइट (हरा On/Off बटन नहीं) का कम से कम 10 सेकंड का वीडियो बनाएँ। यह कुछ सेकंड में एक बार जलती है, इसलिए फ़ोन स्थिर रखें।',
+        'Philips HS1':
+          'ऊपर दाईं ओर की छोटी हरी Ready लाइट (हरा On/Off बटन नहीं) का कम से कम 10 सेकंड का वीडियो बनाएँ। यह कुछ सेकंड में एक बार जलती है।',
+        'Zoll AED Plus': 'हैंडल के बाईं ओर की स्टेटस विंडो का करीब 5 सेकंड का वीडियो इतने पास से बनाएँ कि हरा ✓ या लाल ✗ दिखे।',
+      },
+    },
+    child_key_pad: {
+      title: 'चाइल्ड Key / चाइल्ड पैड्स',
+      description: 'अगर इस AED के साथ चाइल्ड Key या चाइल्ड पैड्स हैं, तो उनकी फ़ोटो लें।',
+      byModel: {
+        'Philips FRx': 'इन्फ़ैंट/चाइल्ड Key की फ़ोटो लें — वह AED के पास रखी हो, स्लॉट में लगी न हो।',
+        'Philips HS1': 'अगर है, तो बच्चों वाले अतिरिक्त पैड्स कार्ट्रिज (टेडी-बियर निशान) की फ़ोटो लें।',
+        'Zoll AED Plus': 'अगर है, तो बच्चों वाले Pedi-padz II पैड्स के अतिरिक्त पैकेट की फ़ोटो लें।',
+      },
+    },
+    aed_cabinet: { title: 'AED कैबिनेट', description: 'उस कैबिनेट या केस की फ़ोटो लें जिसमें AED रखा है।' },
+    first_response_kit: {
+      title: 'फ़ास्ट रिस्पॉन्स किट',
+      description: 'रेस्क्यू किट की फ़ोटो लें: दस्ताने, रेज़र, कैंची और मास्क।',
+    },
+    emergency_contacts: {
+      title: 'इमरजेंसी संपर्क स्टिकर',
+      description: 'AED या उसके कैबिनेट पर लगे इमरजेंसी संपर्क स्टिकर की फ़ोटो लें।',
+    },
+  },
+
+  reading: {
+    serial: 'सीरियल नंबर',
+    expiry: 'एक्सपायरी डेट',
+    statusLight: 'स्टेटस लाइट',
+    status: { ready: 'तैयार', fault: 'खराबी', unclear: 'साफ़ नहीं' },
+  },
+
+  expiry: {
+    months: ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'],
+    expiredDaysAgo: (n: number) => `${n} दिन पहले एक्सपायर`,
+    expiredMonthsAgo: (n: number) => `${n} महीने पहले एक्सपायर`,
+    expiredYearsAgo: (n: number) => `${n}+ साल पहले एक्सपायर`,
+    today: 'आज एक्सपायर',
+    daysLeft: (n: number) => `${n} दिन बाकी`,
+    monthsLeft: (n: number) => `${n} महीने बाकी`,
+    yearsLeft: (n: number) => `${n}+ साल बाकी`,
+  },
+
+  reference: {
+    example: 'उदाहरण',
+    correct: 'सही',
+    wrong: 'गलत',
+    illustration: 'चित्र',
+    closeUp: 'क्लोज़-अप',
+    exampleN: (n: number) => `उदाहरण ${n}`,
+    enlarge: (caption: string) => `उदाहरण बड़ा करें: ${caption}`,
+    whatToLookFor: 'क्या देखना है',
+    whatAFaultLooksLike: 'खराबी कैसी दिखती है',
+    examples: 'उदाहरण',
+  },
+
+  menu: {
+    title: 'जाँच के विकल्प',
+    description: 'दूसरा AED मॉडल चुनें, फ़ोन पर जारी रखें, या नए सिरे से शुरू करें।',
+    phoneTitle: 'फ़ोन पर जारी रखें',
+    phoneDetail: 'कोड स्कैन करके फ़ोन के कैमरे से जाँच जारी रखें। कुछ भी नहीं खोएगा।',
+    switchTitle: 'AED मॉडल बदलें',
+    switchDetail: (lost: number, model: string) =>
+      `गलत मॉडल चुन लिया? अपने भरे हुए विवरण के साथ दूसरे मॉडल पर शुरू करें।${
+        lost > 0 ? ` इस ${model} पर की गई ${lost === 1 ? 'जाँच' : `${lost} जाँचें`} नहीं रहेंगी।` : ''
+      }`,
+    startOverTitle: 'नए सिरे से शुरू करें',
+    startOverDetail: 'अपना विवरण मिटाकर फिर से शुरू करें।',
+    language: 'भाषा',
+    keepInspecting: 'जाँच जारी रखें',
+    backToOptions: 'विकल्पों पर वापस',
+    phoneIntro: 'फ़ोन का कैमरा इस कोड की ओर करें। जाँच वहीं से खुलेगी जहाँ आपने छोड़ी थी, कैमरा तैयार होगा।',
+    qrAlt: 'QR कोड, जो इस जाँच को फ़ोन पर खोलता है',
+    qrFailed: 'कोड नहीं बन पाया। नीचे दिया लिंक इस्तेमाल करें।',
+    done: 'हो गया',
+  },
+
+  result: {
+    verdict: {
+      PASS: { eyebrow: 'जाँच पास', title: 'जान बचाने के लिए तैयार' },
+      FAIL: { eyebrow: 'जाँच फ़ेल', title: 'अभी इमरजेंसी के लिए तैयार नहीं' },
+      REVIEW: { eyebrow: 'दोबारा देखना होगा', title: 'करीब से जाँच ज़रूरी' },
+      INCOMPLETE: { eyebrow: 'अधूरी', title: 'जाँच अधूरी है' },
+    },
+    subtitle: {
+      PASS: (model: string, n: number) => `आपका ${model} सभी ${n} ज़रूरी जाँचों में पास हुआ।`,
+      FAIL: (model: string, failed: number, n: number) =>
+        `आपके ${model} की ${n} में से ${failed} ${failed === 1 ? 'जाँच' : 'जाँचों'} में समस्या मिली।`,
+      REVIEW: (model: string) => `आपके ${model} की कुछ जाँचें फ़ोटो से पक्की नहीं हो पाईं।`,
+      INCOMPLETE: 'सभी ज़रूरी जाँचें पूरी नहीं हुईं।',
+    },
+    emailed: (email: string) => `रिपोर्ट ${email} पर ईमेल कर दी गई`,
+    emailFailed: 'ईमेल नहीं जा पाया — अपनी रिपोर्ट डाउनलोड करें',
+    reportId: (id: string, when?: string) => `रिपोर्ट ${id}${when ? ` · ${when}` : ''}`,
+    share: 'रिपोर्ट शेयर करें',
+    shareText: (model: string, verdict: string) => `${model}: ${verdict}।`,
+    shareTitle: 'AED जाँच रिपोर्ट',
+    download: 'PDF डाउनलोड करें',
+    preparing: 'तैयार हो रही है…',
+    replace: {
+      both: 'पैड्स और बैटरी बदलें',
+      pads: 'पैड्स बदलें',
+      battery: 'बैटरी बदलें',
+      whyExpired: 'एक्सपायर पैड्स और बैटरी ठीक ज़रूरत के वक्त फ़ेल हो सकते हैं।',
+      whySoon: 'पहले से ऑर्डर करें, ताकि यह AED कभी इनके बिना न रहे।',
+      supply: (model: string) => `हम ${model} के लिए नए पैड्स और बैटरी देते हैं।`,
+      kind: { pads: 'पैड्स', battery: 'बैटरी' },
+      cta: 'बदलने का कोटेशन पाएँ',
+      sending: 'आपका अनुरोध भेजा जा रहा है…',
+      contactOn: (phone?: string) => `${phone ? `हम आपसे ${phone} पर संपर्क करेंगे। ` : ''}कोई बाध्यता नहीं।`,
+    },
+    requested: {
+      title: 'कोटेशन का अनुरोध भेज दिया गया',
+      body: (phone?: string) => (phone ? `हम ${phone} पर आपसे संपर्क करेंगे।` : 'हम जल्द आपसे संपर्क करेंगे।'),
+    },
+    whatWeChecked: 'हमने क्या जाँचा',
+    status: { pass: 'पास', fail: 'फ़ेल', skipped: 'छोड़ी गई', error: 'नहीं हुई', pending: 'नहीं हुई' },
+    spares: {
+      title: 'अतिरिक्त सामान या एक्सेसरीज़ चाहिए?',
+      body: (model: string) => `आपके ${model} के लिए पैड्स, बैटरी, कैबिनेट और रेस्क्यू किट।`,
+      cta: 'कोटेशन पाएँ',
+    },
+    another: 'दूसरे AED की जाँच करें',
+    detailsKept: 'आपका विवरण पहले से भरा है।',
+    startOver: (name?: string) => (name ? `आप ${name} नहीं हैं? नए सिरे से शुरू करें` : 'नए विवरण के साथ शुरू करें'),
+  },
+
+  errors: {
+    busy: 'AI सेवा अभी व्यस्त है। थोड़ी देर में फिर से कोशिश करें।',
+    unreachable: 'AI सेवा से संपर्क नहीं हो पाया। फिर से कोशिश करें।',
+    needsVideo: 'इस जाँच के लिए छोटा वीडियो चाहिए, फ़ोटो नहीं।',
+    needsPhoto: 'इस जाँच के लिए फ़ोटो चाहिए, वीडियो नहीं।',
+    unsupportedMedia: 'कृपया फ़ोटो या वीडियो अपलोड करें।',
+    inspectionComplete:
+      'यह जाँच पूरी हो चुकी है और रिपोर्ट भेजी जा चुकी है, इसलिए अब इसमें बदलाव नहीं हो सकता। नई जाँच शुरू करें।',
+    notFound: 'यह जाँच नहीं मिली।',
+    tooMany: 'बहुत ज़्यादा अनुरोध। थोड़ी देर रुककर फिर से कोशिश करें।',
+    network: 'कनेक्ट नहीं हो पाया। अपना सिग्नल जाँचें और फिर से कोशिश करें।',
+    timeout: 'बहुत समय लग गया। फिर से कोशिश करें।',
+    unreadable: 'AI इस फ़ोटो की जाँच नहीं कर पाया। साफ़ फ़ोटो लेकर फिर से कोशिश करें।',
+    generic: 'कुछ गड़बड़ हो गई। फिर से कोशिश करें।',
+  },
+};

@@ -1,4 +1,5 @@
 import type { ExpiryUrgency } from '@/types/insights';
+import { en, type Messages } from '@/i18n/en';
 
 /**
  * Expiry dates the way the person holding the AED should read them.
@@ -9,7 +10,7 @@ import type { ExpiryUrgency } from '@/types/insights';
  * The server's clock still decides pass or fail; this only phrases it.
  */
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+type ExpiryCopy = Messages['expiry'];
 
 export function parseExpiry(raw?: string | null): Date | undefined {
   if (!raw) return undefined;
@@ -32,12 +33,13 @@ export function parseExpiry(raw?: string | null): Date | undefined {
 }
 
 /** The AI normalises expiries to 'YYYY-MM'. That's the right shape to store
- *  and the wrong one to show a human, so it reads as 'Mar 2027' on screen. */
-export function formatExpiry(raw: string): string {
+ *  and the wrong one to show a human, so it reads as 'Mar 2027' on screen
+ *  ('मार्च 2027' in Hindi). */
+export function formatExpiry(raw: string, copy: ExpiryCopy = en.expiry): string {
   const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (full) return `${Number(full[3])} ${MONTHS[Number(full[2]) - 1]} ${full[1]}`;
+  if (full) return `${Number(full[3])} ${copy.months[Number(full[2]) - 1]} ${full[1]}`;
   const month = /^(\d{4})-(\d{2})$/.exec(raw);
-  if (month) return `${MONTHS[Number(month[2]) - 1]} ${month[1]}`;
+  if (month) return `${copy.months[Number(month[2]) - 1]} ${month[1]}`;
   return raw;
 }
 
@@ -57,15 +59,15 @@ export function urgencyOf(days: number): ExpiryUrgency {
 
 /** "Expired 3 months ago", "42 days left", "2+ years left". Written for the
  *  customer: the dashboard's "18 days overdue" is phrased for the sales desk. */
-export function describeExpiry(days: number): string {
+export function describeExpiry(days: number, copy: ExpiryCopy = en.expiry): string {
   if (days < 0) {
     const ago = -days;
-    if (ago < 45) return ago === 1 ? 'Expired yesterday' : `Expired ${ago} days ago`;
+    if (ago < 45) return copy.expiredDaysAgo(ago);
     const months = Math.round(ago / 30.44);
-    return months < 24 ? `Expired ${months} months ago` : `Expired ${Math.floor(months / 12)}+ years ago`;
+    return months < 24 ? copy.expiredMonthsAgo(months) : copy.expiredYearsAgo(Math.floor(months / 12));
   }
-  if (days === 0) return 'Expires today';
-  if (days < 45) return days === 1 ? '1 day left' : `${days} days left`;
+  if (days === 0) return copy.today;
+  if (days < 45) return copy.daysLeft(days);
   const months = Math.round(days / 30.44);
-  return months < 24 ? `${months} months left` : `${Math.floor(months / 12)}+ years left`;
+  return months < 24 ? copy.monthsLeft(months) : copy.yearsLeft(Math.floor(months / 12));
 }

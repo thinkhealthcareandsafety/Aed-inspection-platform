@@ -2,7 +2,8 @@
 
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { ReferenceCloseup, ReferenceFigure, closeupZoom } from './ReferenceFigure';
-import type { ReferenceExample } from '@/lib/reference-examples';
+import { captionOf, type ReferenceExample } from '@/lib/reference-examples';
+import { useI18n } from '@/i18n';
 
 /**
  * The enlarged example: the marked part filling the frame, then the whole
@@ -17,15 +18,17 @@ export default function ReferenceLightbox({
   example: ReferenceExample;
   onClose: () => void;
 }) {
+  const { lang, m } = useI18n();
+  const caption = captionOf(example, lang);
   const closeup = example.focus && closeupZoom(example.focus) >= 1.3 ? example.focus : undefined;
 
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent title={example.kind === 'bad' ? 'What a fault looks like' : 'What to look for'}>
+      <DialogContent title={example.kind === 'bad' ? m.reference.whatAFaultLooksLike : m.reference.whatToLookFor}>
         {closeup ? (
           <>
             <ReferenceCloseup example={{ ...example, focus: closeup }} />
-            <p className="mt-3 text-callout text-foreground">{example.caption}</p>
+            <p className="mt-3 text-callout text-foreground">{caption}</p>
             <div className="mt-4">
               <ReferenceFigure example={example} size="lg" showLens={false} />
             </div>
@@ -33,7 +36,7 @@ export default function ReferenceLightbox({
         ) : (
           <>
             <ReferenceFigure example={example} size="lg" />
-            <p className="mt-3 text-callout text-foreground">{example.caption}</p>
+            <p className="mt-3 text-callout text-foreground">{caption}</p>
           </>
         )}
       </DialogContent>

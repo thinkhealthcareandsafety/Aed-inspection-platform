@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
+import { getLang, messagesFor, type Messages } from '@/i18n';
 
 export const BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
@@ -29,6 +30,55 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+export type ApiErrorKey = keyof Messages['errors'];
+
+interface ApiErrorBody {
+  error?: { message?: string; code?: string; retryable?: boolean } | string;
+}
+
+/** What went wrong, as the server put it. */
+export function apiErrorOf(err: unknown): { message?: string; code?: string; retryable?: boolean; key?: ApiErrorKey } {
+  if (!axios.isAxiosError(err)) return {};
+  const body = (err.response?.data as ApiErrorBody | undefined)?.error;
+  const payload = typeof body === 'string' ? { message: body } : (body ?? {});
+  return { ...payload, key: errorKey(err, payload) };
+}
+
+/**
+ * The server explains errors in English, for the dashboard and the logs. The
+ * public flow may be in Hindi, so each error it can hit is recognised by its
+ * code and said again in the inspector's language.
+ */
+function errorKey(err: AxiosError, payload: { message?: string; code?: string; retryable?: boolean }): ApiErrorKey | undefined {
+  if (!err.response) return err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' ? 'timeout' : 'network';
+  if (err.response.status === 429) return 'tooMany';
+  switch (payload.code) {
+    case 'CV_SERVICE_ERROR':
+      return payload.retryable ? 'busy' : 'unreadable';
+    case 'CV_SERVICE_UNREACHABLE':
+      return 'unreachable';
+    case 'WRONG_MEDIA_TYPE':
+      return /video, not/i.test(payload.message ?? '') ? 'needsVideo' : 'needsPhoto';
+    case 'UNSUPPORTED_MEDIA':
+      return 'unsupportedMedia';
+    case 'INSPECTION_COMPLETE':
+      return 'inspectionComplete';
+    case 'NOT_FOUND':
+      return 'notFound';
+    default:
+      return undefined;
+  }
+}
+
+/** An API error in the language the public flow is showing. English keeps
+ *  the server's own wording where no translation is needed. */
+export function describeApiError(err: unknown): string {
+  const m = messagesFor(getLang());
+  const { key, message } = apiErrorOf(err);
+  if (key) return m.errors[key];
+  return getLang() === 'en' && message ? message : m.errors.generic;
+}
+
 // ── Response: handle 401 globally ────────────────────────────────────────────
 apiClient.interceptors.response.use(
   (res) => res,
@@ -40,8 +90,11 @@ apiClient.interceptors.response.use(
       }
     }
     if (!err.config?.skipErrorToast) {
-      const message =
-        err.response?.data?.error?.message ?? err.message ?? 'Request failed';
+      // Staff screens are English-only and keep the server's words.
+      const isPublic = err.config?.url?.startsWith('/public');
+      const message = isPublic
+        ? describeApiError(err)
+        : (err.response?.data?.error?.message ?? err.message ?? 'Request failed');
       toast.error(message);
     }
     return Promise.reject(err);
@@ -214,6 +267,9 @@ export const api = {
         onProgress?: (fraction: number) => void,
       ) => {
         const form = new FormData();
+        // The AI writes its feedback in Hindi too when the inspector is
+        // reading Hindi. Sent before the file so it's parsed first.
+        if (getLang() === 'hi') form.append('lang', 'hi');
         form.append('file', file, filename);
         return apiClient.post<{
           item: import('@/types').ChecklistItemResult;

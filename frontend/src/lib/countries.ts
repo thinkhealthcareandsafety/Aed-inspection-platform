@@ -109,6 +109,17 @@ export function parsePhoneValue(value: string | undefined): { country: Country; 
 }
 
 /** "+919876543210" as stored, "+91 9876543210" as read. */
+/** A country's name in the language showing — "भारत" in Hindi — from the
+ *  browser's own translations, falling back to the English name. */
+export function countryName(country: Country, lang: string): string {
+  if (lang === 'en') return country.name;
+  try {
+    return new Intl.DisplayNames([lang], { type: 'region' }).of(country.iso2) ?? country.name;
+  } catch {
+    return country.name;
+  }
+}
+
 export function formatPhone(value?: string): string | undefined {
   if (!value) return undefined;
   const { country, nationalDigits } = parsePhoneValue(value);

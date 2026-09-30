@@ -7,6 +7,7 @@ import { useTheme } from 'next-themes';
 import { MotionConfig } from 'framer-motion';
 import { Toaster } from 'sonner';
 import { springSnappy } from '@/lib/motion';
+import { I18nProvider } from '@/i18n';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <I18nProvider>
       {/* One default transition for anything that doesn't specify its own, and
           honour the OS "reduce motion" setting rather than animating anyway. */}
       <MotionConfig transition={springSnappy} reducedMotion="user">
@@ -42,6 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         />
         <ReactQueryDevtools initialIsOpen={false} />
       </MotionConfig>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }

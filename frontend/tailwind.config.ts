@@ -48,8 +48,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'Geist', 'system-ui', 'sans-serif'],
-        display: ['var(--font-sans)', 'Geist', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Geist', 'var(--font-deva)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-sans)', 'Geist', 'var(--font-deva)', 'sans-serif'],
         mono: ['var(--font-mono)', 'Geist Mono', 'monospace'],
       },
       /* One type scale for the whole product. Optical tracking tightens as

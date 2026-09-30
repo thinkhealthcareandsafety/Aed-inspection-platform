@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useElapsed } from '@/lib/use-elapsed';
+import { useI18n, type Messages } from '@/i18n';
 
 export type AnalysisPhase = 'preparing' | 'uploading' | 'analyzing';
 
@@ -11,42 +12,33 @@ export type AnalysisPhase = 'preparing' | 'uploading' | 'analyzing';
  *  production: photos ~3-8s, video ~10-15s (frame extraction + model). */
 const EXPECTED_ANALYSIS_MS = { image: 6_000, video: 14_000 } as const;
 
-/** What the AI is reading, in the words of the check — "reading the serial
- *  number" tells someone the system understood what they photographed, which
- *  a generic "processing" never does. */
-const READING_COPY: Record<string, string> = {
-  serial_number: 'Reading the serial number',
-  pads_expiry: 'Reading the pads expiry date',
-  battery_expiry: 'Reading the battery expiry date',
-  battery_attached: 'Checking the battery is seated',
-  pads_connected: 'Checking the pads connector',
-};
-
-const SLOW = 'Taking a little longer than usual — hang on';
-
+/** What the AI is reading is said in the words of the check (`reading`
+ *  in the messages) — "reading the serial number" tells someone the system
+ *  understood what they photographed, which a generic "processing" never does. */
 function stageText(
+  t: Messages['analysis'],
   itemId: string,
   mediaType: 'image' | 'video',
   phase: AnalysisPhase,
   uploadFraction: number,
   analysisElapsed: number,
 ): string {
-  const noun = mediaType === 'video' ? 'video' : 'photo';
-  if (phase === 'preparing') return `Preparing your ${noun}`;
-  if (phase === 'uploading') return `Uploading your ${noun}… ${Math.round(uploadFraction * 100)}%`;
+  const video = mediaType === 'video';
+  if (phase === 'preparing') return t.preparing(video);
+  if (phase === 'uploading') return t.uploading(video, Math.round(uploadFraction * 100));
 
   // The analysis stages follow the server pipeline in order. Their timing is
   // estimated from typical durations; the order and the work are real.
   const r = analysisElapsed / EXPECTED_ANALYSIS_MS[mediaType];
   if (mediaType === 'video') {
-    if (r < 0.25) return 'Pulling frames from the clip';
-    if (r < 0.75) return 'Watching for the status light to blink';
-    if (r < 1.3) return 'Confirming the result';
-    return SLOW;
+    if (r < 0.25) return t.videoFrames;
+    if (r < 0.75) return t.videoWatching;
+    if (r < 1.3) return t.videoConfirming;
+    return t.slow;
   }
-  if (r < 0.5) return READING_COPY[itemId] ?? 'Looking at your photo';
-  if (r < 1.3) return 'Checking it against the checklist';
-  return SLOW;
+  if (r < 0.5) return t.reading[itemId] ?? t.looking;
+  if (r < 1.3) return t.comparing;
+  return t.slow;
 }
 
 /**
@@ -84,12 +76,13 @@ export function AnalysisProgress({
   /** Overrides the stage text — e.g. "AI service is busy — retrying…". */
   statusNote?: string;
 }) {
+  const { m } = useI18n();
   const analysisElapsed = useElapsed(phase === 'analyzing');
   // A HEIC photo, or a codec the browser can't decode, fails to preview.
   // That's cosmetic: drop the preview rather than show a broken image.
   const [previewFailed, setPreviewFailed] = useState(false);
 
-  const text = statusNote ?? stageText(itemId, mediaType, phase, uploadFraction, analysisElapsed);
+  const text = statusNote ?? stageText(m.analysis, itemId, mediaType, phase, uploadFraction, analysisElapsed);
   const position = barPosition(mediaType, phase, uploadFraction, analysisElapsed);
   const measurable = phase === 'uploading';
 
@@ -111,7 +104,7 @@ export function AnalysisProgress({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewUrl}
-              alt="Your capture, being analysed"
+              alt={m.analysis.captureAlt}
               onError={() => setPreviewFailed(true)}
               className="w-full h-full object-cover"
             />
@@ -158,7 +151,7 @@ export function AnalysisProgress({
       </div>
       {mediaType === 'video' && phase === 'analyzing' && !statusNote && (
         <p className="text-footnote text-muted-foreground mt-1 pl-6">
-          Video usually takes about 15 seconds. Keep this screen open.
+          {m.analysis.videoNote}
         </p>
       )}
     </div>

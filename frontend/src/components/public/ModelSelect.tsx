@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
 import { screenTransition } from '@/lib/motion';
+import { useI18n } from '@/i18n';
 import { AedGlyph } from './AedGlyph';
 import { UnlistedModel } from './UnlistedModel';
 
@@ -29,15 +30,16 @@ const DEVICE_TONE: Record<string, string> = {
 };
 
 export function ModelSelect({ selected, starting, contact, onSelect, onBack }: Props) {
+  const { m } = useI18n();
   return (
     <motion.div {...screenTransition} className="w-full">
       <div className="mb-6 px-1">
         <h1 className="text-display text-foreground">
-          Which AED are<br />you inspecting?
+          {m.model.title[0]}
+          <br />
+          {m.model.title[1]}
         </h1>
-        <p className="text-body text-muted-foreground mt-3">
-          Your checks and example photos are matched to this exact model.
-        </p>
+        <p className="text-body text-muted-foreground mt-3">{m.model.intro}</p>
       </div>
 
       {/* One tap starts the inspection: separate cards rather than list rows,
@@ -72,7 +74,7 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
                   </span>
                   <span className="block text-headline text-foreground">{model.name}</span>
                   <span className="block text-footnote text-muted-foreground mt-0.5">
-                    {isBusy ? 'Setting up your checklist…' : model.hint}
+                    {isBusy ? m.model.settingUp : (m.model.hints[model.id] ?? model.hint)}
                   </span>
                 </span>
                 {isBusy ? (
@@ -87,7 +89,7 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
       </ul>
 
       <p className="text-footnote text-muted-foreground mt-3 px-1">
-        Not sure? The model name is printed on the front of the unit and on the label at the back.
+        {m.model.notSure}
       </p>
 
       {contact && (
@@ -103,7 +105,7 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
         className="flex items-center gap-1.5 h-11 px-3 text-callout text-muted-foreground hover:text-foreground transition-colors mt-4 mx-auto disabled:opacity-50"
       >
         <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-        Edit my details
+        {m.model.editDetails}
       </button>
     </motion.div>
   );

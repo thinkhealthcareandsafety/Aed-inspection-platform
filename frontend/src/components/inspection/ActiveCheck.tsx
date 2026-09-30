@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -20,7 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { api, BASE_URL } from '@/lib/api';
+import { api, apiErrorOf, BASE_URL, type ApiErrorKey } from '@/lib/api';
 import { compressImage } from '@/lib/compress-image';
 import { describeExpiry, urgencyOf } from '@/lib/expiry';
 import { readingOf, type Reading } from '@/lib/readings';
@@ -30,6 +29,7 @@ import { ChecklistIcon } from '@/components/icons';
 import { ReferenceStrip } from './ReferenceStrip';
 import { AnalysisProgress, type AnalysisPhase } from './AnalysisProgress';
 import { StatusDot } from './StatusDot';
+import { itemCopy, useI18n, type Messages } from '@/i18n';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
 import type { ChecklistItemResult } from '@/types';
 
@@ -37,14 +37,6 @@ import type { ChecklistItemResult } from '@/types';
  *  enough to read the value back, short enough that nobody reaches for a
  *  button. */
 const AUTO_ADVANCE_MS = 2200;
-
-function extractApiError(err: unknown): { message?: string; retryable?: boolean } {
-  if (axios.isAxiosError(err)) {
-    const payload = err.response?.data?.error as { message?: string; retryable?: boolean } | undefined;
-    return { message: payload?.message, retryable: payload?.retryable };
-  }
-  return {};
-}
 
 /** A tap of feedback in the hand when a verdict lands — the person is
  *  looking at the AED, not the screen. Android only; iOS ignores it. */
@@ -77,26 +69,32 @@ function useStuckToBottom() {
 }
 
 /** The three things that decide whether the AI can read a capture — said
- *  before the shutter, where they're cheap, instead of after a failed read. */
-const CAPTURE_TIPS: Record<'image' | 'video', { icon: LucideIcon; label: string }[]> = {
-  image: [
-    { icon: Focus, label: 'Fill the frame' },
-    { icon: SunDim, label: 'Avoid glare' },
-    { icon: Hand, label: 'Hold steady' },
-  ],
-  video: [
-    { icon: Timer, label: '10+ seconds' },
-    { icon: Hand, label: 'Hold steady' },
-    { icon: Focus, label: 'Light in frame' },
-  ],
-};
+ *  before the shutter, where they're cheap, instead of after a failed read.
+ *  A ZOLL's status window reads in about five seconds; a Philips Ready light
+ *  blinks only every few, so it needs ten to be sure of catching one. */
+function captureTips(
+  mediaType: 'image' | 'video',
+  aedModel: string | undefined,
+  tips: Messages['check']['tips'],
+): { icon: LucideIcon; label: string }[] {
+  return mediaType === 'image'
+    ? [
+        { icon: Focus, label: tips.fillFrame },
+        { icon: SunDim, label: tips.avoidGlare },
+        { icon: Hand, label: tips.holdSteady },
+      ]
+    : [
+        { icon: Timer, label: tips.seconds(aedModel === 'Zoll AED Plus' ? 5 : 10) },
+        { icon: Hand, label: tips.holdSteady },
+        { icon: Focus, label: tips.lightInFrame },
+      ];
+}
 
-/** An expired date is the one fault a retake can't fix — the way forward is
- *  a replacement, which the result screen offers a quote for. */
-const EXPIRED_GUIDANCE: Partial<Record<string, string>> = {
-  pads_expiry: "Expired pads can't be fixed on the spot. Carry on — you can ask us for a replacement quote when you finish.",
-  battery_expiry: "An expired battery can't be fixed on the spot. Carry on — you can ask us for a replacement quote when you finish.",
-};
+/** The AI's feedback in the language being read, when it wrote one. */
+export function feedbackOf(result: ChecklistItemResult, lang: string): string | undefined {
+  const hindi = result.aiData?.notes_hi?.trim();
+  return lang === 'hi' && hindi ? hindi : result.notes;
+}
 
 const PRIMARY_BUTTON =
   'pressable relative overflow-hidden flex-1 flex items-center justify-center gap-2 h-[52px] rounded-2xl bg-primary text-primary-foreground text-headline hover:bg-primary/92 transition-colors disabled:opacity-60';
@@ -137,13 +135,16 @@ export function ActiveCheck({
   position,
   inspectionId,
   aedModel,
-  nextLabel = 'Next check',
+  nextLabel: nextLabelProp,
   onChange,
   onDone,
   uploadFn,
   skipFn,
   onContinueOnPhone,
 }: Props) {
+  const { lang, m } = useI18n();
+  const copy = itemCopy(m, item, aedModel);
+  const nextLabel = nextLabelProp ?? m.check.next.check;
   const inputRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -157,7 +158,10 @@ export function ActiveCheck({
   const [phase, setPhase] = useState<AnalysisPhase>('preparing');
   const [uploadFraction, setUploadFraction] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string>();
-  const [retryNote, setRetryNote] = useState<string>();
+  const [retrying, setRetrying] = useState(false);
+  /** Why the last upload failed, kept as a key so it is said in whichever
+   *  language is showing — the server's own words are English. */
+  const [failure, setFailure] = useState<{ key?: ApiErrorKey; message?: string } | null>(null);
   /** The verdict arrived in this card just now, as opposed to a finished
    *  check reopened from the list — only a fresh verdict animates in. */
   const [fresh, setFresh] = useState(false);
@@ -201,7 +205,8 @@ export function ActiveCheck({
     setBusy(true);
     setFresh(false);
     setAutoAdvance(false);
-    setRetryNote(undefined);
+    setRetrying(false);
+    setFailure(null);
     setUploadFraction(0);
     setPhase('preparing');
     try {
@@ -237,12 +242,11 @@ export function ActiveCheck({
       try {
         res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
       } catch (err) {
-        const { retryable } = extractApiError(err);
+        const { retryable } = apiErrorOf(err);
         if (!retryable) throw err;
-        setRetryNote('The AI service is busy — trying again…');
-        onChange({ ...result, status: 'analyzing', notes: 'AI service is busy — retrying…' });
+        setRetrying(true);
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        setRetryNote(undefined);
+        setRetrying(false);
         setUploadFraction(0);
         setPhase('uploading');
         res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
@@ -254,19 +258,14 @@ export function ActiveCheck({
       setAutoAdvance(verdict.status === 'pass');
       haptic(verdict.status === 'pass' ? 18 : [30, 60, 30]);
     } catch (err) {
-      const { message } = extractApiError(err);
+      const { key, message } = apiErrorOf(err);
       setPreviewUrl(undefined);
-      onChange({
-        ...result,
-        status: 'error',
-        notes:
-          message ||
-          `Could not upload this ${item.mediaType === 'video' ? 'video' : 'photo'} — check your connection and try again.`,
-      });
+      setFailure({ key, message });
+      onChange({ ...result, status: 'error', notes: message });
     } finally {
       clearTimeout(fallback);
       setBusy(false);
-      setRetryNote(undefined);
+      setRetrying(false);
     }
   }
 
@@ -285,11 +284,30 @@ export function ActiveCheck({
     }
   }
 
-  const reading = readingOf(result);
+  const reading = readingOf(result, m);
   const expired = Boolean(reading?.expiry && reading.expiry.days < 0);
-  const expiredGuidance = expired ? EXPIRED_GUIDANCE[item.id] : undefined;
+  // An expired date is the one fault a retake can't fix — the way forward
+  // is a replacement, which the result screen offers a quote for.
+  const expiredGuidance = !expired
+    ? undefined
+    : item.id === 'pads_expiry'
+      ? m.check.expiredGuidance.pads
+      : item.id === 'battery_expiry'
+        ? m.check.expiredGuidance.battery
+        : undefined;
   const serverMedia = result.mediaUrl ? `${BASE_URL}${result.mediaUrl}` : undefined;
   const isVideo = item.mediaType === 'video';
+  // A lost connection is said as what it means for this capture; anything
+  // else as the server described it, translated when it can be. An error
+  // restored from the server (after a refresh) has only its English note.
+  const errorNote =
+    result.status !== 'error'
+      ? undefined
+      : failure?.key && failure.key !== 'network'
+        ? m.errors[failure.key]
+        : failure?.key === 'network' || !result.notes || lang !== 'en'
+          ? m.check.uploadFailed(isVideo)
+          : result.notes;
 
   return (
     <motion.section
@@ -306,12 +324,12 @@ export function ActiveCheck({
             <ChecklistIcon name={item.icon} className="w-4 h-4 text-foreground/70" strokeWidth={1.9} />
           </span>
           <span className="text-caption uppercase tracking-[0.06em] text-muted-foreground">
-            {position ? `Check ${position.index} of ${position.total}` : 'Optional extra'}
+            {position ? m.check.position(position.index, position.total) : m.check.optionalExtra}
           </span>
           {isVideo && (
             <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
               <Video className="w-3 h-3" strokeWidth={2.2} />
-              Video
+              {m.check.video}
             </span>
           )}
         </div>
@@ -322,25 +340,25 @@ export function ActiveCheck({
           tabIndex={-1}
           className="text-title text-foreground mt-3 outline-none"
         >
-          {item.title}
+          {copy.title}
         </h2>
 
         {mode === 'capture' && (
           <>
-            <p className="text-body text-muted-foreground mt-1">{item.description}</p>
+            <p className="text-body text-muted-foreground mt-1">{copy.description}</p>
             <ReferenceStrip itemId={item.id} aedModel={aedModel} className="mt-4" />
             <ul className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-secondary/60 px-3 py-2">
-              {CAPTURE_TIPS[item.mediaType].map((tip) => (
+              {captureTips(item.mediaType, aedModel, m.check.tips).map((tip) => (
                 <li key={tip.label} className="flex items-center gap-1.5 text-caption text-muted-foreground">
                   <tip.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
                   {tip.label}
                 </li>
               ))}
             </ul>
-            {result.status === 'error' && result.notes && (
+            {errorNote && (
               <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-xl bg-destructive/8 px-3.5 py-3">
                 <AlertCircle className="w-4 h-4 mt-px shrink-0 text-destructive" strokeWidth={2.2} />
-                <p className="text-footnote text-destructive">{result.notes}</p>
+                <p className="text-footnote text-destructive">{errorNote}</p>
               </div>
             )}
           </>
@@ -355,7 +373,7 @@ export function ActiveCheck({
             phase={phase}
             uploadFraction={uploadFraction}
             previewUrl={previewUrl}
-            statusNote={retryNote}
+            statusNote={retrying ? m.check.busyRetrying : undefined}
           />
         )}
 
@@ -364,16 +382,11 @@ export function ActiveCheck({
             passed={result.status === 'pass'}
             fresh={fresh}
             isVideo={isVideo}
-            title={item.title}
+            title={copy.title}
             sources={[previewUrl, serverMedia].filter((s): s is string => Boolean(s))}
             reading={reading}
-            notes={result.notes}
-            guidance={
-              result.status === 'pass'
-                ? undefined
-                : (expiredGuidance ??
-                  'Fix it if you can, then retake. Or carry on — it will be flagged in your report.')
-            }
+            notes={feedbackOf(result, lang)}
+            guidance={result.status === 'pass' ? undefined : (expiredGuidance ?? m.check.faultGuidance)}
           />
         )}
       </div>
@@ -411,7 +424,7 @@ export function ActiveCheck({
                   ) : (
                     <SkipForward className="w-4 h-4" strokeWidth={2} />
                   )}
-                  Skip
+                  {m.check.skip}
                 </button>
               )}
               <button type="button" disabled={skipping} onClick={openCamera} className={PRIMARY_BUTTON}>
@@ -420,7 +433,7 @@ export function ActiveCheck({
                 ) : (
                   <Camera className="w-[18px] h-[18px]" strokeWidth={2} />
                 )}
-                {result.status === 'error' ? 'Try again' : isVideo ? 'Record the video' : 'Take the photo'}
+                {result.status === 'error' ? m.check.tryAgain : isVideo ? m.check.recordVideo : m.check.takePhoto}
               </button>
             </div>
           )}
@@ -431,15 +444,15 @@ export function ActiveCheck({
               className="mx-auto mt-2 flex h-10 items-center gap-1.5 px-3 text-callout text-muted-foreground transition-colors hover:text-foreground"
             >
               <Smartphone className="h-4 w-4" strokeWidth={2} />
-              On a computer? <span className="font-semibold text-primary">Continue on your phone</span>
+              {m.check.onComputer} <span className="font-semibold text-primary">{m.check.continueOnPhone}</span>
             </button>
           )}
 
           {mode === 'result' && result.status === 'pass' && (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={openCamera} className={SECONDARY_BUTTON} aria-label="Retake">
+              <button type="button" onClick={openCamera} className={SECONDARY_BUTTON}>
                 <RotateCcw className="w-4 h-4" strokeWidth={2} />
-                Retake
+                {m.check.retake}
               </button>
               <button type="button" onClick={() => onDone(item.id)} className={PRIMARY_BUTTON}>
                 {advancing && (
@@ -473,14 +486,14 @@ export function ActiveCheck({
                 ) : (
                   <Camera className="w-[18px] h-[18px]" strokeWidth={2} />
                 )}
-                Retake
+                {m.check.retake}
               </button>
               <button
                 type="button"
                 onClick={() => onDone(item.id)}
                 className={expired ? PRIMARY_BUTTON : SECONDARY_BUTTON}
               >
-                {expired ? nextLabel : 'Carry on'}
+                {expired ? nextLabel : m.check.carryOn}
                 <ChevronRight className="w-4 h-4" strokeWidth={2.2} />
               </button>
             </div>
@@ -514,6 +527,7 @@ function ResultView({
   notes?: string;
   guidance?: string;
 }) {
+  const { m } = useI18n();
   // A HEIC photo or an unplayable codec fails to render. Fall back to the
   // stored copy, then to no picture at all — the verdict carries it alone.
   const [sourceIndex, setSourceIndex] = useState(0);
@@ -543,7 +557,7 @@ function ResultView({
             <video src={src} muted playsInline autoPlay loop onError={onError} className="w-full h-full object-cover" />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={`Your photo: ${title}`} onError={onError} className="w-full h-full object-cover" />
+            <img src={src} alt={m.check.yourPhoto(title)} onError={onError} className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/0 pointer-events-none" />
           <Verdict passed={passed} fresh={fresh} className="absolute top-3 left-3" />
@@ -567,7 +581,7 @@ function ResultView({
           style={{ backgroundColor: urgency.tint }}
         >
           <UrgencyIcon className="w-4 h-4" strokeWidth={2.1} style={{ color: urgency.color }} />
-          {describeExpiry(reading.expiry.days)}
+          {describeExpiry(reading.expiry.days, m.expiry)}
         </p>
       )}
 
@@ -578,6 +592,7 @@ function ResultView({
 }
 
 function Verdict({ passed, fresh, className }: { passed: boolean; fresh: boolean; className?: string }) {
+  const { m } = useI18n();
   return (
     <motion.span
       initial={fresh ? { scale: 0.6, opacity: 0 } : false}
@@ -603,7 +618,7 @@ function Verdict({ passed, fresh, className }: { passed: boolean; fresh: boolean
           <span className="text-[14px] font-bold leading-none">!</span>
         )}
       </span>
-      {passed ? 'Passed' : 'Needs attention'}
+      {passed ? m.check.passed : m.check.needsAttention}
     </motion.span>
   );
 }
@@ -624,19 +639,20 @@ export function CheckRow({
   index?: number;
   onSelect: () => void;
 }) {
-  const reading = readingOf(result);
+  const { m } = useI18n();
+  const reading = readingOf(result, m);
   const failed = result.status === 'fail' || result.status === 'error';
   const detail =
     result.status === 'skipped'
-      ? 'Skipped'
+      ? m.check.row.skipped
       : reading
         ? reading.expiry
-          ? `${reading.value} · ${describeExpiry(reading.expiry.days)}`
+          ? `${reading.value} · ${describeExpiry(reading.expiry.days, m.expiry)}`
           : reading.value
         : result.status === 'error'
-          ? 'Didn’t upload — tap to try again'
+          ? m.check.row.uploadFailed
           : result.status === 'fail'
-            ? 'Needs attention'
+            ? m.check.row.needsAttention
             : null;
 
   return (
@@ -647,7 +663,7 @@ export function CheckRow({
     >
       <StatusDot status={result.status} index={index} />
       <span className="min-w-0 flex-1">
-        <span className="block text-callout text-foreground truncate">{item.title}</span>
+        <span className="block text-callout text-foreground truncate">{itemCopy(m, item).title}</span>
         {detail && (
           <span
             className={cn(

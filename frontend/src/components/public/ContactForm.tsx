@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,24 +11,25 @@ import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
 import { isValidEmail, suggestEmailFix } from '@/lib/validators';
 import { screenTransition } from '@/lib/motion';
+import { useI18n, type Messages } from '@/i18n';
 
-const schema = z.object({
-  name: z.string().trim().min(2, 'Enter your full name'),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .refine(isValidEmail, { message: 'Enter a valid email address' }),
-  phone: z.string().refine(
-    (value) => {
-      const { country, nationalDigits } = parsePhoneValue(value);
-      return isValidNationalNumber(country, nationalDigits);
-    },
-    { message: 'Enter a valid mobile number for the selected country' },
-  ),
-});
+function contactSchema(errors: Messages['contact']['errors']) {
+  return z.object({
+    name: z.string().trim().min(2, errors.name),
+    email: z.string().trim().toLowerCase().refine(isValidEmail, { message: errors.email }),
+    phone: z.string().refine(
+      (value) => {
+        const { country, nationalDigits } = parsePhoneValue(value);
+        return isValidNationalNumber(country, nationalDigits);
+      },
+      { message: errors.phone },
+    ),
+  });
+}
 
-export type ContactFormData = z.infer<typeof schema>;
+export type ContactFormData = z.infer<ReturnType<typeof contactSchema>>;
+
+const FACT_ICONS = [IndianRupee, Clock, FileCheck2];
 
 interface Props {
   defaultValues?: Partial<ContactFormData>;
@@ -35,19 +37,31 @@ interface Props {
 }
 
 export function ContactForm({ defaultValues, onSubmit }: Props) {
+  const { lang, m } = useI18n();
+  const t = m.contact;
+  const schema = useMemo(() => contactSchema(m.contact.errors), [m]);
   const {
     register,
     control,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting, touchedFields },
+    trigger,
+    formState: { errors, isSubmitting, touchedFields, submitCount },
   } = useForm<ContactFormData>({
     resolver: zodResolver(schema),
     defaultValues,
     mode: 'onTouched',
     reValidateMode: 'onChange',
   });
+
+  // An error already on screen is re-said in the language just picked.
+  const hasErrors = Object.keys(errors).length > 0;
+  useEffect(() => {
+    if (hasErrors || submitCount > 0) void trigger(Object.keys(touchedFields) as Array<keyof ContactFormData>);
+    // Only on a language change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   // Offered once the field is left, never mid-typing ("gmail.c" isn't a typo
   // yet), because the report is emailed: a misspelt domain loses it silently.
@@ -64,59 +78,60 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
           style={{ letterSpacing: '0.08em' }}
         >
           <Sparkles className="w-3 h-3" strokeWidth={2.2} />
-          AI-checked in real time
+          {t.eyebrow}
         </p>
         <h1 className="text-display text-foreground">
-          Is your AED<br />ready to save<br />a life?
+          {t.title.map((line, i) => (
+            <Fragment key={i}>
+              {i > 0 && <br />}
+              {line}
+            </Fragment>
+          ))}
         </h1>
-        <p className="text-body text-muted-foreground mt-3">
-          Photograph six things on your defibrillator. Our AI reads every label and tells you
-          instantly whether the device would work in an emergency.
-        </p>
+        <p className="text-body text-muted-foreground mt-3">{t.intro}</p>
       </div>
 
       {/* Three facts that answer what a stranger is actually asking before
           they type their mobile number in: what does it cost, how long will
           it take, and what do I walk away with. */}
       <ul className="grid grid-cols-3 gap-2 mb-6 px-1">
-        {[
-          { icon: IndianRupee, label: 'Free', sub: 'No charge' },
-          { icon: Clock, label: '3 min', sub: 'Six photos' },
-          { icon: FileCheck2, label: 'PDF report', sub: 'Emailed' },
-        ].map((f) => (
-          <li key={f.label} className="surface-group px-3 py-3 text-center">
-            <f.icon className="w-4 h-4 mx-auto text-muted-foreground" strokeWidth={1.9} />
+        {t.facts.map((f, i) => {
+          const Icon = FACT_ICONS[i];
+          return (
+          <li key={i} className="surface-group px-3 py-3 text-center">
+            <Icon className="w-4 h-4 mx-auto text-muted-foreground" strokeWidth={1.9} />
             <p className="text-callout text-foreground mt-1.5 leading-none">{f.label}</p>
             <p className="text-caption text-muted-foreground mt-1">{f.sub}</p>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="surface-group">
           <div className="surface-row px-4 pt-2.5 pb-3">
             <label htmlFor="name" className="block text-caption text-muted-foreground mb-0.5">
-              Full name
+              {t.name}
             </label>
             <input
               {...register('name')}
               id="name"
               autoComplete="name"
-              placeholder="Jane Doe"
+              placeholder={t.namePlaceholder}
               className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
             />
           </div>
 
           <div className="surface-row px-4 pt-2.5 pb-3">
             <label htmlFor="email" className="block text-caption text-muted-foreground mb-0.5">
-              Email address
+              {t.email}
             </label>
             <input
               {...register('email')}
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="you@organisation.com"
+              placeholder={t.emailPlaceholder}
               className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
             />
             {emailFix && (
@@ -125,15 +140,13 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
                 onClick={() => setValue('email', emailFix, { shouldValidate: true, shouldDirty: true })}
                 className="mt-1.5 -mx-1 flex min-h-9 items-center rounded-lg px-1 text-left text-footnote text-muted-foreground"
               >
-                <span>
-                  Did you mean <span className="font-semibold text-primary">{emailFix}</span>?
-                </span>
+                <span>{t.didYouMean(<span className="font-semibold text-primary">{emailFix}</span>)}</span>
               </button>
             )}
           </div>
 
           <div className="surface-row px-4 pt-2.5 pb-3">
-            <label className="block text-caption text-muted-foreground mb-0.5">Mobile number</label>
+            <label className="block text-caption text-muted-foreground mb-0.5">{t.phone}</label>
             <Controller
               name="phone"
               control={control}
@@ -151,7 +164,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
         )}
 
         <p className="text-footnote text-muted-foreground mt-2.5 px-1">
-          We use your details only to send this report. No marketing lists, no sharing.
+          {t.privacy}
         </p>
 
         <button
@@ -164,7 +177,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
           )}
         >
           {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          Start free inspection
+          {t.submit}
           {!isSubmitting && <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.2} />}
         </button>
       </form>
@@ -174,7 +187,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
         {/* Only claims that are actually true — invented social proof is the
             fastest way to lose a safety professional's trust. */}
         <span className="text-footnote text-muted-foreground/80">
-          Your photos are never shared or published
+          {t.photosPrivate}
         </span>
       </div>
     </motion.div>

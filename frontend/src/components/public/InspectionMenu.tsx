@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import * as RadixDialog from '@radix-ui/react-dialog';
-import { ArrowLeft, ChevronRight, Repeat, RotateCcw, Smartphone, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Languages, Repeat, RotateCcw, Smartphone, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { track } from '@/lib/track';
+import { useI18n, type Lang } from '@/i18n';
 
 export type MenuView = 'menu' | 'phone';
 
@@ -107,6 +109,51 @@ function Row({
   );
 }
 
+/** Both languages side by side, each named in itself, so the one needed can
+ *  be found without reading the other. */
+function LanguageRow() {
+  const { lang, setLang, m } = useI18n();
+  const options: { id: Lang; name: string }[] = [
+    { id: 'en', name: 'English' },
+    { id: 'hi', name: 'हिन्दी' },
+  ];
+  return (
+    <div className="surface-row flex items-center gap-3.5 px-4 py-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground/75">
+        <Languages className="h-5 w-5" strokeWidth={1.9} />
+      </span>
+      <span id="menu-language" className="min-w-0 flex-1 text-callout font-semibold text-foreground">
+        {m.menu.language}
+      </span>
+      <div role="radiogroup" aria-labelledby="menu-language" className="inline-flex shrink-0 rounded-xl bg-secondary p-0.5">
+        {options.map((o) => {
+          const selected = lang === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              lang={o.id}
+              onClick={() => {
+                if (selected) return;
+                setLang(o.id);
+                track('language_changed', { outcome: o.id });
+              }}
+              className={cn(
+                'h-9 rounded-[10px] px-3 text-callout font-medium transition-colors',
+                selected ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {o.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MenuView({
   modelName,
   doneCount,
@@ -122,51 +169,52 @@ function MenuView({
   onSwitchModel: () => void;
   onStartOver: () => void;
 }) {
-  const lost =
-    doneCount > 0
-      ? ` The ${doneCount === 1 ? 'check' : `${doneCount} checks`} done on this ${modelName} won’t be kept.`
-      : '';
+  const { m } = useI18n();
   return (
     <div className="px-4 pt-3">
       <div className="flex items-center justify-between px-1">
-        <RadixDialog.Title className="text-headline text-foreground">Inspection options</RadixDialog.Title>
+        <RadixDialog.Title className="text-headline text-foreground">{m.menu.title}</RadixDialog.Title>
         <RadixDialog.Close
-          aria-label="Close"
+          aria-label={m.common.close}
           className="-mr-1 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <X className="h-5 w-5" strokeWidth={2} />
         </RadixDialog.Close>
       </div>
       <RadixDialog.Description className="sr-only">
-        Switch to another AED model, continue on your phone, or start over.
+        {m.menu.description}
       </RadixDialog.Description>
 
       <div className="surface-group mt-2">
         {handoffUrl && (
           <Row
             icon={Smartphone}
-            title="Continue on your phone"
-            detail="Scan a code to carry on with your phone’s camera. Nothing is lost."
+            title={m.menu.phoneTitle}
+            detail={m.menu.phoneDetail}
             onClick={onPhone}
           />
         )}
         <Row
           icon={Repeat}
-          title="Switch AED model"
-          detail={`Picked the wrong one? Start on another model with your details filled in.${lost}`}
+          title={m.menu.switchTitle}
+          detail={m.menu.switchDetail(doneCount, modelName)}
           onClick={onSwitchModel}
         />
         <Row
           icon={RotateCcw}
-          title="Start over"
-          detail="Clear your details and begin again."
+          title={m.menu.startOverTitle}
+          detail={m.menu.startOverDetail}
           tone="danger"
           onClick={onStartOver}
         />
       </div>
 
+      <div className="surface-group mt-3">
+        <LanguageRow />
+      </div>
+
       <RadixDialog.Close className="pressable mt-3 h-12 w-full rounded-2xl bg-secondary text-callout font-semibold text-foreground transition-colors hover:bg-secondary/75">
-        Keep inspecting
+        {m.menu.keepInspecting}
       </RadixDialog.Close>
     </div>
   );
@@ -174,6 +222,7 @@ function MenuView({
 
 /** The hand-off: a code the phone's camera opens straight into this inspection. */
 function PhoneView({ url, onBack }: { url: string; onBack: () => void }) {
+  const { m } = useI18n();
   const [qr, setQr] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -201,23 +250,23 @@ function PhoneView({ url, onBack }: { url: string; onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to options"
+          aria-label={m.menu.backToOptions}
           className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={2} />
         </button>
-        <RadixDialog.Title className="text-headline text-foreground">Continue on your phone</RadixDialog.Title>
+        <RadixDialog.Title className="text-headline text-foreground">{m.menu.phoneTitle}</RadixDialog.Title>
       </div>
       <RadixDialog.Description className="mt-1 text-footnote text-muted-foreground">
-        Point your phone’s camera at the code. This inspection opens where you left off, with the camera ready.
+        {m.menu.phoneIntro}
       </RadixDialog.Description>
 
       <div className="mx-auto mt-4 flex aspect-square w-56 items-center justify-center rounded-2xl bg-white p-3 ring-1 ring-black/5">
         {qr ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={qr} alt="QR code that opens this inspection on a phone" className="h-full w-full" />
+          <img src={qr} alt={m.menu.qrAlt} className="h-full w-full" />
         ) : failed ? (
-          <p className="text-center text-footnote text-muted-foreground">Couldn’t draw the code. Use the link below.</p>
+          <p className="text-center text-footnote text-muted-foreground">{m.menu.qrFailed}</p>
         ) : (
           <span className="h-full w-full animate-pulse rounded-xl bg-secondary" />
         )}
@@ -226,7 +275,7 @@ function PhoneView({ url, onBack }: { url: string; onBack: () => void }) {
       <p className="mt-4 break-all text-center font-mono text-caption text-muted-foreground">{url}</p>
 
       <RadixDialog.Close className="pressable mt-4 h-12 w-full rounded-2xl bg-secondary text-callout font-semibold text-foreground transition-colors hover:bg-secondary/75">
-        Done
+        {m.menu.done}
       </RadixDialog.Close>
     </div>
   );

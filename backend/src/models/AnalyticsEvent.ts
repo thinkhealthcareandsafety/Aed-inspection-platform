@@ -32,6 +32,7 @@ export const DIAGNOSTIC_EVENTS = [
   'reference_opened',
   'inspection_resumed',
   'report_downloaded',
+  'language_changed',
 ] as const;
 
 export const TRACKED_EVENTS = [...FUNNEL_STEPS, ...DIAGNOSTIC_EVENTS] as const;

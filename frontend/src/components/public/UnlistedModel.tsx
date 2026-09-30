@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { OTHER_AED_BRANDS } from '@/lib/aed-models';
 import { formatPhone } from '@/lib/countries';
 import { springSnappy } from '@/lib/motion';
+import { useI18n } from '@/i18n';
 
 interface Contact {
   name: string;
@@ -26,7 +27,10 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
   const [brand, setBrand] = useState<string | null>(null);
   const [model, setModel] = useState('');
   const [sending, setSending] = useState(false);
-  const [sentFor, setSentFor] = useState<string | null>(null);
+  const { m } = useI18n();
+  const t = m.unlisted;
+  /** What was asked about — null when all we know is "an AED". */
+  const [sentFor, setSentFor] = useState<{ unit: string | null } | null>(null);
   const firstName = contact.name.trim().split(/\s+/)[0];
   const phone = formatPhone(contact.phone);
 
@@ -41,7 +45,7 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
         brand,
         model: model.trim() || undefined,
       });
-      setSentFor([brand === 'Other' ? '' : brand, model.trim()].filter(Boolean).join(' ') || 'your AED');
+      setSentFor({ unit: [brand === 'Other' ? '' : brand, model.trim()].filter(Boolean).join(' ') || null });
     } catch {
       // The API client already shows the error; the form stays filled in.
     } finally {
@@ -62,11 +66,8 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
           <Check className="h-4 w-4" strokeWidth={3} />
         </span>
         <div className="min-w-0">
-          <p className="text-callout font-semibold text-foreground">Thanks{firstName ? `, ${firstName}` : ''}</p>
-          <p className="mt-0.5 text-footnote text-muted-foreground">
-            The app doesn’t cover the {sentFor} yet. Our team will contact you
-            {phone ? ` on ${phone}` : ''} to help you inspect it.
-          </p>
+          <p className="text-callout font-semibold text-foreground">{t.thanks(firstName || undefined)}</p>
+          <p className="mt-0.5 text-footnote text-muted-foreground">{t.notCovered(sentFor.unit, phone || undefined)}</p>
         </div>
       </motion.div>
     );
@@ -91,10 +92,8 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
           <Plus className="h-6 w-6" strokeWidth={1.8} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-headline text-foreground">My AED isn’t listed</span>
-          <span className="mt-0.5 block text-footnote text-muted-foreground">
-            Tell us which one and we’ll help you inspect it.
-          </span>
+          <span className="block text-headline text-foreground">{t.title}</span>
+          <span className="mt-0.5 block text-footnote text-muted-foreground">{t.subtitle}</span>
         </span>
         <ChevronDown
           className={cn('h-5 w-5 shrink-0 text-muted-foreground/60 transition-transform', open && 'rotate-180')}
@@ -113,7 +112,7 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
           >
             <div className="px-4 pb-4">
               <p id="brand-label" className="text-caption uppercase tracking-[0.06em] text-muted-foreground">
-                Which brand is it?
+                {t.brandLabel}
               </p>
               <div role="radiogroup" aria-labelledby="brand-label" className="mt-2 flex flex-wrap gap-2">
                 {OTHER_AED_BRANDS.map((b) => {
@@ -132,21 +131,21 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
                           : 'bg-secondary text-foreground hover:bg-secondary/75',
                       )}
                     >
-                      {b}
+                      {b === 'Other' ? t.other : b}
                     </button>
                   );
                 })}
               </div>
 
               <label htmlFor="unlisted-model" className="mt-4 block text-caption uppercase tracking-[0.06em] text-muted-foreground">
-                Model <span className="normal-case tracking-normal">(if you know it)</span>
+                {t.modelLabel} <span className="normal-case tracking-normal">{t.modelOptional}</span>
               </label>
               <input
                 id="unlisted-model"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 maxLength={80}
-                placeholder="e.g. printed on the front of the unit"
+                placeholder={t.modelPlaceholder}
                 className="mt-2 h-11 w-full rounded-xl bg-secondary px-3.5 text-body text-foreground placeholder:text-muted-foreground/55 focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
 
@@ -157,11 +156,11 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
                 className="pressable mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-headline text-primary-foreground transition-colors hover:bg-primary/92 disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {sending ? 'Sending…' : brand ? `Ask for help with my ${brand === 'Other' ? 'AED' : brand}` : 'Choose a brand'}
+                {sending ? t.sending : brand ? t.ask(brand === 'Other' ? null : brand) : t.chooseBrand}
               </button>
               {phone && (
                 <p className="mt-2 text-center text-caption text-muted-foreground">
-                  We’ll contact you on {phone}. No obligation.
+                  {t.contactOn(phone)}
                 </p>
               )}
             </div>

@@ -14,48 +14,31 @@ import { URGENCY } from '@/lib/urgency';
 import { EASE_OUT, springSnappy } from '@/lib/motion';
 import { ChecklistIcon } from '@/components/icons';
 import { StatusDot } from '@/components/inspection/StatusDot';
+import { itemCopy, useI18n } from '@/i18n';
 import type { Inspection, InspectionResult, ReplacementItem, ReplacementRequest } from '@/types';
 
-const VERDICT: Record<
-  InspectionResult,
-  { eyebrow: string; title: string; panel: string; badge: string; tone: string }
-> = {
+/** How each verdict looks; what it says is in the messages. */
+const VERDICT: Record<InspectionResult, { panel: string; badge: string; tone: string }> = {
   PASS: {
-    eyebrow: 'Inspection passed',
-    title: 'Ready to save a life',
     panel: 'bg-emerald-500/[0.08] ring-emerald-500/20',
     badge: 'bg-emerald-600 text-white',
     tone: 'text-emerald-700 dark:text-emerald-400',
   },
   FAIL: {
-    eyebrow: 'Inspection failed',
-    title: 'Not rescue-ready yet',
     panel: 'bg-destructive/[0.07] ring-destructive/20',
     badge: 'bg-destructive text-destructive-foreground',
     tone: 'text-destructive',
   },
   REVIEW: {
-    eyebrow: 'Needs review',
-    title: 'Needs a closer look',
     panel: 'bg-amber-500/[0.09] ring-amber-500/25',
     badge: 'bg-amber-500 text-white',
     tone: 'text-amber-700 dark:text-amber-400',
   },
   INCOMPLETE: {
-    eyebrow: 'Incomplete',
-    title: 'Inspection incomplete',
     panel: 'bg-secondary ring-border',
     badge: 'bg-muted-foreground text-background',
     tone: 'text-muted-foreground',
   },
-};
-
-const STATUS_WORD: Record<string, string> = {
-  pass: 'Passed',
-  fail: 'Failed',
-  skipped: 'Skipped',
-  error: 'Not done',
-  pending: 'Not done',
 };
 
 /** Consumables within this many days of expiry get a replacement offer —
@@ -92,6 +75,8 @@ export function InspectionComplete({
   onStartOver,
   onReplacementRequested,
 }: Props) {
+  const { lang, m } = useI18n();
+  const t = m.result;
   const [requesting, setRequesting] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [shareFile, setShareFile] = useState<File | null>(null);
@@ -118,6 +103,7 @@ export function InspectionComplete({
     };
   }, [inspection.inspectionId]);
   const verdict = VERDICT[inspection.inspectionResult];
+  const verdictCopy = t.verdict[inspection.inspectionResult];
   const model = modelDisplayName(inspection.aedModel);
   const phone = formatPhone(inspection.guestPhone);
   const firstName = inspection.guestName?.trim().split(/\s+/)[0];
@@ -145,13 +131,13 @@ export function InspectionComplete({
       ['battery', 'battery_expiry'],
     ] as const) {
       const entry = inspection.checklist.find((c) => c.itemId === itemId);
-      const reading = entry ? readingOf(entry) : null;
+      const reading = entry ? readingOf(entry, m) : null;
       if (reading?.expiry && reading.expiry.days <= REPLACEMENT_WINDOW_DAYS) {
         list.push({ kind, value: reading.value, days: reading.expiry.days });
       }
     }
     return list;
-  }, [inspection.checklist]);
+  }, [inspection.checklist, m]);
 
   const anyExpired = needs.some((n) => n.days < 0);
 
@@ -160,8 +146,8 @@ export function InspectionComplete({
     try {
       await navigator.share({
         files: [shareFile],
-        title: 'AED inspection report',
-        text: `${model}: ${verdict.eyebrow.toLowerCase()}.`,
+        title: t.shareTitle,
+        text: t.shareText(model, verdictCopy.eyebrow),
       });
     } catch {
       // Dismissing the share sheet rejects too; there's nothing to report.
@@ -183,12 +169,12 @@ export function InspectionComplete({
 
   const subtitle =
     inspection.inspectionResult === 'PASS'
-      ? `Your ${model} passed all ${required.length} required checks.`
+      ? t.subtitle.PASS(model, required.length)
       : inspection.inspectionResult === 'FAIL'
-        ? `${failedCount} of ${required.length} checks found a problem on your ${model}.`
+        ? t.subtitle.FAIL(model, failedCount, required.length)
         : inspection.inspectionResult === 'REVIEW'
-          ? `Some checks on your ${model} couldn't be confirmed from the photos.`
-          : 'Not every required check was completed.';
+          ? t.subtitle.REVIEW(model)
+          : t.subtitle.INCOMPLETE;
 
   const completedAt = inspection.completedAt ? new Date(inspection.completedAt) : null;
 
@@ -198,10 +184,8 @@ export function InspectionComplete({
         <Check className="w-3.5 h-3.5" strokeWidth={3.2} />
       </span>
       <div className="min-w-0">
-        <p className="text-callout font-semibold text-foreground">Quote requested</p>
-        <p className="text-footnote text-muted-foreground mt-0.5">
-          {phone ? `We'll be in touch on ${phone}.` : "We'll be in touch shortly."}
-        </p>
+        <p className="text-callout font-semibold text-foreground">{t.requested.title}</p>
+        <p className="text-footnote text-muted-foreground mt-0.5">{t.requested.body(phone)}</p>
       </div>
     </div>
   );
@@ -251,30 +235,32 @@ export function InspectionComplete({
         </div>
 
         <p className={cn('mt-5 text-caption uppercase tracking-[0.08em] font-semibold', verdict.tone)}>
-          {verdict.eyebrow}
+          {verdictCopy.eyebrow}
         </p>
-        <h1 className="text-display text-foreground mt-1.5">{verdict.title}</h1>
+        <h1 className="text-display text-foreground mt-1.5">{verdictCopy.title}</h1>
         <p className="text-body text-muted-foreground mt-2">{subtitle}</p>
 
         <div className="mt-6 pt-4 border-t border-foreground/10 text-left">
           <p className="text-footnote text-foreground flex items-center gap-1.5">
             <Mail className="w-3.5 h-3.5 shrink-0 text-muted-foreground" strokeWidth={1.9} />
             <span className="truncate">
-              {emailed && inspection.guestEmail
-                ? `Report emailed to ${inspection.guestEmail}`
-                : 'Email didn’t send — download your report'}
+              {emailed && inspection.guestEmail ? t.emailed(inspection.guestEmail) : t.emailFailed}
             </span>
           </p>
           <p className="text-caption text-muted-foreground mt-1">
-            Report {inspection.inspectionId.slice(0, 8).toUpperCase()}
-            {completedAt &&
-              ` · ${completedAt.toLocaleString('en-GB', {
+            {t.reportId(
+              inspection.inspectionId.slice(0, 8).toUpperCase(),
+              // Hindi's short months are clipped with a "॰" and its clock
+              // reads "am"; the full month and a 24-hour time read cleanly.
+              completedAt?.toLocaleString(m.locale, {
                 day: 'numeric',
-                month: 'short',
+                month: lang === 'hi' ? 'long' : 'short',
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-              })}`}
+                ...(lang === 'hi' ? { hourCycle: 'h23' as const } : {}),
+              }),
+            )}
           </p>
 
           <div className="mt-3.5 flex gap-2">
@@ -286,7 +272,7 @@ export function InspectionComplete({
                 className="pressable inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-card text-callout font-semibold text-foreground shadow-[0_0_0_1px_hsl(var(--border))] transition-colors hover:bg-secondary disabled:opacity-70"
               >
                 {shareFile ? <Share className="h-4 w-4" strokeWidth={2} /> : <Loader2 className="h-4 w-4 animate-spin" />}
-                Share report
+                {t.share}
               </button>
             )}
             <button
@@ -301,7 +287,7 @@ export function InspectionComplete({
               )}
             >
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" strokeWidth={2} />}
-              {downloading ? 'Preparing…' : 'Download PDF'}
+              {downloading ? t.preparing : t.download}
             </button>
           </div>
         </div>
@@ -315,17 +301,10 @@ export function InspectionComplete({
           className="surface-card p-5"
         >
           <h2 className="text-headline text-foreground">
-            {needs.length > 1
-              ? 'Replace the pads and battery'
-              : needs[0].kind === 'pads'
-                ? 'Replace the pads'
-                : 'Replace the battery'}
+            {needs.length > 1 ? t.replace.both : needs[0].kind === 'pads' ? t.replace.pads : t.replace.battery}
           </h2>
           <p className="text-footnote text-muted-foreground mt-1">
-            {anyExpired
-              ? "Expired pads and batteries can fail when they're needed most."
-              : 'Order ahead so this AED is never left without them.'}{' '}
-            We supply replacements for the {model}.
+            {anyExpired ? t.replace.whyExpired : t.replace.whySoon} {t.replace.supply(model)}
           </p>
 
           <ul className="mt-4 flex flex-col gap-2">
@@ -342,7 +321,7 @@ export function InspectionComplete({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-callout text-foreground">
-                      {need.kind === 'pads' ? 'Pads' : 'Battery'} · {need.value}
+                      {t.replace.kind[need.kind]} · {need.value}
                     </span>
                     <span
                       className={cn(
@@ -351,7 +330,7 @@ export function InspectionComplete({
                       )}
                     >
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: urgency.color }} />
-                      {describeExpiry(need.days)}
+                      {describeExpiry(need.days, m.expiry)}
                     </span>
                   </span>
                 </li>
@@ -370,27 +349,25 @@ export function InspectionComplete({
                 className="pressable w-full flex items-center justify-center gap-2 h-[52px] mt-4 rounded-2xl bg-primary text-primary-foreground text-headline hover:bg-primary/92 transition-colors disabled:opacity-60"
               >
                 {requesting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {requesting ? 'Sending your request…' : 'Get a replacement quote'}
+                {requesting ? t.replace.sending : t.replace.cta}
               </button>
-              <p className="text-caption text-muted-foreground text-center mt-2">
-                {phone ? `We'll contact you on ${phone}. ` : ''}No obligation.
-              </p>
+              <p className="text-caption text-muted-foreground text-center mt-2">{t.replace.contactOn(phone)}</p>
             </>
           )}
         </motion.section>
       )}
 
       <section>
-        <div className="group-label">What we checked</div>
+        <div className="group-label">{t.whatWeChecked}</div>
         <div className="surface-group">
           {rows.map(({ item, entry }) => {
             if (!entry) return null;
-            const reading = readingOf(entry);
+            const reading = readingOf(entry, m);
             const expired = Boolean(reading?.expiry && reading.expiry.days < 0);
             return (
               <div key={item.id} className="surface-row px-4 py-3 flex items-center gap-3">
                 <StatusDot status={entry.status} />
-                <span className="min-w-0 flex-1 text-callout text-foreground truncate">{item.title}</span>
+                <span className="min-w-0 flex-1 text-callout text-foreground truncate">{itemCopy(m, item).title}</span>
                 <span className="shrink-0 max-w-[48%] text-right">
                   {reading ? (
                     <>
@@ -409,13 +386,13 @@ export function InspectionComplete({
                             expired ? 'text-destructive' : 'text-muted-foreground',
                           )}
                         >
-                          {describeExpiry(reading.expiry.days)}
+                          {describeExpiry(reading.expiry.days, m.expiry)}
                         </span>
                       )}
                     </>
                   ) : (
                     <span className="text-caption text-muted-foreground">
-                      {STATUS_WORD[entry.status] ?? ''}
+                      {t.status[entry.status] ?? ''}
                     </span>
                   )}
                 </span>
@@ -432,10 +409,8 @@ export function InspectionComplete({
               <PackagePlus className="w-5 h-5 text-foreground/70" strokeWidth={1.8} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-callout font-medium text-foreground">Need spares or accessories?</p>
-              <p className="text-footnote text-muted-foreground mt-0.5">
-                Pads, batteries, cabinets and rescue kits for your {model}.
-              </p>
+              <p className="text-callout font-medium text-foreground">{t.spares.title}</p>
+              <p className="text-footnote text-muted-foreground mt-0.5">{t.spares.body(model)}</p>
               {!requested && (
                 <button
                   type="button"
@@ -448,7 +423,7 @@ export function InspectionComplete({
                   ) : (
                     <ArrowRight className="w-4 h-4" strokeWidth={2.2} />
                   )}
-                  Get a quote
+                  {t.spares.cta}
                 </button>
               )}
             </div>
@@ -469,15 +444,15 @@ export function InspectionComplete({
           )}
         >
           <Plus className="w-[18px] h-[18px]" strokeWidth={2.2} />
-          Inspect another AED
+          {t.another}
         </button>
-        <p className="text-footnote text-muted-foreground mt-2">Your details are already filled in.</p>
+        <p className="text-footnote text-muted-foreground mt-2">{t.detailsKept}</p>
         <button
           type="button"
           onClick={onStartOver}
           className="h-11 px-3 mt-2 text-callout text-muted-foreground hover:text-foreground transition-colors"
         >
-          {firstName ? `Not ${firstName}? Start over` : 'Start over with new details'}
+          {t.startOver(firstName || undefined)}
         </button>
       </div>
     </div>
