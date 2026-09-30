@@ -25,7 +25,11 @@ def _overloaded() -> errors.ServerError:
 
 def _answer(notes: str):
     response = AsyncMock()
-    response.parsed = svc.ChecklistAnalysisResult(passed=True, confidence=0.9, notes=notes, status="ready")
+    # A ready verdict names where it saw the signal (here, second 3 of the
+    # raw video) — without that, the readiness check won't accept it.
+    response.parsed = svc.ChecklistAnalysisResult(
+        passed=True, confidence=0.9, notes=notes, status="ready", ready_frames=[3]
+    )
     return response
 
 

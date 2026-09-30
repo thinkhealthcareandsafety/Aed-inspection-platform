@@ -36,11 +36,17 @@ class DeviceProfile:
     appearance: str
     #: checklist item id -> device-specific guidance for that item.
     guidance: Dict[str, str] = field(default_factory=dict)
+    #: The unit shows it is ready by BLINKING a light (Philips). Its ready
+    #: verdict must then be backed by a flash found in the video itself —
+    #: see readiness_frames.py. Units that show a steady symbol (ZOLL's
+    #: green check) or unknown units are judged on what the model sees.
+    blinking_ready: bool = False
 
 
 PHILIPS_FRX = DeviceProfile(
     id="Philips FRx",
     name="Philips HeartStart FRx",
+    blinking_ready=True,
     appearance=(
         "A rugged blue-grey Philips unit, wider than it is tall, usually kept "
         "in a carry case. Front: a green On/Off button, a blue i-button that "
@@ -92,7 +98,9 @@ PHILIPS_FRX = DeviceProfile(
             "but separate from the green On/Off button. Never judge the On/Off "
             "button's colour: the button is green whether or not the unit is "
             "ready. In standby a healthy FRx BLINKS its Ready light green, the "
-            "flashes several seconds apart — gaps between flashes are normal. "
+            "flashes several seconds apart, so most frames show it dark. Only a "
+            "frame where the Ready light itself is visibly lit green shows it is "
+            "ready; never assume it flashed between frames. "
             "Solid green means it is in use or running a self-test. The Ready "
             "light off, or a flashing blue i-button, means the FRx needs "
             "attention (a failed self-test, a pads problem, a child key left "
@@ -115,6 +123,7 @@ PHILIPS_FRX = DeviceProfile(
 PHILIPS_HS1 = DeviceProfile(
     id="Philips HS1",
     name="Philips HeartStart HS1 (OnSite)",
+    blinking_ready=True,
     appearance=(
         "A rounded blue Philips unit with a grip on its left side and a clear "
         "pads cartridge with a green PULL handle fitted in a well on the "
@@ -166,7 +175,10 @@ PHILIPS_HS1 = DeviceProfile(
             "of the front, just above the green On/Off button. Never judge the "
             "On/Off button's colour: it is green whether or not the unit is "
             "ready. In standby a healthy HS1 BLINKS its Ready light green about "
-            "once every 3 seconds. Solid green means it is in use. The Ready "
+            "once every 3 seconds, so most frames show it dark. Only a frame "
+            "where the Ready light itself is visibly lit green shows it is "
+            "ready; never assume it flashed between frames. Solid green means "
+            "it is in use. The Ready "
             "light off, a flashing blue i-button or chirping means the unit "
             "needs attention."
         ),

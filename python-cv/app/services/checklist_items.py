@@ -157,29 +157,37 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         description="Short video of the readiness indicator.",
         media_type="video",
         required=True,
+        # A "ready" is only as good as the frame it can point to. The old
+        # wording told the model flashes could fall between frames and
+        # that gaps were normal — so a clip where the light never came on
+        # could still pass. Now it must name the frames that show the
+        # ready signal, and the service checks them (and, for units that
+        # blink, the flashes found in the video itself).
         prompt=(
-            "Decide whether the AED's readiness indicator shows it is ready "
-            "for use. The device notes below say where the indicator is and "
-            "what 'ready' looks like on this unit — locate that indicator "
-            "first; do not judge any other light or button.\n\n"
-            "Watch the ENTIRE clip, frame by frame, start to finish.\n"
-            "- status='ready', passed=true: the unit's ready signal is "
-            "confirmed. For an indicator that blinks, ONE clear flash "
-            "anywhere in the clip is enough — flashes can be several seconds "
-            "apart, so a short clip may catch only one, even at its very "
-            "start or end. That is normal, not a fault. For an indicator "
-            "that shows a steady symbol, seeing it clearly is enough.\n"
-            "- status='fault', passed=false: a fault signal is plainly "
-            "visible — per the device notes, e.g. a red light or red X — or "
-            "the indicator stays completely dark for the whole clip while "
-            "clearly in frame and in focus.\n"
-            "- status='unclear', passed=false: ONLY when the indicator can't "
-            "be judged at all — out of frame, far too dark, or too blurry or "
-            "shaky. If the indicator is visible, prefer making a ready/fault "
-            "call.\n\n"
-            "In notes, say what you saw; if unclear, say exactly what to fix "
-            "(for example: record at least 10 seconds, move closer to the "
-            "indicator, hold the camera steady in good light)."
+            "Decide whether this AED's readiness indicator shows it is ready "
+            "for use. The device notes below say where the indicator is on "
+            "THIS model and what 'ready' and 'fault' look like on it — find "
+            "that indicator and judge only it, never any other light, "
+            "button or reflection.\n\n"
+            "Look at every frame. In ready_frames, list the numbers of the "
+            "frames in which you can actually SEE the ready signal: for a "
+            "light that blinks, the frames where that light is visibly lit; "
+            "for a symbol, the frames where the ready symbol is clearly "
+            "readable. (If you were given a video rather than numbered "
+            "frames, list the whole seconds instead.) List nothing you would "
+            "have to assume.\n"
+            "- status='ready', passed=true: ONLY if ready_frames is not "
+            "empty. Never conclude that a light blinked between frames — if "
+            "no frame shows it lit, readiness is not confirmed.\n"
+            "- status='fault', passed=false: a fault signal is visible (see "
+            "the device notes), or the indicator is clearly in view and in "
+            "focus through the whole clip and never shows the ready signal.\n"
+            "- status='unclear', passed=false: the indicator can't be judged "
+            "— out of frame, too far away, too dark, or blurred.\n\n"
+            "In notes, say what you saw; if it is not ready, say exactly what "
+            "to do next (for example: film just the indicator, up close and "
+            "steady, for at least 10 seconds — or, if it shows a fault, that "
+            "the unit needs service)."
         ),
     ),
     # ── Section 3 — Accessories & signage (all optional) ─────────────────

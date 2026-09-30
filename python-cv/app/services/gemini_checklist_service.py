@@ -9,12 +9,9 @@ uploads one piece of media per item, and gets one AI verdict back.
 from __future__ import annotations
 
 import asyncio
-import os
-import tempfile
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
-import cv2
 import structlog
 from google import genai
 from google.genai import errors, types
@@ -22,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.services.checklist_items import ChecklistItem, get_item
+from app.services import readiness_frames
 from app.services.device_profiles import DeviceProfile, get_profile
 from app.utils import validators
 from app.utils.date_parser import expiry_last_valid_day, parse_all_expiry_dates, parse_gs1_dates
@@ -72,19 +70,8 @@ PER_ATTEMPT_TIMEOUT_SECONDS = 18.0
 # its way.
 HEDGE_DELAY_SECONDS = 4.0
 
-# Gemini's native video ingestion samples at roughly 1 frame/second. A
-# quick LED flash (a few hundred ms) blinking every 4-5s can fall entirely
-# between those samples and never be "seen" — not a misread, a sampling
-# gap. We extract our own frames at a much higher effective rate and hand
-# Gemini a chronological image sequence instead, so a brief flash can't be
-# missed just because it landed off-beat from a 1fps sampler.
-MAX_EXTRACTED_FRAMES = 20
-# Long edge for extracted frames. A 1080p capture yields ~1.7MB of JPEG across
-# 20 frames; at 640px that is ~0.13MB — a 13x smaller request for a status LED
-# that is still unmistakable at this size. The payload is round-tripped on
-# every video check, so this is the difference between a 6s answer and a
-# timeout on a field connection.
-FRAME_LONG_EDGE = 640
+# How the video reaches the model — every frame scanned for the Ready
+# light's flashes, then labelled frames sent — lives in readiness_frames.py.
 
 
 class ChecklistAnalysisResult(BaseModel):
@@ -102,6 +89,10 @@ class ChecklistAnalysisResult(BaseModel):
     battery_serial_number: Optional[str] = None
     present: Optional[bool] = None
     status: Optional[str] = None  # readiness_indicator only: ready | fault | unclear
+    # readiness_indicator only: the numbered frames (or, for a raw video,
+    # the seconds) in which the model can see the ready signal. A "ready"
+    # with none is not accepted — see _check_readiness.
+    ready_frames: Optional[List[int]] = None
     # The same message as `notes`, in Hindi, when the inspector is using the
     # app in Hindi. `notes` stays English: it is what the PDF report and the
     # sales team read.
@@ -129,6 +120,25 @@ _OVERRIDE_NOTES = {
         "'Install before' or with an hourglass symbol and photograph that part of the label.",
         "यह बनने की तारीख है, एक्सपायरी की नहीं। 'Install before' या रेत-घड़ी (⌛) वाले निशान के पास "
         "लिखी तारीख ढूँढें और लेबल के उस हिस्से की फ़ोटो लें।",
+    ),
+    "readiness_no_blink": (
+        "We couldn't see the green Ready light flash. Film only the small Ready light (not the "
+        "On/Off button), up close and steady, for at least 10 seconds. If it never flashes, "
+        "the AED needs attention.",
+        "हमें हरी Ready लाइट जलती हुई नहीं दिखी। सिर्फ़ छोटी Ready लाइट (On/Off बटन नहीं) का पास से, "
+        "फ़ोन स्थिर रखकर, कम से कम 10 सेकंड का वीडियो बनाएँ। अगर यह कभी नहीं जलती, तो AED को जाँच की ज़रूरत है।",
+    ),
+    "readiness_no_check": (
+        "We couldn't clearly see a green check in the status window. Film the window on the "
+        "handle up close and steady for about 5 seconds. A red X means the AED needs attention.",
+        "हमें स्टेटस विंडो में हरा ✓ साफ़ नहीं दिखा। हैंडल पर लगी विंडो का पास से, फ़ोन स्थिर रखकर, "
+        "करीब 5 सेकंड का वीडियो बनाएँ। लाल ✗ का मतलब है कि AED को जाँच की ज़रूरत है।",
+    ),
+    "readiness_no_evidence": (
+        "We couldn't clearly see the AED's ready signal. Film the readiness indicator up close "
+        "and steady for at least 10 seconds.",
+        "हमें AED का रेडी सिग्नल साफ़ नहीं दिखा। रेडीनेस इंडिकेटर का पास से, फ़ोन स्थिर रखकर, "
+        "कम से कम 10 सेकंड का वीडियो बनाएँ।",
     ),
     "implausible_expiry": (
         "Expiry date reading looked implausible — please recapture with the label centred, well lit, and in focus.",
@@ -174,17 +184,18 @@ def _build_prompt(
     profile: DeviceProfile,
     frame_count: Optional[int] = None,
     language: Optional[str] = None,
+    duration: Optional[float] = None,
 ) -> str:
+    clip = f"a {duration:.0f}-second video clip" if duration else "a short video clip"
     sequence_note = (
         (
-            f"You are given {frame_count} still frames extracted evenly across "
-            "a short video clip, in strict chronological order (the first "
-            "image is the start of the clip, the last is the end). Treat "
-            "them as one continuous observation of the same scene over "
-            "time, not as separate unrelated photos — a change that "
-            "appears in only one or two of the frames (e.g. a light "
-            "turning on then off again) is exactly the kind of brief event "
-            "you are looking for, not noise to discard.\n\n"
+            f"You are given {frame_count} still frames from {clip}, in strict "
+            "chronological order, each preceded by its label (\"Frame 3 — "
+            "1.2 s\"). They are not evenly spaced. Treat them as one "
+            "continuous observation of the same scene over time, not as "
+            "separate photos: a change seen in only one or two frames (a "
+            "light turning on, then off again) is exactly the kind of brief "
+            "event to look for. Refer to frames by their numbers.\n\n"
         )
         if frame_count
         else ""
@@ -236,58 +247,6 @@ def _mime_type_for(item: ChecklistItem, declared_content_type: Optional[str]) ->
     return "video/mp4" if item.media_type == "video" else "image/jpeg"
 
 
-def _extract_frames(video_bytes: bytes, max_frames: int = MAX_EXTRACTED_FRAMES) -> List[bytes]:
-    """Decode a video and return up to `max_frames` JPEG frames sampled
-    evenly across its whole duration. Returns [] if the container/codec
-    can't be decoded (caller falls back to native video ingestion)."""
-    tmp_path = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-            tmp.write(video_bytes)
-            tmp_path = tmp.name
-
-        cap = cv2.VideoCapture(tmp_path)
-        if not cap.isOpened():
-            return []
-
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total <= 0:
-            cap.release()
-            return []
-
-        step = max(1, total // max_frames)
-        frames: List[bytes] = []
-        idx = 0
-        while idx < total and len(frames) < max_frames:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ok, frame = cap.read()
-            if ok:
-                h, w = frame.shape[:2]
-                longest = max(h, w)
-                if longest > FRAME_LONG_EDGE:
-                    scale = FRAME_LONG_EDGE / longest
-                    frame = cv2.resize(
-                        frame,
-                        (max(1, int(w * scale)), max(1, int(h * scale))),
-                        interpolation=cv2.INTER_AREA,
-                    )
-                encoded, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                if encoded:
-                    frames.append(buf.tobytes())
-            idx += step
-        cap.release()
-        return frames
-    except Exception as exc:  # noqa: BLE001 — any decode failure just falls back
-        logger.warning("checklist.frame_extraction_failed", error=str(exc))
-        return []
-    finally:
-        if tmp_path:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-
-
 async def analyze_checklist_item(
     item_id: str,
     media_bytes: bytes,
@@ -308,12 +267,23 @@ async def analyze_checklist_item(
 
     client = _get_client()
 
-    frames = _extract_frames(media_bytes) if item.media_type == "video" else []
+    video = readiness_frames.prepare(media_bytes) if item.media_type == "video" else None
 
-    if frames:
-        logger.info("checklist.frames_extracted", item_id=item_id, count=len(frames))
-        contents = [types.Part.from_bytes(data=f, mime_type="image/jpeg") for f in frames]
-        contents.append(_build_prompt(item, profile, frame_count=len(frames), language=lang))
+    if video:
+        logger.info(
+            "checklist.frames_prepared",
+            item_id=item_id,
+            count=len(video.frames),
+            flashes=video.flash_count,
+            duration=video.duration,
+        )
+        contents = []
+        for number, (frame, at) in enumerate(zip(video.frames, video.times), start=1):
+            contents.append(types.Part(text=f"Frame {number} — {at:.1f} s"))
+            contents.append(types.Part.from_bytes(data=frame, mime_type="image/jpeg"))
+        contents.append(
+            _build_prompt(item, profile, frame_count=len(video.frames), language=lang, duration=video.duration)
+        )
         models = list(GEMINI_VIDEO_MODELS)
     else:
         mime_type = _mime_type_for(item, content_type)
@@ -394,7 +364,65 @@ async def analyze_checklist_item(
         else ChecklistAnalysisResult.model_validate_json(response.text)
     )
 
-    return _apply_deterministic_checks(item, result, language=lang)
+    return _apply_deterministic_checks(item, result, language=lang, profile=profile, video=video)
+
+
+def _check_readiness(
+    result: ChecklistAnalysisResult,
+    profile: Optional[DeviceProfile],
+    video: Optional[readiness_frames.ReadinessFrames],
+    language: Optional[str],
+) -> ChecklistAnalysisResult:
+    """A readiness pass has to be backed by something checkable.
+
+    - The model must name the frames (or, for a raw video, the seconds) in
+      which it sees the ready signal. A "ready" it can't point to is not
+      accepted — that is how a unit whose light never came on used to pass.
+    - A unit that proves readiness by blinking (Philips) must also have
+      blinked: if the scan of every frame found no flash at all, no reading
+      of the frames by the model can pass it.
+    - passed follows status, never the other way round, so a "passed" with
+      no status, or a status of fault with passed=true, can't slip through.
+    It only ever turns a pass into "unclear" — a retake, with exactly what
+    to film — and never turns a fail into a pass."""
+    status = (result.status or "").strip().lower()
+    if status not in ("ready", "fault", "unclear"):
+        status = "ready" if result.passed else "unclear"
+
+    reason = None
+    if status == "ready":
+        cited = [n for n in (result.ready_frames or []) if n >= 0]
+        if video is not None:
+            cited = [n for n in cited if 1 <= n <= len(video.frames)]
+        if not cited:
+            reason = "no evidence"
+        elif profile is not None and profile.blinking_ready and video is not None and video.flash_count == 0:
+            reason = "no flash in video"
+
+    if reason:
+        logger.info(
+            "checklist.readiness_overruled",
+            reason=reason,
+            profile=getattr(profile, "id", None),
+            cited=result.ready_frames,
+            flashes=getattr(video, "flash_count", None),
+        )
+        key = (
+            "readiness_no_blink"
+            if profile is not None and profile.blinking_ready
+            else "readiness_no_check"
+            if profile is not None and profile.id == "Zoll AED Plus"
+            else "readiness_no_evidence"
+        )
+        return result.model_copy(
+            update={
+                "status": "unclear",
+                "passed": False,
+                "confidence": min(result.confidence, 0.5),
+                **_override_notes(key, language),
+            }
+        )
+    return result.model_copy(update={"status": status, "passed": status == "ready"})
 
 
 def _apply_deterministic_checks(
@@ -403,6 +431,8 @@ def _apply_deterministic_checks(
     *,
     today: Optional[date] = None,
     language: Optional[str] = None,
+    profile: Optional[DeviceProfile] = None,
+    video: Optional[readiness_frames.ReadinessFrames] = None,
 ) -> ChecklistAnalysisResult:
     """Downgrade an implausible read the same way the old state machine did
     — cheap, deterministic sanity checks independent of Gemini's own
@@ -412,6 +442,9 @@ def _apply_deterministic_checks(
     # Hindi feedback only when it was asked for — never a stray one.
     if language != "hi" and result.notes_hi:
         result = result.model_copy(update={"notes_hi": None})
+
+    if item.id == "readiness_indicator":
+        return _check_readiness(result, profile, video, language)
 
     if item.id == "serial_number" and result.serial_number:
         # "(21) X14K718292" on a ZOLL label is field code + serial; "SN: ..."
