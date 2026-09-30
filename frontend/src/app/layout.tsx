@@ -15,13 +15,31 @@ const devanagari = Noto_Sans_Devanagari({
   preload: false,
 });
 
+const DESCRIPTION =
+  'Check your AED is ready to save a life in 3 minutes. Photograph six things, AI reads every label, and a PDF report is emailed to you. Free, from aedsmartx by Think Health.';
+
 export const metadata: Metadata = {
+  metadataBase: new URL('https://inspector.aedsmartx.com'),
   title: {
-    default: 'AED Inspect — Automated AED Inspection',
-    template: '%s | AED Inspect',
+    default: 'AED SmartX Inspector — Free AI AED inspection',
+    template: '%s | AED SmartX Inspector',
   },
-  description: 'AI-automated AED inspection with instant photo verification and signed reports. Powered by Think Healthcare and Safety.',
-  icons: { icon: '/favicon.ico' },
+  description: DESCRIPTION,
+  applicationName: 'AED SmartX Inspector',
+  // The "a" from the aedsmartx wordmark, in its brand red.
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/brand/icon-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: '/brand/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'AED SmartX Inspector',
+    description: DESCRIPTION,
+    siteName: 'AED SmartX Inspector',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { springSnappy } from '@/lib/motion';
 import { useAuthStore } from '@/stores/auth-store';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { PulseLogo } from '@/components/icons';
+import { BrandLockup } from '@/components/public/BrandLockup';
 
 /**
  * Ordered by how often it gets opened, not by hierarchy: the replacement
@@ -38,11 +38,8 @@ export function Sidebar() {
       {/* Desktop rail */}
       <aside className="hidden md:flex w-[232px] shrink-0 flex-col bg-background border-r border-border">
         <div className="px-5 pt-6 pb-5">
-          <div className="flex items-center gap-2.5">
-            <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
-            <span className="text-headline text-foreground">AED Inspect</span>
-          </div>
-          <p className="text-caption text-muted-foreground mt-1">Think Healthcare &amp; Safety</p>
+          <BrandLockup compact />
+          <p className="text-caption text-muted-foreground mt-1.5">A Think Health™ product</p>
         </div>
 
         <nav className="flex-1 px-3 space-y-0.5">

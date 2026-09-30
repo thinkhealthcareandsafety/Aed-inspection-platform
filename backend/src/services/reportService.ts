@@ -26,7 +26,6 @@ const COLOR = {
   inkLight: '#8b8fa3',
   primary: '#33409e',
   primaryTint: '#eef0f9',
-  onPrimary: '#c3c9e9',
   white: '#ffffff',
   line: '#e4e2de',
   lineSoft: '#f0eeea',
@@ -268,22 +267,6 @@ function ensureSpace(doc: PDFKit.PDFDocument, needed: number): void {
   if (doc.y + needed > BODY_BOTTOM) newPage(doc);
 }
 
-/** The brand mark, drawn as vector paths — no image asset, scales cleanly. */
-function drawLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number, color: string): void {
-  const scale = size / 24;
-  doc
-    .save()
-    .translate(x, y)
-    .scale(scale)
-    .path('M2 13h4.5l1.8-5 3.6 11 2.7-11 1.6 5H22')
-    .lineWidth(2 / scale)
-    .lineCap('round')
-    .lineJoin('round')
-    .strokeColor(color)
-    .stroke()
-    .restore();
-}
-
 function pillWidth(doc: PDFKit.PDFDocument, text: string, fontSize: number): number {
   font(doc, 'semibold', fontSize, COLOR.ink);
   return doc.widthOfString(text, { characterSpacing: 0.5 }) + 14;
@@ -308,45 +291,93 @@ function drawSectionLabel(doc: PDFKit.PDFDocument, text: string): void {
   doc.y = y + 13;
 }
 
-// ── Header band (first page only) ──────────────────────────────────────────
-function drawHeaderBand(doc: PDFKit.PDFDocument, ctx: Ctx): void {
-  doc.rect(0, 0, PAGE.width, HEADER_HEIGHT).fill(COLOR.primary);
+// ── Brand ──────────────────────────────────────────────────────────────────
+// The site is inspector.aedsmartx.com: this is aedsmartx's Inspector, and
+// aedsmartx is a Think Health product. The wordmark is the brand's own
+// artwork (cut from aedsmartx.com); its three round letters are red, orange
+// and green, which the letterhead repeats as a thin rule.
+const BRAND = {
+  wordmark: path.join(__dirname, '..', '..', 'assets', 'brand', 'aedsmartx.png'),
+  red: '#ff3131',
+  orange: '#ff914d',
+  green: '#7ed957',
+};
 
-  drawLogo(doc, PAGE.margin, 28, 20, COLOR.white);
-  font(doc, 'semibold', 15, COLOR.white).text('AED Inspect', PAGE.margin + 27, 27, { lineBreak: false });
-  font(doc, 'regular', 8, COLOR.onPrimary).text('AED inspection report', PAGE.margin + 27, 46, { lineBreak: false });
+/** Draws the aedsmartx wordmark `height` points tall; returns its width. */
+function drawWordmark(doc: PDFKit.PDFDocument, x: number, y: number, height: number): number {
+  if (fs.existsSync(BRAND.wordmark)) {
+    try {
+      const img = (doc as any).openImage(BRAND.wordmark) as { width: number; height: number };
+      const width = (img.width / img.height) * height;
+      doc.image(img as any, x, y, { height });
+      return width;
+    } catch {
+      // Fall through to the name in type.
+    }
+  }
+  font(doc, 'bold', height * 1.05, COLOR.ink).text('aedsmartx', x, y - height * 0.12, { lineBreak: false });
+  return doc.widthOfString('aedsmartx');
+}
+
+/** "aedsmartx | Inspector", as on the website. */
+function drawLockup(doc: PDFKit.PDFDocument, x: number, y: number, height: number, size: number): void {
+  const w = drawWordmark(doc, x, y, height);
+  const gap = height * 0.55;
+  doc
+    .moveTo(x + w + gap, y + height * 0.05)
+    .lineTo(x + w + gap, y + height * 0.95)
+    .lineWidth(0.7)
+    .strokeColor(COLOR.line)
+    .stroke();
+  font(doc, 'semibold', size, COLOR.ink).text('Inspector', x + w + gap * 2, y + height / 2 - size * 0.62, {
+    lineBreak: false,
+  });
+}
+
+// ── Letterhead (first page only) ───────────────────────────────────────────
+function drawHeaderBand(doc: PDFKit.PDFDocument, ctx: Ctx): void {
+  // The brand's three colours as a hairline across the top edge.
+  const third = PAGE.width / 3;
+  doc.rect(0, 0, third, 3).fill(BRAND.red);
+  doc.rect(third, 0, third, 3).fill(BRAND.orange);
+  doc.rect(third * 2, 0, PAGE.width - third * 2, 3).fill(BRAND.green);
+
+  drawLockup(doc, PAGE.margin, 30, 17, 13);
+  font(doc, 'regular', 8, COLOR.inkLight).text('AED inspection report', PAGE.margin, 54, { lineBreak: false });
 
   if (ctx.sample) {
     const label = 'SAMPLE REPORT';
-    font(doc, 'semibold', 7.5, COLOR.white);
+    font(doc, 'semibold', 7.5, COLOR.primary);
     const width = doc.widthOfString(label, { characterSpacing: 1 }) + 18;
-    doc
-      .roundedRect(RIGHT_EDGE - width, 25, width, 18, 9)
-      .fillOpacity(0.16)
-      .fill(COLOR.white)
-      .fillOpacity(1);
-    font(doc, 'semibold', 7.5, COLOR.white).text(label, RIGHT_EDGE - width + 9, 30.5, {
+    doc.roundedRect(RIGHT_EDGE - width, 28, width, 18, 9).fill(COLOR.primaryTint);
+    font(doc, 'semibold', 7.5, COLOR.primary).text(label, RIGHT_EDGE - width + 9, 33.5, {
       characterSpacing: 1,
       lineBreak: false,
     });
-    font(doc, 'regular', 8, COLOR.onPrimary).text('A fictional inspection, for illustration', PAGE.margin, 50, {
+    font(doc, 'regular', 8, COLOR.inkLight).text('A fictional inspection, for illustration', PAGE.margin, 54, {
       width: CONTENT_WIDTH,
       align: 'right',
       lineBreak: false,
     });
   } else {
-    font(doc, 'semibold', 10, COLOR.white).text(`Report ${ctx.shortId}`, PAGE.margin, 28, {
+    font(doc, 'semibold', 10, COLOR.ink).text(`Report ${ctx.shortId}`, PAGE.margin, 31, {
       width: CONTENT_WIDTH,
       align: 'right',
       lineBreak: false,
     });
-    font(doc, 'regular', 8, COLOR.onPrimary).text('Think Healthcare and Safety', PAGE.margin, 45, {
+    font(doc, 'regular', 8, COLOR.inkLight).text('A Think Health™ product', PAGE.margin, 54, {
       width: CONTENT_WIDTH,
       align: 'right',
       lineBreak: false,
     });
   }
 
+  doc
+    .moveTo(PAGE.margin, HEADER_HEIGHT)
+    .lineTo(RIGHT_EDGE, HEADER_HEIGHT)
+    .lineWidth(0.7)
+    .strokeColor(COLOR.line)
+    .stroke();
   doc.y = HEADER_HEIGHT + 22;
 }
 
@@ -506,7 +537,7 @@ function drawNextSteps(doc: PDFKit.PDFDocument, ctx: Ctx): void {
 
   font(doc, 'regular', 9, COLOR.ink);
   const heights = steps.map((s) => doc.heightOfString(s.text, { width: textWidth, lineGap: 1.5 }));
-  const supplyText = `Think Healthcare and Safety supplies pads, batteries and accessories for the ${ctx.model} — inspector.aedsmartx.com`;
+  const supplyText = `aedsmartx by Think Health supplies replacement pads, batteries and accessories for the ${ctx.model} — aedsmartx.com`;
   font(doc, 'regular', 7.8, COLOR.inkMuted);
   const supplyHeight = supply ? doc.heightOfString(supplyText, { width: textWidth + 13, lineGap: 1 }) + 10 : 0;
   const height = pad + 16 + heights.reduce((a, b) => a + b, 0) + gap * (steps.length - 1) + supplyHeight + pad - 2;
@@ -805,10 +836,7 @@ function drawPageFurniture(doc: PDFKit.PDFDocument, ctx: Ctx): void {
     doc.page.margins.bottom = 0;
 
     if (i > 0) {
-      drawLogo(doc, PAGE.margin, PAGE.margin - 12, 11, COLOR.primary);
-      font(doc, 'semibold', 8, COLOR.ink).text('AED inspection report', PAGE.margin + 16, PAGE.margin - 11, {
-        lineBreak: false,
-      });
+      drawLockup(doc, PAGE.margin, PAGE.margin - 13, 10, 8.5);
       font(doc, 'regular', 7.5, COLOR.inkLight).text(
         [ctx.model, serial ? `SN ${serial}` : undefined, ctx.sample ? 'Sample' : `Report ${ctx.shortId}`]
           .filter(Boolean)
@@ -829,7 +857,7 @@ function drawPageFurniture(doc: PDFKit.PDFDocument, ctx: Ctx): void {
     doc.moveTo(PAGE.margin, footerY).lineTo(RIGHT_EDGE, footerY).lineWidth(0.6).strokeColor(COLOR.line).stroke();
 
     font(doc, 'regular', 7, COLOR.inkLight).text(
-      'Think Healthcare and Safety  ·  inspector.aedsmartx.com',
+      'aedsmartx Inspector  ·  A Think Health™ product  ·  aedsmartx.com  ·  thinkhealth.in',
       PAGE.margin,
       footerY + 9,
       { lineBreak: false },
@@ -857,7 +885,7 @@ export function createReportDoc(): PDFKit.PDFDocument {
     size: 'A4',
     margin: PAGE.margin,
     bufferPages: true,
-    info: { Title: 'AED inspection report', Author: 'Think Healthcare and Safety', Creator: 'AED Inspect' },
+    info: { Title: 'AED inspection report', Author: 'Think Health', Creator: 'AED SmartX Inspector' },
   });
   registerFonts(doc);
   return doc;

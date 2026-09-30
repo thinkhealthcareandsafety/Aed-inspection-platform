@@ -27,7 +27,8 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
   {
     id: 'Zoll AED Plus',
     name: 'AED Plus',
-    brand: 'Zoll',
+    // As ZOLL writes it on the unit and in its manuals.
+    brand: 'ZOLL',
     available: true,
     hint: 'Bright green, handle moulded into the top',
   },

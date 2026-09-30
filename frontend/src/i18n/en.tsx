@@ -18,10 +18,14 @@ export const en = {
   locale: 'en-GB',
 
   common: {
-    brand: 'AED Inspect',
-    poweredBy: (company: ReactNode): ReactNode => <>Powered by {company}</>,
+    brand: 'AED SmartX Inspector',
+    /** Footer line naming the company behind aedsmartx. */
+    productOf: (company: ReactNode): ReactNode => <>A {company} product</>,
     close: 'Close',
   },
+
+  /** Think Health's own published facts (thinkhealth.in), under its logo. */
+  trust: { since: 'CPR & AED training since 2011', facts: ['AHA & ISO certified', '70,000+ people trained'] },
 
   steps: { details: 'Details', model: 'Model', inspect: 'Inspect' },
 

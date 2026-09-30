@@ -14,6 +14,7 @@ import { isValidEmail, suggestEmailFix } from '@/lib/validators';
 import { screenTransition } from '@/lib/motion';
 import { useI18n, type Messages } from '@/i18n';
 import { preloadSampleReport } from '@/lib/sample-report';
+import { ThinkHealthLogo } from './BrandLockup';
 import { track } from '@/lib/track';
 
 const loadSampleReport = () => import('./SampleReport');
@@ -238,6 +239,26 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
           {t.photosPrivate}
         </span>
       </div>
+
+      {/* Who is asking for these details, in the company's own published
+          facts — a stranger's first question before typing a mobile number. */}
+      <div className="mt-9 flex flex-col items-center border-t border-border/70 pt-7 text-center">
+        <ThinkHealthLogo className="h-7" />
+        <p className="mt-3 text-caption text-muted-foreground">{m.trust.since}</p>
+        <p className="mt-0.5 text-caption text-muted-foreground">
+          {m.trust.facts.map((fact, i) => (
+            <Fragment key={i}>
+              {i > 0 && (
+                <span aria-hidden className="mx-1.5 text-muted-foreground/40">
+                  &middot;
+                </span>
+              )}
+              {fact}
+            </Fragment>
+          ))}
+        </p>
+      </div>
+
       {sampleOpen && (
         <SampleReport
           onClose={() => setSampleOpen(false)}

@@ -84,13 +84,20 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
       subject: `AED Inspection Report — ${modelLine}${resultLabel}`,
       html: `
         <div style="font-family: -apple-system, Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
+          <p style="margin: 0 0 20px;">
+            <img src="https://inspector.aedsmartx.com/brand/aedsmartx.png" alt="aedsmartx" height="20" style="height: 20px; vertical-align: middle;" />
+            <span style="color: #ccc; margin: 0 8px; vertical-align: middle;">|</span>
+            <span style="font-weight: 600; vertical-align: middle;">Inspector</span>
+          </p>
           <h2 style="margin-bottom: 4px;">AED Inspection Report</h2>
           <p style="color: #555; margin-top: 0;">${escapeHtml(params.aedModel ?? 'AED')} inspection completed by ${escapeHtml(params.guestName ?? 'inspector')}.</p>
           <p><strong>Result:</strong> ${resultLabel}</p>
           <p><strong>Inspection ID:</strong> ${params.inspectionId}</p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">The full report is attached as a PDF.</p>
           <p style="color: #aaa; font-size: 11px; margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">
-            Powered by Think Healthcare and Safety &middot; inspector.aedsmartx.com
+            aedsmartx Inspector &middot; A Think Health&trade; product &middot;
+            <a href="https://aedsmartx.com" style="color: #aaa;">aedsmartx.com</a> &middot;
+            <a href="https://thinkhealth.in" style="color: #aaa;">thinkhealth.in</a>
           </p>
         </div>
       `,

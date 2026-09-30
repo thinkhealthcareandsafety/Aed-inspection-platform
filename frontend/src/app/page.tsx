@@ -19,7 +19,7 @@ import { ModelSelect } from '@/components/public/ModelSelect';
 import { InspectionComplete } from '@/components/public/InspectionComplete';
 import { StepIndicator } from '@/components/public/StepIndicator';
 import { BrandFooter } from '@/components/public/BrandFooter';
-import { PulseLogo } from '@/components/icons';
+import { BrandLockup } from '@/components/public/BrandLockup';
 import { LanguageSwitch } from '@/components/public/LanguageSwitch';
 import { useI18n } from '@/i18n';
 import { springSnappy } from '@/lib/motion';
@@ -499,7 +499,6 @@ export default function PublicInspectionPage() {
         <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border/70">
           <div className="max-w-md w-full mx-auto px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
               <span className="text-headline text-foreground truncate min-w-0 flex-1">
                 {modelDisplayName(inspection.aedModel)}
               </span>
@@ -541,8 +540,7 @@ export default function PublicInspectionPage() {
           {/* Chrome shares the content column's gutters, so on a wide screen the
               wordmark sits over the content instead of drifting to the far edge. */}
           <header className="max-w-md w-full mx-auto px-4 pt-5 pb-4 flex items-center gap-2.5">
-            <PulseLogo className="w-[18px] h-[18px] text-foreground shrink-0" />
-            <span className="text-headline text-foreground flex-1">{m.common.brand}</span>
+            <BrandLockup className="flex-1 min-w-0" />
             <LanguageSwitch className="-my-1.5 -mr-2" />
           </header>
           {!online && <OfflineStrip />}

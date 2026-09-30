@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
-import { PulseLogo } from '@/components/icons';
+import { BrandLockup } from '@/components/public/BrandLockup';
 import { BrandFooter } from '@/components/public/BrandFooter';
 
 const schema = z.object({
@@ -51,11 +51,10 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <PulseLogo className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">AED Inspection</h1>
-          <p className="text-muted-foreground text-sm mt-1">AI-powered AED compliance platform</p>
+          <h1 className="flex justify-center">
+            <BrandLockup />
+          </h1>
+          <p className="text-muted-foreground text-sm mt-3">Staff sign-in · A Think Health™ product</p>
         </div>
 
         {/* Form card */}
