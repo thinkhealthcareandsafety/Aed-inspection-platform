@@ -74,6 +74,9 @@ export const en = {
     settingUp: 'Setting up your checklist…',
     notSure: 'Not sure? The model name is printed on the front of the unit and on the label at the back.',
     editDetails: 'Edit my details',
+    enlarge: (name: string) => `See a larger photo of the ${name}`,
+    thisIsMine: 'This is my AED',
+    others: 'Compare with the others',
     hints: {
       'Philips FRx': 'Blue-grey, often kept in a red carry case',
       'Philips HS1': 'Deeper blue and upright, with a carry strap',

@@ -1,11 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
+import { DEVICE_PHOTO } from '@/lib/device-photos';
 import { screenTransition } from '@/lib/motion';
 import { useI18n } from '@/i18n';
+import { DevicePreview } from './DevicePreview';
 import { UnlistedModel } from './UnlistedModel';
 
 interface Props {
@@ -17,20 +20,9 @@ interface Props {
   onBack: () => void;
 }
 
-/**
- * A photo of each unit, so the person matches the device in front of them
- * at a glance — the bright green one, the upright blue one. The studio shots
- * from buyaedindia.com, cut out and scaled to the same size so the three
- * read as one set on the same neutral tile.
- */
-const DEVICE_PHOTO: Record<string, string> = {
-  'Philips FRx': '/devices/frx.webp',
-  'Philips HS1': '/devices/hs1.webp',
-  'Zoll AED Plus': '/devices/zoll.webp',
-};
-
 export function ModelSelect({ selected, starting, contact, onSelect, onBack }: Props) {
   const { m } = useI18n();
+  const [previewing, setPreviewing] = useState<string | null>(null);
   return (
     <motion.div {...screenTransition} className="w-full">
       <div className="mb-6 px-1">
@@ -43,33 +35,52 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
       </div>
 
       {/* One tap starts the inspection: separate cards rather than list rows,
-          because each is a whole decision and wants a thumb-sized target. */}
+          because each is a whole decision and wants a thumb-sized target.
+          The photo is its own button — it opens the unit large, to compare
+          against the one on the wall — so the card's press is on the <li>,
+          where both move together. */}
       <ul className="flex flex-col gap-2.5">
         {AED_MODEL_OPTIONS.map((model) => {
           const isSelected = selected === model.id;
           const isBusy = starting && isSelected;
           return (
-            <li key={model.id}>
+            <li
+              key={model.id}
+              className={cn('relative', !starting && 'pressable', starting && !isSelected && 'opacity-40')}
+            >
+              <button
+                type="button"
+                disabled={starting}
+                onClick={() => setPreviewing(model.id)}
+                aria-label={m.model.enlarge(`${model.brand} ${model.name}`)}
+                className="group absolute left-3.5 top-1/2 z-10 h-20 w-20 -translate-y-1/2 overflow-hidden rounded-2xl bg-[#f3f3f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:bg-white/[0.06]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={DEVICE_PHOTO[model.id]?.tile}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                />
+                <span
+                  aria-hidden
+                  className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-foreground/75 shadow-[0_1px_3px_rgb(0_0_0/0.18)] ring-1 ring-black/5 transition-colors group-hover:text-foreground dark:bg-neutral-800/95 dark:ring-white/10"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" strokeWidth={2.2} />
+                </span>
+              </button>
               <button
                 type="button"
                 disabled={starting}
                 onClick={() => onSelect(model.id)}
                 className={cn(
-                  'pressable surface-tile w-full flex items-center gap-4 p-3.5 pr-4 text-left',
+                  'surface-tile w-full flex items-center gap-4 p-3.5 pr-4 text-left',
                   isSelected && '!shadow-[0_0_0_2px_hsl(var(--primary))]',
-                  starting && !isSelected && 'opacity-40',
                 )}
               >
-                <span className="w-20 h-20 shrink-0 overflow-hidden rounded-2xl bg-[#f3f3f5] dark:bg-white/[0.06]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={DEVICE_PHOTO[model.id]}
-                    alt=""
-                    width={80}
-                    height={80}
-                    className="h-full w-full object-contain p-1"
-                  />
-                </span>
+                {/* Room for the photo, which sits over this spot. */}
+                <span className="w-20 h-20 shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1">
                   <span className="block text-caption uppercase tracking-[0.06em] text-muted-foreground">
                     {model.brand}
@@ -93,6 +104,18 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
       <p className="text-footnote text-muted-foreground mt-3 px-1">
         {m.model.notSure}
       </p>
+
+      {previewing && (
+        <DevicePreview
+          modelId={previewing}
+          onModelChange={setPreviewing}
+          onClose={() => setPreviewing(null)}
+          onChoose={(modelId) => {
+            setPreviewing(null);
+            onSelect(modelId);
+          }}
+        />
+      )}
 
       {contact && (
         <div className="mt-5">

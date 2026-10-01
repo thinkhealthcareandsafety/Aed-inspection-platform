@@ -422,6 +422,7 @@ export default function PublicInspectionPage() {
     setContact(null);
     setInspection(null);
     setEmailStatus(null);
+    window.scrollTo({ top: 0 });
   }, []);
 
   /** A facilities manager rarely has one AED. The next one should cost a
@@ -458,7 +459,6 @@ export default function PublicInspectionPage() {
   const handleStartOver = useCallback(() => {
     setMenu(null);
     handleReset();
-    window.scrollTo({ top: 0 });
   }, [handleReset]);
 
   /** On a laptop, "Take the photo" opens a file browser. This link reopens
@@ -579,7 +579,11 @@ export default function PublicInspectionPage() {
           </div>
         )}
 
-        <AnimatePresence mode="wait">
+        {/* Each screen starts at its top. The form is submitted from its
+            foot, and a phone kept that scroll position into the next screen,
+            opening it at the bottom. Reset once the old screen has gone, so
+            it doesn't jump while it fades out. */}
+        <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo({ top: 0 })}>
           {resume === 'done' && step === 'contact' && (
             <ContactForm key="contact" defaultValues={contact ?? undefined} onSubmit={handleContactSubmit} />
           )}
