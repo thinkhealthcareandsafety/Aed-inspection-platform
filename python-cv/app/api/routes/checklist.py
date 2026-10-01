@@ -62,6 +62,8 @@ async def analyze_item(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except gemini_checklist_service.DailyLimitReached as exc:
+        raise HTTPException(status_code=503, detail="The AI service has reached today's limit.") from exc
     except TimeoutError as exc:
         logger.error("checklist.analyze_timeout", item_id=item_id, error=str(exc))
         raise HTTPException(status_code=504, detail=str(exc)) from exc

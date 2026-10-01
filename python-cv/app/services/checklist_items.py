@@ -47,6 +47,20 @@ _FINE_PRINT = (
     "closer, reduce glare, hold steady)."
 )
 
+# The model is good at reading a label and poor at calendars: it has failed
+# in-date pads as "expiring next month" and passed expired ones it thought
+# were in the future. So it only reports what it sees; the service decides
+# expired or not, against today's date.
+_READ_DONT_JUDGE = (
+    "Set date_legible=true only if you read the expiry date with certainty "
+    "(false if you are unsure of any digit). Set damage_seen=true if the "
+    "item is visibly damaged, opened, swollen, leaking or corroded, false if "
+    "it looks intact, null if you cannot see it. Do NOT decide whether the "
+    "date has passed or is coming up — the app checks the date against "
+    "today itself. Set passed=true if you read the expiry date with "
+    "certainty and see no damage."
+)
+
 
 @dataclass(frozen=True)
 class ChecklistItem:
@@ -91,7 +105,8 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
             "Find the expiry date of the electrode pads, on their cartridge, "
             "case or sealed pack.\n\n"
             f"{_DATE_SYMBOLS}\n\n"
-            f"Normalise expiry_date to YYYY-MM or YYYY-MM-DD. {_FINE_PRINT}"
+            f"Normalise expiry_date to YYYY-MM or YYYY-MM-DD. {_FINE_PRINT}\n\n"
+            f"{_READ_DONT_JUDGE}"
         ),
     ),
     ChecklistItem(
@@ -112,7 +127,8 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
             "battery_serial_number if legible. These two fields are "
             "optional: never fail the check or lower pass/confidence just "
             "because they are missing or unreadable — only the expiry date "
-            "is mandatory for this item."
+            "is mandatory for this item.\n\n"
+            f"{_READ_DONT_JUDGE}"
         ),
     ),
     # ── Section 2 — Physical status ──────────────────────────────────────

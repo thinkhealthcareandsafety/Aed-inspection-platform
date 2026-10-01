@@ -9,6 +9,9 @@ uploads one piece of media per item, and gets one AI verdict back.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import os
+import time
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
@@ -26,27 +29,28 @@ from app.utils.date_parser import expiry_last_valid_day, parse_all_expiry_dates,
 
 logger = structlog.get_logger(__name__)
 
-# Flash-lite is enough for a single still frame; the readiness-indicator
-# item benefits from the stronger reasoning of the full flash model when
-# judging a sequence of frames. (There is no "gemini-3.1-flash" — only
-# the -lite variant exists at that version; 3.5 is the next full flash
-# tier available.)
-GEMINI_IMAGE_MODEL = "gemini-3.1-flash-lite"
-
-# Video goes through a fallback chain rather than a single model.
+# Chosen by measurement (python-cv/eval, 1 Oct 2026), not by name:
 #
-# gemini-3.5-flash was the sole video model and began returning 503 Service
-# Unavailable persistently — measured against production: every video check
-# failed after ~37s while image checks succeeded in ~3s on the lite model.
-# Retrying one unhealthy model three times just burned the whole timeout
-# budget and surfaced as "the AI service is busy", which read like a Google
-# outage when a perfectly healthy model was sitting next to it.
+#   photos, 47 cases   gemini-3.5-flash-lite  42 correct, 4 retakes on
+#                      unreadable shots, 0 wrong readings; p50 2.1 s,
+#                      p95 3.6 s. Needed no correction from the checks
+#                      below beyond the ones they always make.
+#                      gemini-3.1-flash-lite (the previous choice) slower,
+#                      and read in-date pads as expired until the service
+#                      took the date decision away from it.
+#                      gemini-2.5-flash-lite: withdrawn by Google (404).
+#   readiness, 7 clips gemini-3.5-flash-lite  21/21 over three runs; p50
+#   x 3 runs           3.4 s. gemini-3.8-flash 4/7, the other three timed
+#                      out at 50 s. gemini-3.6-flash (the previous choice)
+#                      was 21/21 the day before but slower (6-14 s), and
+#                      on a free-tier key it is capped at 20 requests a day.
 #
-# Order is most-capable-first; each entry is tried in turn on a 5xx, so one
-# model losing capacity degrades quality slightly instead of failing the
-# inspection. Measured on a 20-frame sequence: 3.6 answered in ~6.5s, the
-# lite model in ~5s, while 3.5 and 3.7 were both returning 503s.
-GEMINI_VIDEO_MODELS = ("gemini-3.6-flash", "gemini-3.1-flash-lite")
+# Each list is a fallback chain: the next model is asked when the one
+# before it is slow, failing or out of quota. Google counts quota per
+# model, so a second model is a second allowance as well as a second chance.
+GEMINI_IMAGE_MODEL = "gemini-3.5-flash-lite"
+GEMINI_IMAGE_FALLBACKS: tuple = ("gemini-3.1-flash-lite",)
+GEMINI_VIDEO_MODELS = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite")
 
 # Google's own SDK retries internally, but has been observed giving up
 # within a few seconds even on a transient "model experiencing high
@@ -64,17 +68,71 @@ VIDEO_TIMEOUT_SECONDS = 50.0
 # No single call may hold the budget hostage: an overloaded model's refusal
 # alone can take 12-16 s to arrive.
 PER_ATTEMPT_TIMEOUT_SECONDS = 18.0
-# How long the stronger model runs alone before the next one in the chain is
-# asked too. A healthy 3.6 answers a 20-frame sequence in ~6.5 s, so it
-# usually wins; when it is overloaded, the fallback's answer is already on
-# its way.
-HEDGE_DELAY_SECONDS = 4.0
+# How long the first model in a chain runs alone before the next is asked
+# too: past the slowest normal answer, so a healthy call isn't paid for
+# twice. Readiness clips answer in 2.5-6 s; one in fourteen stalled to 42 s
+# with no backup, and a backup at 9 s turns that into ~14 s. A photo
+# answers in ~2 s. A failure — an outage, a quota refusal — starts the
+# backup at once anyway, without waiting for these.
+HEDGE_DELAY_SECONDS = 9.0
+IMAGE_HEDGE_DELAY_SECONDS = 7.0
+
+# Labels are read twice, by two different models, and the readings must
+# agree. A model reading fine print is occasionally confidently wrong —
+# measured: one serial in about seventy, an 8 read as a B on a dim photo —
+# and a wrong serial or date on an inspection record is worse than a
+# retake. Two models rarely make the same mistake on the same character.
+SECOND_READ_ITEMS = frozenset({"serial_number", "pads_expiry", "battery_expiry"})
+#: How long, after the first reading arrives, to wait for the second. If it
+#: isn't back by then (or failed), the first reading stands on its own.
+SECOND_READ_GRACE_SECONDS = 4.0
 
 # How the video reaches the model — every frame scanned for the Ready
 # light's flashes, then labelled frames sent — lives in readiness_frames.py.
 
 
-class ChecklistAnalysisResult(BaseModel):
+# A ceiling on AI calls per day (UTC), so a flood of uploads — a bug, a bot,
+# someone looping retakes — can't spend the prepaid credit in an afternoon.
+# ~2,500 calls is ~200 inspections. Raise it on Render, no code change.
+DAILY_AI_CALL_LIMIT = int(os.environ.get("DAILY_AI_CALL_LIMIT", "2500"))
+_calls_today = {"day": None, "count": 0}
+
+
+class DailyLimitReached(RuntimeError):
+    """Today's AI-call ceiling is spent."""
+
+
+def _spend_call() -> None:
+    today = datetime.now(timezone.utc).date()
+    if _calls_today["day"] != today:
+        _calls_today.update(day=today, count=0)
+    if _calls_today["count"] >= DAILY_AI_CALL_LIMIT:
+        logger.error("checklist.daily_limit_reached", limit=DAILY_AI_CALL_LIMIT)
+        raise DailyLimitReached(f"Daily AI call limit of {DAILY_AI_CALL_LIMIT} reached")
+    _calls_today["count"] += 1
+
+
+def ai_calls_today() -> dict:
+    today = datetime.now(timezone.utc).date()
+    used = _calls_today["count"] if _calls_today["day"] == today else 0
+    return {"used": used, "limit": DAILY_AI_CALL_LIMIT}
+
+
+# Settings the evaluation harness (python-cv/eval) varies to compare
+# options on real labels; production runs with these values.
+TEMPERATURE = 0.1
+#: How finely each image is tokenised. None leaves it to the model.
+IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
+#: "low" / "high" on models that think; None leaves it to the model.
+THINKING_LEVEL: Optional[str] = None
+#: Bumped by hand when the shared prompt template's wording changes; the
+#: per-item and per-device wording is hashed in automatically.
+PROMPT_REVISION = "2026-10-01"
+
+
+class ChecklistVerdict(BaseModel):
+    """What the model fills in — the response schema it is held to."""
+
     passed: bool
     confidence: float = Field(ge=0.0, le=1.0)
     notes: str
@@ -93,10 +151,67 @@ class ChecklistAnalysisResult(BaseModel):
     # the seconds) in which the model can see the ready signal. A "ready"
     # with none is not accepted — see _check_readiness.
     ready_frames: Optional[List[int]] = None
+    # The brand of AED the model can see. A photo of a different maker's
+    # unit can't pass a check for this one — see _different_brand.
+    brand_seen: Optional[str] = None
+    # Expiry items: the model reports what it saw and the service decides.
+    # date_legible — it read the date with certainty; damage_seen — the
+    # pads or battery look damaged, opened, swollen, leaking or corroded.
+    date_legible: Optional[bool] = None
+    damage_seen: Optional[bool] = None
     # The same message as `notes`, in Hindi, when the inspector is using the
     # app in Hindi. `notes` stays English: it is what the PDF report and the
     # sales team read.
     notes_hi: Optional[str] = None
+
+
+class AnalysisMeta(BaseModel):
+    """How a verdict was reached — written by this service, never by the
+    model. The backend stores the whole result, so any answer can be traced
+    later: which model gave it, under which version of the instructions, how
+    long it took, what it cost, and which safety rules changed it. Without
+    this, "why did this AED pass?" had no answer beyond the verdict itself."""
+
+    model: Optional[str] = None
+    prompt_version: Optional[str] = None
+    latency_ms: Optional[int] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    thinking_tokens: Optional[int] = None
+    frames_sent: Optional[int] = None
+    flashes_found: Optional[int] = None
+    #: Labels: the model that read it a second time, and how that went —
+    #: agrees, disagrees, unread (it couldn't read it), unavailable.
+    second_model: Optional[str] = None
+    second_read: Optional[str] = None
+    #: Each rule that overruled or corrected the model, by name.
+    overrides: List[str] = Field(default_factory=list)
+
+
+class ChecklistAnalysisResult(ChecklistVerdict):
+    meta: Optional[AnalysisMeta] = None
+
+
+def _prompt_version(item: ChecklistItem, profile: DeviceProfile) -> str:
+    """A short fingerprint of every instruction this verdict was given."""
+    text = "\n".join(
+        [PROMPT_REVISION, item.prompt, profile.name, profile.appearance, profile.guidance.get(item.id, "")]
+    )
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:10]
+
+
+def _generation_config(item: ChecklistItem) -> types.GenerateContentConfig:
+    extra = {}
+    if item.media_type == "image" and IMAGE_MEDIA_RESOLUTION is not None:
+        extra["media_resolution"] = IMAGE_MEDIA_RESOLUTION
+    if THINKING_LEVEL:
+        extra["thinking_config"] = types.ThinkingConfig(thinking_level=THINKING_LEVEL)
+    return types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=ChecklistVerdict,
+        temperature=TEMPERATURE,
+        **extra,
+    )
 
 
 # Languages the inspector's feedback can be written in, besides English.
@@ -140,6 +255,14 @@ _OVERRIDE_NOTES = {
         "हमें AED का रेडी सिग्नल साफ़ नहीं दिखा। रेडीनेस इंडिकेटर का पास से, फ़ोन स्थिर रखकर, "
         "कम से कम 10 सेकंड का वीडियो बनाएँ।",
     ),
+    "reads_disagree_serial": (
+        "We couldn't read the serial number with certainty. Retake it closer, holding steady, in good light.",
+        "सीरियल नंबर पक्के तौर पर नहीं पढ़ा जा सका। पास से, फ़ोन स्थिर रखकर, अच्छी रोशनी में फिर से फ़ोटो लें।",
+    ),
+    "reads_disagree_date": (
+        "We couldn't read the expiry date with certainty. Retake it closer, holding steady, in good light.",
+        "एक्सपायरी डेट पक्के तौर पर नहीं पढ़ी जा सकी। पास से, फ़ोन स्थिर रखकर, अच्छी रोशनी में फिर से फ़ोटो लें।",
+    ),
     "implausible_expiry": (
         "Expiry date reading looked implausible — please recapture with the label centred, well lit, and in focus.",
         "एक्सपायरी डेट ठीक से नहीं पढ़ी जा सकी। लेबल को बीच में रखकर, अच्छी रोशनी में और फ़ोकस में फिर से फ़ोटो लें।",
@@ -166,6 +289,91 @@ def _expired_notes(item_id: str, last_valid: date, language: Optional[str]) -> d
             if what == "pads"
             else f"बैटरी {when} को एक्सपायर हो चुकी है। किसी इमरजेंसी में इस AED पर भरोसा करने से पहले बैटरी बदलें।"
         )
+    return {"notes": english, "notes_hi": hindi}
+
+
+def _hindi_date(day: date) -> str:
+    return f"{day.day} {_HINDI_MONTHS[day.month - 1]} {day.year}"
+
+
+def _in_date_notes(item_id: str, last_valid: date, today: date, language: Optional[str]) -> dict:
+    """The verdict on an in-date consumable, written by the service so it
+    can never contradict the date (the model has called pads in date until
+    next month "expired")."""
+    pads = item_id == "pads_expiry"
+    soon = (last_valid - today).days <= 90
+    when = last_valid.strftime("%d %b %Y")
+    english = f"{'Pads' if pads else 'Battery'} in date until {when}." + (
+        f" That's within three months — order {'replacement pads' if pads else 'a replacement battery'} soon."
+        if soon
+        else ""
+    )
+    hindi = None
+    if language == "hi":
+        hindi = (
+            f"पैड्स {_hindi_date(last_valid)} तक वैध हैं।" + (" जल्द नए पैड्स मँगवा लें।" if soon else "")
+            if pads
+            else f"बैटरी {_hindi_date(last_valid)} तक वैध है।" + (" जल्द नई बैटरी मँगवा लें।" if soon else "")
+        )
+    return {"notes": english, "notes_hi": hindi}
+
+
+# Makers of AEDs, by the words a model uses for them, so a photo of one
+# maker's unit is recognised whatever it calls it. Anything else (a battery
+# brand such as Duracell, a word it guessed) is ignored rather than risk
+# failing a good photo.
+_AED_BRANDS = {
+    "Philips": ("philips", "heartstart", "laerdal"),
+    "ZOLL": ("zoll",),
+    "Mindray": ("mindray", "beneheart"),
+    "Schiller": ("schiller", "fred easy"),
+    "HeartSine": ("heartsine", "samaritan"),
+    "Physio-Control": ("physio-control", "physio control", "lifepak", "stryker"),
+    "Cardiac Science": ("cardiac science", "powerheart"),
+    "Nihon Kohden": ("nihon kohden",),
+    "Defibtech": ("defibtech", "lifeline"),
+    "CU Medical": ("cu medical", "i-pad"),
+}
+
+
+def _aed_brand(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return None
+    lowered = text.lower()
+    for brand, words in _AED_BRANDS.items():
+        if any(w in lowered for w in words):
+            return brand
+    return None
+
+
+# Checks whose photo shows the AED itself (or its own pads/battery/key). The
+# cabinet, rescue kit and contacts sticker may show no AED at all.
+_BRAND_CHECKED_ITEMS = {
+    "serial_number", "pads_expiry", "battery_expiry", "battery_attached",
+    "pads_connected", "readiness_indicator", "child_key_pad",
+}
+
+
+def _different_brand(item: ChecklistItem, result, profile: Optional[DeviceProfile]) -> Optional[str]:
+    """The brand the photo shows, when it is clearly a different maker's
+    AED from the one being inspected; otherwise None."""
+    if profile is None or not profile.brand or item.id not in _BRAND_CHECKED_ITEMS:
+        return None
+    seen = _aed_brand(result.brand_seen)
+    return seen if seen and seen != profile.brand else None
+
+
+def _brand_notes(seen: str, profile: DeviceProfile, language: Optional[str]) -> dict:
+    english = (
+        f"This looks like a {seen} AED, not the {profile.name} you chose. If you picked the wrong "
+        "model, switch it from the ⋯ menu; if not, retake the photo of this unit."
+    )
+    hindi = (
+        f"यह {seen} का AED लगता है, आपका चुना हुआ {profile.name} नहीं। अगर गलत मॉडल चुना है तो ⋯ मेनू "
+        "से बदलें, वरना इसी मशीन की फ़ोटो फिर से लें।"
+        if language == "hi"
+        else None
+    )
     return {"notes": english, "notes_hi": hindi}
 
 
@@ -224,9 +432,11 @@ def _build_prompt(
         # Which unit this is. Every device-specific fact the model is given
         # comes from this profile, so it never judges one brand by another's
         # layout. If the photo shows something else, it says so.
-        f"DEVICE: {profile.name}. {profile.appearance} If the image clearly "
-        "shows a different device, say so in notes and judge only what you "
-        "can see.\n\n"
+        f"DEVICE: {profile.name}. {profile.appearance} Set brand_seen to "
+        "the maker's name as printed on the AED itself — not the brand of "
+        "batteries or other parts inside it — or null if no AED is visible "
+        "or you can't read its maker. If the image clearly shows a different "
+        "device, say so in notes.\n\n"
         f"{sequence_note}"
         f"Checklist item: {item.title}\n"
         f"Task: {item.prompt}\n\n"
@@ -245,6 +455,55 @@ def _mime_type_for(item: ChecklistItem, declared_content_type: Optional[str]) ->
     if declared_content_type and "/" in declared_content_type:
         return declared_content_type
     return "video/mp4" if item.media_type == "video" else "image/jpeg"
+
+
+def _parse(response) -> ChecklistVerdict:
+    parsed = response.parsed
+    return parsed if isinstance(parsed, ChecklistVerdict) else ChecklistVerdict.model_validate_json(response.text)
+
+
+def _reading(item: ChecklistItem, verdict) -> Optional[str]:
+    """What a verdict read off the label, in a form two readings can be
+    compared in: the serial's letters and digits, or the expiry's month."""
+    if item.id == "serial_number":
+        cleaned = validators.normalise_serial(verdict.serial_number or "") or ""
+        cleaned = "".join(ch for ch in cleaned.upper() if ch.isalnum())
+        return cleaned or None
+    value = (verdict.expiry_date or "").strip()
+    return value[:7] if len(value) >= 7 else None
+
+
+def _compare_readings(item: ChecklistItem, first, second) -> str:
+    """agrees / disagrees / unread. A second model that couldn't read the
+    label doesn't contradict one that could — it only fails to confirm."""
+    a, b = _reading(item, first), _reading(item, second)
+    if not b:
+        return "unread"
+    if not a:
+        return "unread"
+    return "agrees" if a == b else "disagrees"
+
+
+def _quota_refusal(exc: errors.ClientError) -> tuple:
+    """(daily, retry_after_seconds) from a 429. A per-day refusal won't
+    clear for hours, so that model is done for this request; a per-minute
+    one clears in seconds."""
+    details = []
+    try:
+        details = (exc.details or {}).get("error", {}).get("details", []) or []
+    except AttributeError:
+        details = []
+    daily, retry_after = False, None
+    for d in details:
+        kind = str(d.get("@type", ""))
+        if kind.endswith("QuotaFailure"):
+            daily = daily or any("PerDay" in str(v.get("quotaId", "")) for v in d.get("violations", []))
+        elif kind.endswith("RetryInfo"):
+            try:
+                retry_after = float(str(d.get("retryDelay", "")).rstrip("s"))
+            except ValueError:
+                retry_after = None
+    return daily, retry_after
 
 
 async def analyze_checklist_item(
@@ -291,31 +550,45 @@ async def analyze_checklist_item(
             types.Part.from_bytes(data=media_bytes, mime_type=mime_type),
             _build_prompt(item, profile, language=lang),
         ]
-        models = list(GEMINI_VIDEO_MODELS) if item.media_type == "video" else [GEMINI_IMAGE_MODEL]
-
-    async def _call_once(model: str):
-        return await client.aio.models.generate_content(
-            model=model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ChecklistAnalysisResult,
-                temperature=0.1,
-            ),
+        models = (
+            list(GEMINI_VIDEO_MODELS)
+            if item.media_type == "video"
+            else [GEMINI_IMAGE_MODEL, *[m for m in GEMINI_IMAGE_FALLBACKS if m != GEMINI_IMAGE_MODEL]]
         )
 
-    async def _keep_trying(model: str, head_start: float):
-        """One model's lane: wait out its head start, then call it — and, on
-        a Google-side error or a stalled call, call it again — until it
-        answers or the overall budget cancels it."""
-        await asyncio.sleep(head_start)
+    config = _generation_config(item)
+
+    async def _call_once(model: str):
+        _spend_call()
+        return await client.aio.models.generate_content(model=model, contents=contents, config=config)
+
+    hedge = HEDGE_DELAY_SECONDS if item.media_type == "video" else IMAGE_HEDGE_DELAY_SECONDS
+    # Set when a lane's model fails, to start the next model straight away
+    # rather than at its scheduled hedge time.
+    wake = [asyncio.Event() for _ in models]
+
+    def _fail_over(index: int) -> None:
+        if index + 1 < len(wake):
+            wake[index + 1].set()
+
+    async def _keep_trying(index: int, model: str, head_start: float):
+        """One model's lane: wait out its head start (or until the lane
+        before it fails), then call it — and, on a Google-side error, a
+        stalled call or a per-minute quota refusal, call it again — until
+        it answers or the overall budget cancels it. Out of DAILY quota, it
+        hands over to the next model and stops."""
+        if head_start > 0:
+            try:
+                await asyncio.wait_for(wake[index].wait(), timeout=head_start)
+            except asyncio.TimeoutError:
+                pass
         attempt = 0
         while True:
             attempt += 1
-            if attempt > 1 or head_start > 0:
+            if attempt > 1 or index > 0:
                 logger.info("checklist.gemini_attempt", item_id=item_id, model=model, attempt=attempt)
             try:
-                return await asyncio.wait_for(_call_once(model), timeout=PER_ATTEMPT_TIMEOUT_SECONDS)
+                return model, await asyncio.wait_for(_call_once(model), timeout=PER_ATTEMPT_TIMEOUT_SECONDS)
             except (errors.ServerError, asyncio.TimeoutError) as exc:
                 logger.warning(
                     "checklist.gemini_server_error",
@@ -324,7 +597,23 @@ async def analyze_checklist_item(
                     attempt=attempt,
                     error=str(exc) or type(exc).__name__,
                 )
+                _fail_over(index)
                 await asyncio.sleep(RETRY_BACKOFF_SECONDS[min(attempt - 1, len(RETRY_BACKOFF_SECONDS) - 1)])
+            except errors.ClientError as exc:
+                if getattr(exc, "code", None) != 429:
+                    raise
+                daily, retry_after = _quota_refusal(exc)
+                logger.warning(
+                    "checklist.gemini_quota",
+                    item_id=item_id,
+                    model=model,
+                    daily=daily,
+                    retry_after=retry_after,
+                )
+                _fail_over(index)
+                if daily:
+                    raise
+                await asyncio.sleep(min(retry_after or 2.0, 10.0))
 
     async def _first_answer():
         """Hedged calls: each model in the chain gets its own lane, started
@@ -334,7 +623,7 @@ async def analyze_checklist_item(
         spent the whole budget on those refusals before the healthy model
         was ever asked, and the video check timed out for everyone."""
         lanes = [
-            asyncio.create_task(_keep_trying(model, index * HEDGE_DELAY_SECONDS))
+            asyncio.create_task(_keep_trying(index, model, index * hedge))
             for index, model in enumerate(models)
         ]
         try:
@@ -352,19 +641,93 @@ async def analyze_checklist_item(
                 lane.cancel()
 
     budget = VIDEO_TIMEOUT_SECONDS if item.media_type == "video" else OVERALL_TIMEOUT_SECONDS
+    started = time.monotonic()
+
+    second_model = None
+    second: Optional[asyncio.Task] = None
+    if item.id in SECOND_READ_ITEMS and item.media_type == "image":
+        second_model = next((m for m in models[1:] if m != models[0]), None)
+        if second_model:
+
+            async def _second_reading():
+                response = await asyncio.wait_for(_call_once(second_model), timeout=PER_ATTEMPT_TIMEOUT_SECONDS)
+                return _parse(response)
+
+            second = asyncio.create_task(_second_reading())
+
     try:
-        response = await asyncio.wait_for(_first_answer(), timeout=budget)
+        winner, response = await asyncio.wait_for(_first_answer(), timeout=budget)
     except asyncio.TimeoutError as exc:
+        if second:
+            second.cancel()
         raise TimeoutError(f"Gemini call for checklist item={item_id} exceeded {budget}s") from exc
+    except BaseException:
+        if second:
+            second.cancel()
+        raise
+    latency_ms = int((time.monotonic() - started) * 1000)
 
-    parsed = response.parsed
-    result = (
-        parsed
-        if isinstance(parsed, ChecklistAnalysisResult)
-        else ChecklistAnalysisResult.model_validate_json(response.text)
+    result = ChecklistAnalysisResult.model_validate(_parse(response).model_dump())
+
+    overrides: List[str] = []
+    second_read = None
+    if second is not None:
+        remaining = max(0.0, budget - (time.monotonic() - started))
+        try:
+            other = await asyncio.wait_for(second, timeout=min(SECOND_READ_GRACE_SECONDS, remaining))
+            second_read = _compare_readings(item, result, other)
+        except Exception as exc:  # noqa: BLE001 — slow, refused or unparseable: read once
+            second.cancel()
+            second_read = "unavailable"
+            logger.info("checklist.second_read_unavailable", item_id=item_id, model=second_model,
+                        error=str(exc) or type(exc).__name__)
+
+    if second_read == "disagrees":
+        overrides.append("second_read_disagrees")
+        logger.warning("checklist.readings_disagree", item_id=item_id, first=winner, second=second_model)
+        result = result.model_copy(
+            update={
+                "passed": False,
+                "serial_number": None,
+                "expiry_date": None,
+                "confidence": min(result.confidence, 0.4),
+                **_override_notes(
+                    "reads_disagree_serial" if item.id == "serial_number" else "reads_disagree_date", lang
+                ),
+            }
+        )
+    else:
+        result = _apply_deterministic_checks(
+            item, result, language=lang, profile=profile, video=video, overrides=overrides
+        )
+
+    usage = getattr(response, "usage_metadata", None)
+
+    def _tokens(name: str) -> Optional[int]:
+        value = getattr(usage, name, None)
+        return value if isinstance(value, int) else None
+
+    meta = AnalysisMeta(
+        model=winner,
+        prompt_version=_prompt_version(item, profile),
+        latency_ms=latency_ms,
+        input_tokens=_tokens("prompt_token_count"),
+        output_tokens=_tokens("candidates_token_count"),
+        thinking_tokens=_tokens("thoughts_token_count"),
+        frames_sent=len(video.frames) if video else None,
+        flashes_found=video.flash_count if video else None,
+        second_model=second_model if second is not None else None,
+        second_read=second_read,
+        overrides=overrides,
     )
-
-    return _apply_deterministic_checks(item, result, language=lang, profile=profile, video=video)
+    logger.info(
+        "checklist.verdict",
+        item_id=item_id,
+        profile=profile.id,
+        passed=result.passed,
+        **meta.model_dump(exclude_none=True),
+    )
+    return result.model_copy(update={"meta": meta})
 
 
 def _check_readiness(
@@ -372,6 +735,7 @@ def _check_readiness(
     profile: Optional[DeviceProfile],
     video: Optional[readiness_frames.ReadinessFrames],
     language: Optional[str],
+    overrides: Optional[List[str]] = None,
 ) -> ChecklistAnalysisResult:
     """A readiness pass has to be backed by something checkable.
 
@@ -400,6 +764,8 @@ def _check_readiness(
             reason = "no flash in video"
 
     if reason:
+        if overrides is not None:
+            overrides.append("readiness_" + reason.replace(" ", "_"))
         logger.info(
             "checklist.readiness_overruled",
             reason=reason,
@@ -433,6 +799,7 @@ def _apply_deterministic_checks(
     language: Optional[str] = None,
     profile: Optional[DeviceProfile] = None,
     video: Optional[readiness_frames.ReadinessFrames] = None,
+    overrides: Optional[List[str]] = None,
 ) -> ChecklistAnalysisResult:
     """Downgrade an implausible read the same way the old state machine did
     — cheap, deterministic sanity checks independent of Gemini's own
@@ -443,16 +810,36 @@ def _apply_deterministic_checks(
     if language != "hi" and result.notes_hi:
         result = result.model_copy(update={"notes_hi": None})
 
+    def overruled(rule: str) -> None:
+        if overrides is not None:
+            overrides.append(rule)
+
+    # A different maker's AED in the photo can't pass this unit's check —
+    # most often the wrong model was picked. Said plainly, with the way out.
+    other = _different_brand(item, result, profile)
+    if other:
+        overruled("different_brand")
+        logger.warning("checklist.different_brand", item=item.id, seen=result.brand_seen, expected=profile.brand)
+        return result.model_copy(
+            update={
+                "passed": False,
+                "status": "unclear" if item.id == "readiness_indicator" else result.status,
+                **_brand_notes(other, profile, language),
+            }
+        )
+
     if item.id == "readiness_indicator":
-        return _check_readiness(result, profile, video, language)
+        return _check_readiness(result, profile, video, language, overrides)
 
     if item.id == "serial_number" and result.serial_number:
         # "(21) X14K718292" on a ZOLL label is field code + serial; "SN: ..."
         # on a Philips one is caption + serial. Only the serial is stored.
         cleaned = validators.normalise_serial(result.serial_number)
         if cleaned != result.serial_number:
+            overruled("serial_label_text_removed")
             result = result.model_copy(update={"serial_number": cleaned or None})
         if not validators.is_plausible_serial(result.serial_number):
+            overruled("serial_implausible")
             logger.warning("checklist.implausible_serial", value=result.serial_number)
             return result.model_copy(
                 update={
@@ -475,6 +862,7 @@ def _apply_deterministic_checks(
         if (result.manufacture_date and result.manufacture_date == result.expiry_date) or (
             gs1_production and gs1_production == result.expiry_date and gs1.get("17") != result.expiry_date
         ):
+            overruled("expiry_was_manufacture_date")
             logger.warning(
                 "checklist.expiry_equals_manufacture",
                 item=item.id,
@@ -494,6 +882,7 @@ def _apply_deterministic_checks(
         # reading of the printed dates disagrees with it, the barcode wins.
         gs1_expiry = gs1.get("17")
         if gs1_expiry and gs1_expiry[:7] != result.expiry_date[:7]:
+            overruled("expiry_corrected_from_gs1")
             logger.warning(
                 "checklist.expiry_corrected_from_gs1",
                 item=item.id,
@@ -505,6 +894,7 @@ def _apply_deterministic_checks(
         plausible = validators.is_plausible_expiry(result.expiry_date)
         agrees = validators.expiry_cross_check_agrees(result.expiry_date, result.expiry_raw_text)
         if not plausible or not agrees:
+            overruled("expiry_implausible")
             logger.warning(
                 "checklist.implausible_expiry",
                 item=item.id,
@@ -539,6 +929,9 @@ def _apply_deterministic_checks(
         reference_day = today or datetime.now(timezone.utc).date()
         last_valid = expiry_last_valid_day(result.expiry_date)
         if last_valid is not None and last_valid < reference_day:
+            # Named by whether the model got there itself: how often it calls
+            # an expired date "fine" is a measure of how far to trust it.
+            overruled("expired_model_said_pass" if result.passed else "expired")
             logger.warning(
                 "checklist.expired_consumable",
                 item=item.id,
@@ -548,5 +941,26 @@ def _apply_deterministic_checks(
             return result.model_copy(
                 update={"passed": False, **_expired_notes(item.id, last_valid, language)}
             )
+
+        # In date. The model only reports what it saw; the verdict is ours.
+        # Damage fails whatever the date. A date it couldn't read with
+        # certainty is a retake. A date it read with certainty, on a unit
+        # that looks intact, passes — even when the model, misjudging the
+        # calendar, said otherwise.
+        if last_valid is not None:
+            if result.damage_seen:
+                if result.passed:
+                    overruled("damage_seen")
+                return result.model_copy(update={"passed": False})
+            if result.date_legible is False:
+                if result.passed:
+                    overruled("date_not_certain")
+                return result.model_copy(update={"passed": False})
+            if result.date_legible and result.confidence >= 0.5:
+                if not result.passed:
+                    overruled("in_date_model_said_fail")
+                return result.model_copy(
+                    update={"passed": True, **_in_date_notes(item.id, last_valid, reference_day, language)}
+                )
 
     return result

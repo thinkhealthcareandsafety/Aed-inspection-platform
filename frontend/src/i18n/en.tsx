@@ -392,6 +392,7 @@ export const en = {
       'This inspection has been completed and its report issued, so it can no longer be changed. Start a new inspection instead.',
     notFound: 'This inspection could not be found.',
     tooMany: 'Too many requests. Please wait a moment and try again.',
+    tooManyAttempts: 'This check has been retaken too many times. Please contact us if you need help.',
     network: 'Couldn’t connect. Check your signal and try again.',
     timeout: 'That took too long. Please try again.',
     unreadable: 'The AI couldn’t check this photo. Please try a clearer capture.',

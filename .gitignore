@@ -13,3 +13,6 @@ venv/
 *.log
 .DS_Store
 tsconfig.tsbuildinfo
+
+# Evaluation clips, regenerated on demand
+python-cv/eval/.cache/

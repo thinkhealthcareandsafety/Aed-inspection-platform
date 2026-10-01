@@ -19,10 +19,16 @@ _SERIAL_ALNUM_RE = re.compile(r"[A-Za-z0-9]")
 
 _ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})(?:-(\d{2}))?$")
 
-# Battery/pad shelf life is a few years; a read outside this window is far
-# more likely a misread digit than a genuine label value.
-_MIN_PLAUSIBLE_YEAR_OFFSET = -5
-_MAX_PLAUSIBLE_YEAR_OFFSET = 20
+# How far from today an expiry date can be and still be believed.
+# Backwards: far. A neglected AED with pads that ran out years ago is exactly
+# what an inspection exists to find — the window used to stop at five years,
+# so pads that expired in 2019 or 2020 were told their photo "looked
+# implausible" and to retake it, instead of being told to replace them.
+# Forwards: near. No AED pads or battery is sold with more than about five
+# years of life, so a date further out than this is a misread digit (an
+# 8 for a 3), and believing it would pass a dead consumable.
+_MIN_PLAUSIBLE_YEAR_OFFSET = -20
+_MAX_PLAUSIBLE_YEAR_OFFSET = 8
 
 
 # What the model sometimes copies along with the serial: the GS1 field code

@@ -201,6 +201,8 @@ async function callCvService(
   return (await res.json()) as AnalysisResponse;
 }
 
+export const MAX_ATTEMPTS_PER_ITEM = 12;
+
 export async function analyzeChecklistItem(
   inspection: IInspection,
   itemId: string,
@@ -216,6 +218,17 @@ export async function analyzeChecklistItem(
   const entry = inspection.checklist.find((c) => c.itemId === item.id);
   if (!entry) throw createError('Checklist item not initialised on this inspection', 500, 'STATE_ERROR');
 
+  // Enough retakes for any honest inspection (a blurry shot, glare, a fix
+  // and re-check), not enough to turn one check into a way of spending the
+  // prepaid AI credit.
+  if ((entry.attempts ?? 0) >= MAX_ATTEMPTS_PER_ITEM) {
+    throw createError(
+      'This check has been retaken too many times. Please contact us if you need help.',
+      429,
+      'TOO_MANY_ATTEMPTS',
+    );
+  }
+  entry.attempts = (entry.attempts ?? 0) + 1;
   entry.status = 'analyzing';
   entry.mediaType = item.mediaType;
   await inspection.save();

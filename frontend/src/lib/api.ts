@@ -51,6 +51,7 @@ export function apiErrorOf(err: unknown): { message?: string; code?: string; ret
  */
 function errorKey(err: AxiosError, payload: { message?: string; code?: string; retryable?: boolean }): ApiErrorKey | undefined {
   if (!err.response) return err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' ? 'timeout' : 'network';
+  if (payload.code === 'TOO_MANY_ATTEMPTS') return 'tooManyAttempts';
   if (err.response.status === 429) return 'tooMany';
   switch (payload.code) {
     case 'CV_SERVICE_ERROR':

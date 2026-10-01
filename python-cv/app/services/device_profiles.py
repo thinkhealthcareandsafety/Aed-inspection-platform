@@ -41,12 +41,15 @@ class DeviceProfile:
     #: see readiness_frames.py. Units that show a steady symbol (ZOLL's
     #: green check) or unknown units are judged on what the model sees.
     blinking_ready: bool = False
+    #: The maker, for telling when a photo shows a different brand of AED.
+    brand: Optional[str] = None
 
 
 PHILIPS_FRX = DeviceProfile(
     id="Philips FRx",
     name="Philips HeartStart FRx",
     blinking_ready=True,
+    brand="Philips",
     appearance=(
         "A rugged blue-grey Philips unit, wider than it is tall, usually kept "
         "in a carry case. Front: a green On/Off button, a blue i-button that "
@@ -124,6 +127,7 @@ PHILIPS_HS1 = DeviceProfile(
     id="Philips HS1",
     name="Philips HeartStart HS1 (OnSite)",
     blinking_ready=True,
+    brand="Philips",
     appearance=(
         "A rounded blue Philips unit with a grip on its left side and a clear "
         "pads cartridge with a green PULL handle fitted in a well on the "
@@ -199,6 +203,7 @@ PHILIPS_HS1 = DeviceProfile(
 ZOLL_AED_PLUS = DeviceProfile(
     id="Zoll AED Plus",
     name="ZOLL AED Plus",
+    brand="ZOLL",
     appearance=(
         "A bright lime-green ZOLL unit with a hinged cover and a moulded "
         "carry handle. Under the cover: a grey panel of step pictograms, an "

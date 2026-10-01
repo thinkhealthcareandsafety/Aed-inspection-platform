@@ -21,6 +21,9 @@ export interface IChecklistItemResult {
   aiData?: Record<string, unknown>;
   uploadedAt?: Date;
   analyzedAt?: Date;
+  /** Captures sent to the AI for this check — capped, so one visitor
+   *  looping uploads can't spend the AI budget. */
+  attempts?: number;
 }
 
 export type InspectionSource = 'staff' | 'public';
@@ -95,6 +98,7 @@ const ChecklistItemSchema = new Schema<IChecklistItemResult>(
     aiData: { type: Schema.Types.Mixed },
     uploadedAt: { type: Date },
     analyzedAt: { type: Date },
+    attempts: { type: Number, default: 0 },
   },
   { _id: false },
 );

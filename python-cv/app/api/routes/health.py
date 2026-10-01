@@ -1,6 +1,7 @@
 """Health check endpoints."""
 from fastapi import APIRouter, HTTPException
 from app.core.config import settings
+from app.services.gemini_checklist_service import ai_calls_today
 
 router = APIRouter()
 
@@ -12,6 +13,8 @@ async def health():
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "gemini_configured": bool(settings.GEMINI_API_KEY),
+        # How much of today's AI-call ceiling is spent — watch this, not the bill.
+        "ai_calls_today": ai_calls_today(),
     }
 
 
