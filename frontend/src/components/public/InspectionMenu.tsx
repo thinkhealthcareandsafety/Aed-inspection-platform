@@ -45,14 +45,18 @@ export default function InspectionMenu({
   return (
     <RadixDialog.Root open onOpenChange={(open) => !open && onClose()}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm fade-in" />
-        <RadixDialog.Content
-          className={cn(
-            'sheet-up fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-md rounded-t-3xl bg-card shadow-2xl focus:outline-none',
-            'pb-[max(1.25rem,env(safe-area-inset-bottom))]',
-          )}
-        >
-          <div className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-border" aria-hidden />
+        {/* A sheet from the bottom edge on a phone, under the thumb; a dialog
+            in the middle of a computer screen. On a tall desktop display a
+            bottom sheet opened far below the ⋯ button that summoned it, and
+            read as the button doing nothing. */}
+        <RadixDialog.Overlay className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-6">
+          <RadixDialog.Content
+            className={cn(
+              'sheet-adaptive relative w-full max-w-md bg-card shadow-2xl focus:outline-none',
+              'rounded-t-3xl pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl sm:pb-5',
+            )}
+          >
+            <div className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-border sm:hidden" aria-hidden />
           {view === 'menu' ? (
             <MenuView
               modelName={modelName}
@@ -65,7 +69,8 @@ export default function InspectionMenu({
           ) : (
             <PhoneView url={handoffUrl ?? ''} onBack={() => onViewChange('menu')} />
           )}
-        </RadixDialog.Content>
+          </RadixDialog.Content>
+        </RadixDialog.Overlay>
       </RadixDialog.Portal>
     </RadixDialog.Root>
   );

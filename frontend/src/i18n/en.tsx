@@ -75,7 +75,7 @@ export const en = {
     notSure: 'Not sure? The model name is printed on the front of the unit and on the label at the back.',
     editDetails: 'Edit my details',
     hints: {
-      'Philips FRx': 'Blue-grey, wider than it is tall',
+      'Philips FRx': 'Blue-grey, often kept in a red carry case',
       'Philips HS1': 'Deeper blue and upright, with a carry strap',
       'Zoll AED Plus': 'Bright green, handle moulded into the top',
     } as Record<string, string>,

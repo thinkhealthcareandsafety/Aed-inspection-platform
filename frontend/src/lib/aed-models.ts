@@ -15,7 +15,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     name: 'HeartStart FRx',
     brand: 'Philips',
     available: true,
-    hint: 'Blue-grey, wider than it is tall',
+    hint: 'Blue-grey, often kept in a red carry case',
   },
   {
     id: 'Philips HS1',

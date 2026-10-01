@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
 import { screenTransition } from '@/lib/motion';
 import { useI18n } from '@/i18n';
-import { AedGlyph } from './AedGlyph';
 import { UnlistedModel } from './UnlistedModel';
 
 interface Props {
@@ -19,14 +18,15 @@ interface Props {
 }
 
 /**
- * Each unit's body colour behind its silhouette, so the tile looks like the
- * thing in front of the person: spotting "the bright green one" is faster
- * than reading "AED Plus". Fixed hues, lifted for the dark theme.
+ * A photo of each unit, so the person matches the device in front of them
+ * at a glance — the bright green one, the upright blue one. The studio shots
+ * from buyaedindia.com, cut out and scaled to the same size so the three
+ * read as one set on the same neutral tile.
  */
-const DEVICE_TONE: Record<string, string> = {
-  'Philips FRx': 'text-[#48617f] bg-[#48617f]/10 dark:text-[#a9bdd6] dark:bg-[#a9bdd6]/10',
-  'Philips HS1': 'text-[#1d56a0] bg-[#1d56a0]/10 dark:text-[#8db6ee] dark:bg-[#8db6ee]/10',
-  'Zoll AED Plus': 'text-[#447f17] bg-[#76b82a]/15 dark:text-[#a6d96a] dark:bg-[#a6d96a]/10',
+const DEVICE_PHOTO: Record<string, string> = {
+  'Philips FRx': '/devices/frx.webp',
+  'Philips HS1': '/devices/hs1.webp',
+  'Zoll AED Plus': '/devices/zoll.webp',
 };
 
 export function ModelSelect({ selected, starting, contact, onSelect, onBack }: Props) {
@@ -60,13 +60,15 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
                   starting && !isSelected && 'opacity-40',
                 )}
               >
-                <span
-                  className={cn(
-                    'w-14 h-14 rounded-xl flex items-center justify-center shrink-0',
-                    DEVICE_TONE[model.id] ?? 'text-muted-foreground bg-secondary',
-                  )}
-                >
-                  <AedGlyph model={model.id} className="w-9 h-9" />
+                <span className="w-20 h-20 shrink-0 overflow-hidden rounded-2xl bg-[#f3f3f5] dark:bg-white/[0.06]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={DEVICE_PHOTO[model.id]}
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="h-full w-full object-contain p-1"
+                  />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-caption uppercase tracking-[0.06em] text-muted-foreground">
