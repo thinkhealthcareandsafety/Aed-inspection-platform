@@ -127,7 +127,7 @@ IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
 THINKING_LEVEL: Optional[str] = None
 #: Bumped by hand when the shared prompt template's wording changes; the
 #: per-item and per-device wording is hashed in automatically.
-PROMPT_REVISION = "2026-10-03"
+PROMPT_REVISION = "2026-10-03b"  # b: pads connected only when seen; where the FRx port is
 
 
 class ChecklistVerdict(BaseModel):

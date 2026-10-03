@@ -109,12 +109,16 @@ PHILIPS_FRX = DeviceProfile(
             "tilted battery or an empty compartment is a fail."
         ),
         "pads_connected": (
-            "The SMART Pads II cable ends in a blue plug that must be pushed "
-            "fully into the FRx's pads connector port; the sealed pads case "
-            "itself is usually stored in the carry-case pocket rather than "
-            "attached to the unit. Pass only if the blue plug is fully seated "
-            "in the port. A loose, half-inserted or unplugged connector is a "
-            "fail."
+            "The pads connector port is a small socket in the TOP-LEFT corner "
+            "of the FRx's front face, above the dark grey panel. Empty, it "
+            "shows as a recessed slot with two small dark rectangular "
+            "openings side by side, and nothing comes out of it. Connected, "
+            "a blue plug fills that slot and a pads cable runs out of it, "
+            "towards the sealed SMART Pads II case (usually stored in the "
+            "carry-case pocket, not on the unit). Pass only if the blue plug "
+            "and its cable are visible in the port. If you can see the two "
+            "openings, or no plug and cable at all, the pads are NOT "
+            "connected — a fail. A loose or half-inserted plug is a fail."
         ),
         "readiness_indicator": (
             "The FRx's Ready light is a small green light on the front, near "

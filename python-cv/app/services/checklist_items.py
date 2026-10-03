@@ -160,9 +160,14 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
         prompt=(
             "Determine whether the electrode pads are connected to the AED, "
             "so it could deliver a shock straight away. Set passed=true only "
-            "if the connection is clearly and fully made. If the photo "
-            "doesn't show it clearly enough to judge, set passed=false and "
-            "ask for a clearer angle in notes."
+            "if you can actually SEE the connection made — the plug or "
+            "cartridge the device notes describe, seated in place. Never "
+            "assume a connection you cannot see. If the connector or "
+            "cartridge well is visible and empty, the pads are NOT connected: "
+            "set passed=false and say plainly in notes that the pads are not "
+            "connected and must be plugged in before the AED can be relied "
+            "on. If the photo doesn't show the connector clearly enough to "
+            "judge, set passed=false and ask for a closer photo of it."
         ),
     ),
     ChecklistItem(

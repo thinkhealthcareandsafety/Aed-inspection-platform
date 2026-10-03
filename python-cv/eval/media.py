@@ -25,7 +25,12 @@ UPLOAD_QUALITY = 82
 
 
 def load(name: str) -> np.ndarray:
-    path = SAMPLE_CAPTURES / name[len("sample:"):] if name.startswith("sample:") else REFERENCE / name
+    if name.startswith("sample:"):
+        path = SAMPLE_CAPTURES / name[len("sample:"):]
+    elif name.startswith("repo:"):  # any image in the repository
+        path = REPO / name[len("repo:"):]
+    else:
+        path = REFERENCE / name
     img = cv2.imread(str(path))
     if img is None:
         raise FileNotFoundError(path)
