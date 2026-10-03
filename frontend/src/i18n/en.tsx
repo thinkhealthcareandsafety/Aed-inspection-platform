@@ -81,6 +81,9 @@ export const en = {
       'Philips FRx': 'Blue-grey, often kept in a red carry case',
       'Philips HS1': 'Deeper blue and upright, with a carry strap',
       'Zoll AED Plus': 'Bright green, handle moulded into the top',
+      'Zoll AED 3': 'Lime green and upright, with a colour screen on the front',
+      'Zoll Powerheart G3': 'Navy and yellow, with a clear lid over the pads',
+      'Zoll Powerheart G5': 'Orange and upright, with a round Rescue Ready light by the handle',
     } as Record<string, string>,
   },
 
@@ -211,6 +214,11 @@ export const en = {
         'Philips FRx': 'Photograph the small “SN” label at the bottom of the back panel, close enough to read.',
         'Philips HS1': 'Photograph the small “SN” label at the bottom of the back panel, close enough to read.',
         'Zoll AED Plus': 'Photograph the barcode label on the back, just below the handle, close enough to read.',
+        'Zoll AED 3': 'Photograph the serial number label on the back, just above the battery, close enough to read.',
+        'Zoll Powerheart G3':
+          'Turn the AED over and photograph the serial number label on the underside, close enough to read.',
+        'Zoll Powerheart G5':
+          'Photograph the “SN” serial number on the label on the back of the AED, close enough to read.',
       },
     },
     pads_expiry: {
@@ -220,6 +228,10 @@ export const en = {
         'Philips FRx': 'Photograph the expiry date on the grey SMART Pads II case — the small label near the bottom.',
         'Philips HS1': 'Photograph the expiry date on the pads cartridge, just below the body diagram.',
         'Zoll AED Plus': 'Photograph the expiry date on the pads pack or its box, beside the ⌛ symbol.',
+        'Zoll AED 3': 'Photograph the pads package in the back of the AED, showing the date beside the ⌛.',
+        'Zoll Powerheart G3': 'Photograph the pads’ expiry date through the clear lid — no need to open it.',
+        'Zoll Powerheart G5':
+          'Photograph the small expiry window on the front of the lid, close enough to read the date.',
       },
     },
     battery_expiry: {
@@ -230,6 +242,11 @@ export const en = {
         'Philips HS1': 'Photograph the label on the blue battery at the back, showing the install-before date.',
         'Zoll AED Plus':
           'Photograph the “Replace batteries on or before” label, just below the status window on the handle.',
+        'Zoll AED 3': 'Photograph the white label on the battery at the back, showing the install-by date.',
+        'Zoll Powerheart G3':
+          'Turn the AED over and photograph the label on the battery in the bottom. It shows the date the battery was made.',
+        'Zoll Powerheart G5':
+          'Turn the AED over and photograph the label on the battery in the bottom. It shows the date the battery was made.',
       },
     },
     battery_attached: {
@@ -240,6 +257,9 @@ export const en = {
         'Philips HS1': 'Photograph the back of the AED, showing the blue battery pushed fully in and flush.',
         'Zoll AED Plus':
           'Photograph the battery compartment on the back: the cover closed and latched, or all ten cells seated.',
+        'Zoll AED 3': 'Photograph the back of the AED, showing the battery clicked in flush with the case.',
+        'Zoll Powerheart G3': 'Turn the AED over and photograph the battery in the bottom, pushed fully in and flush.',
+        'Zoll Powerheart G5': 'Turn the AED over and photograph the battery in the bottom, pushed fully in and flush.',
       },
     },
     pads_connected: {
@@ -249,6 +269,11 @@ export const en = {
         'Philips FRx': 'Photograph the blue pads plug pushed fully into the AED’s pads socket.',
         'Philips HS1': 'Photograph the front of the AED: the pads cartridge fitted, green PULL handle down.',
         'Zoll AED Plus': 'Lift the cover and photograph the pads cable plugged into its socket.',
+        'Zoll AED 3': 'Photograph the pads cable plugged into its socket at the top right of the front.',
+        'Zoll Powerheart G3':
+          'Open the lid and photograph the pads connector plugged into its socket. The AED switches on and talks — that’s normal. Close the lid after.',
+        'Zoll Powerheart G5':
+          'Open the lid and photograph the pads connector plugged into its socket. The AED switches on and talks — that’s normal. Close the lid after.',
       },
     },
     readiness_indicator: {
@@ -261,6 +286,12 @@ export const en = {
           'Film the small green Ready light at the top right (not the green On/Off button) for at least 10 seconds. It blinks every few seconds.',
         'Zoll AED Plus':
           'Film the status window on the left of the handle for about 5 seconds, close enough to see the green ✓ or red ✗.',
+        'Zoll AED 3':
+          'Film the small status window just right of the On/Off button for about 5 seconds, close enough to see the green ✓.',
+        'Zoll Powerheart G3':
+          'With the lid closed, film the round Rescue Ready light beside the handle for about 10 seconds. Green means ready; red needs attention.',
+        'Zoll Powerheart G5':
+          'With the lid closed, film the round Rescue Ready light beside the handle for about 10 seconds. Green means ready; red needs attention.',
       },
     },
     child_key_pad: {
@@ -270,6 +301,11 @@ export const en = {
         'Philips FRx': 'Photograph the infant/child key — kept beside the AED, not left in its slot.',
         'Philips HS1': 'Photograph the spare infant/child pads cartridge (teddy-bear icon), if you have one.',
         'Zoll AED Plus': 'Photograph the spare Pedi-padz II child pads pack, if you have one.',
+        'Zoll AED 3':
+          'Photograph the label on the pads package (CPR Uni-padz cover children too), or a spare Pedi-padz II pack.',
+        'Zoll Powerheart G3': 'Photograph the spare child (pediatric) pads pack, if you have one.',
+        'Zoll Powerheart G5':
+          'Photograph the spare child (paediatric) pads pack — kept beside the AED, not plugged in.',
       },
     },
     aed_cabinet: { title: 'AED cabinet', description: 'Photograph the cabinet or case the AED is kept in.' },

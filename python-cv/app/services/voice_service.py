@@ -44,13 +44,13 @@ TIMEOUT_SECONDS = 45
 SAY = {
     "en": [
         ("“SN”", "S N"), ("⌛", "hourglass"), ("✓", "tick"), ("✗", "cross"),
-        ("Pedi-padz II", "Peedee Pads two"), (" II", " two"),
+        ("Pedi-padz II", "Peedee Pads two"), ("CPR Uni-padz", "C P R Uni Pads"), (" II", " two"),
         ("Child key / child pads", "Child key, or child pads"),
         ("infant/child", "infant or child"), ("On/Off", "On-Off"), ("—", ","),
     ],
     "hi": [
         ("“SN”", "S N"), ("⌛", "रेत-घड़ी"), ("✓", "सही का निशान"), ("✗", "क्रॉस का निशान"),
-        ("Pedi-padz II", "Peedee Pads टू"), (" II", " टू"),
+        ("Pedi-padz II", "Peedee Pads टू"), ("CPR Uni-padz", "C P R Uni Pads"), (" II", " टू"),
         ("चाइल्ड Key / चाइल्ड पैड्स", "चाइल्ड Key या चाइल्ड पैड्स"),
         ("इन्फ़ैंट/चाइल्ड", "इन्फ़ैंट या चाइल्ड"), ("On/Off", "On-Off"), ("—", ","),
     ],

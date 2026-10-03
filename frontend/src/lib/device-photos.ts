@@ -8,4 +8,9 @@ export const DEVICE_PHOTO: Record<string, { tile: string; large: string }> = {
   'Philips FRx': { tile: '/devices/frx.webp', large: '/devices/frx-lg.webp' },
   'Philips HS1': { tile: '/devices/hs1.webp', large: '/devices/hs1-lg.webp' },
   'Zoll AED Plus': { tile: '/devices/zoll.webp', large: '/devices/zoll-lg.webp' },
+  // Product shots from ZOLL's retailers (aedbrands.com, buyaedindia.com),
+  // cut out and framed like the three above.
+  'Zoll AED 3': { tile: '/devices/zoll-aed3.webp', large: '/devices/zoll-aed3-lg.webp' },
+  'Zoll Powerheart G3': { tile: '/devices/powerheart-g3.webp', large: '/devices/powerheart-g3-lg.webp' },
+  'Zoll Powerheart G5': { tile: '/devices/powerheart-g5.webp', large: '/devices/powerheart-g5-lg.webp' },
 };

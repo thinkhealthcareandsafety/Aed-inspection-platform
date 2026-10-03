@@ -55,6 +55,10 @@ const HS1_BACK = '/reference/philips-hs1-back.jpg';
 const HS1_FRONT = '/reference/philips-hs1-front.jpg';
 const FRX_PADS = '/reference/philips-frx-pads.jpg';
 const ZOLL_FRONT = '/reference/zoll-aed-plus-pads-connected.jpg';
+// Product shots, re-framed to the 4:3 white frame above.
+const AED3_FRONT = '/reference/zoll-aed3-front.jpg';
+const G3_FRONT = '/reference/powerheart-g3-front.jpg';
+const G5_FRONT = '/reference/powerheart-g5-front.jpg';
 
 export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExample[]>> = {
   serial_number: [
@@ -111,6 +115,22 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'CPR-D-padz डिब्बा: आगे के लेबल पर ⌛ के पास छपी तारीख।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
+    },
+    {
+      src: G3_FRONT,
+      focus: { x: 0.448, y: 0.49, w: 0.115, h: 0.05 },
+      caption: 'The pads’ date beside the ⌛, seen through the clear lid.',
+      captionHi: 'पारदर्शी ढक्कन से दिखती, ⌛ के पास छपी पैड्स की तारीख।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G3'],
+    },
+    {
+      src: G5_FRONT,
+      focus: { x: 0.405, y: 0.428, w: 0.125, h: 0.055 },
+      caption: 'The expiry window on the lid: the pads’ date shows here.',
+      captionHi: 'ढक्कन पर एक्सपायरी विंडो: पैड्स की तारीख यहाँ दिखती है।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G5'],
     },
   ],
 
@@ -212,6 +232,14 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'bad',
       models: ['Zoll AED Plus'],
     },
+    {
+      src: AED3_FRONT,
+      focus: { x: 0.64, y: 0.12, w: 0.06, h: 0.28 },
+      caption: 'Pads cable plugged into its socket at the top right.',
+      captionHi: 'ऊपर दाईं ओर, सॉकेट में लगी पैड्स की केबल।',
+      kind: 'good',
+      models: ['Zoll AED 3'],
+    },
   ],
 
   // True of either Philips HeartStart: the small status light sits just
@@ -235,10 +263,35 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'neutral',
       models: ['Zoll AED Plus'],
     },
+    {
+      src: AED3_FRONT,
+      focus: { x: 0.362, y: 0.158, w: 0.07, h: 0.062 },
+      caption: 'The small status window just right of the power button: a green ✓ means ready.',
+      captionHi: 'पावर बटन के ठीक दाईं ओर की छोटी स्टेटस विंडो: हरा ✓ मतलब तैयार।',
+      kind: 'neutral',
+      models: ['Zoll AED 3'],
+    },
+    {
+      src: G3_FRONT,
+      focus: { x: 0.68, y: 0.1, w: 0.065, h: 0.11 },
+      caption: 'The round Rescue Ready light beside the handle: green is ready, red needs attention.',
+      captionHi: 'हैंडल के पास की गोल Rescue Ready लाइट: हरी मतलब तैयार, लाल मतलब जाँच ज़रूरी।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G3'],
+    },
+    {
+      src: G5_FRONT,
+      focus: { x: 0.543, y: 0.19, w: 0.08, h: 0.1 },
+      caption: 'The round Rescue Ready light beside the handle: green is ready, red needs attention.',
+      captionHi: 'हैंडल के पास की गोल Rescue Ready लाइट: हरी मतलब तैयार, लाल मतलब जाँच ज़रूरी।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G5'],
+    },
   ],
 
   // Each unit handles children differently: the FRx takes a key, the HS1 a
-  // separate pads cartridge, the AED Plus a separate pack of pads.
+  // separate pads cartridge, the AED Plus a separate pack of pads, the AED 3
+  // a Child button that turns its CPR Uni-padz into child pads.
   child_key_pad: [
     {
       src: '/reference/philips-frx-child-key.jpg',
@@ -263,6 +316,14 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'neutral',
       models: ['Zoll AED Plus'],
       illustration: true,
+    },
+    {
+      src: AED3_FRONT,
+      focus: { x: 0.53, y: 0.62, w: 0.11, h: 0.155 },
+      caption: 'The Child button: with CPR Uni-padz, it is pressed for a child under 8 or 25 kg.',
+      captionHi: 'Child बटन: CPR Uni-padz के साथ, 8 साल या 25 किलो से कम के बच्चे के लिए इसे दबाया जाता है।',
+      kind: 'neutral',
+      models: ['Zoll AED 3'],
     },
   ],
 

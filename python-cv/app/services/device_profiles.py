@@ -7,6 +7,11 @@ Every fact here comes from the manufacturer's own documentation:
   - ZOLL Fully Automatic AED Plus Administrator's Guide (9650-0311-01)
   - ZOLL "Instructions for the Installation of New Batteries and Battery
     Replacement Label" addendum to the AED Plus Administrator's Guide
+  - ZOLL AED 3 Administrator's Guide (9650-000762-01 Rev. A, and
+    9650-000752-01 Rev. L) and Operator's Manual (9650-002750-01 Rev. A)
+  - Powerheart AED G3 Plus Operator and Service Manual (70-00914-01 F) and
+    G3 9300A/9300E manual (70-00966-01 F)
+  - Powerheart G5 User's Guide (70-02104-02 D)
 
 The prompts used to describe every unit as a Philips. That failed healthy
 ZOLLs — whose ready signal is a steady green tick in a window, judged
@@ -24,7 +29,7 @@ An unknown model gets the generic profile, which describes AEDs in general.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,20 @@ class DeviceProfile:
     blinking_ready: bool = False
     #: The maker, for telling when a photo shows a different brand of AED.
     brand: Optional[str] = None
+    #: Other makers' names the same unit legitimately carries. Powerheart
+    #: units are sold as Cardiac Science and, since ZOLL bought the line, as
+    #: ZOLL — neither is "a different AED".
+    brand_aliases: Tuple[str, ...] = ()
+    #: Which retake message (gemini_checklist_service._OVERRIDE_NOTES) to
+    #: show when a "ready" can't be backed by a frame: it names this unit's
+    #: indicator and what its fault looks like.
+    readiness_retake: str = "readiness_no_evidence"
+    #: Set when the unit's battery carries NO expiry, only a manufacture
+    #: date (Powerheart Intellisense batteries). The service then dates it
+    #: itself: this many months from installation if that date is written
+    #: on it, else from manufacture — never later than the truth, since a
+    #: battery can't be installed before it is made.
+    battery_life_months: Optional[int] = None
 
 
 PHILIPS_FRX = DeviceProfile(
@@ -50,6 +69,7 @@ PHILIPS_FRX = DeviceProfile(
     name="Philips HeartStart FRx",
     blinking_ready=True,
     brand="Philips",
+    readiness_retake="readiness_no_blink",
     appearance=(
         "A rugged blue-grey Philips unit, wider than it is tall, usually kept "
         "in a carry case. Front: a green On/Off button, a blue i-button that "
@@ -128,6 +148,7 @@ PHILIPS_HS1 = DeviceProfile(
     name="Philips HeartStart HS1 (OnSite)",
     blinking_ready=True,
     brand="Philips",
+    readiness_retake="readiness_no_blink",
     appearance=(
         "A rounded blue Philips unit with a grip on its left side and a clear "
         "pads cartridge with a green PULL handle fitted in a well on the "
@@ -204,6 +225,7 @@ ZOLL_AED_PLUS = DeviceProfile(
     id="Zoll AED Plus",
     name="ZOLL AED Plus",
     brand="ZOLL",
+    readiness_retake="readiness_no_check",
     appearance=(
         "A bright lime-green ZOLL unit with a hinged cover and a moulded "
         "carry handle. Under the cover: a grey panel of step pictograms, an "
@@ -282,6 +304,271 @@ ZOLL_AED_PLUS = DeviceProfile(
 )
 
 
+ZOLL_AED_3 = DeviceProfile(
+    id="Zoll AED 3",
+    name="ZOLL AED 3",
+    brand="ZOLL",
+    readiness_retake="readiness_no_check_aed3",
+    appearance=(
+        "A lime-green ZOLL unit, upright, with a carry strap across the top "
+        "and a colour touch screen in the centre of the front. Top left: a "
+        "blue On/Off button with the small Status Indicator window just to "
+        "its right. Below the screen: the Shock button (lightning bolt); "
+        "bottom right: the Child button (two-children icon). The pads cable "
+        "plugs in at the top right. The battery pack and the sealed pads "
+        "package both fit into the back."
+    ),
+    guidance={
+        "serial_number": (
+            "The serial number is on the device label on the back of the AED, "
+            "just above the left corner of the battery pack, beside 'SN' or "
+            "the serial-number symbol; on its barcode line it may follow the "
+            "GS1 field code '(21)', which is not part of the serial. The "
+            "battery pack carries its own barcode label: that is not the "
+            "AED's serial number, and neither is the REF/catalogue number."
+        ),
+        "pads_expiry": (
+            "The AED 3 uses CPR Uni-padz (one pack for adults and children; "
+            "CPR-D-padz, CPR Stat-padz, Stat-padz II and Pedi-padz II also "
+            "fit). The sealed pads package sits in the back of the unit, "
+            "label facing out, with its cable running to the connector on the "
+            "front. The expiry date is printed beside the hourglass symbol on "
+            "that label, year-month-day (for example 2024-04-19); a GS1 line "
+            "may repeat it after '(17)' as YYMMDD."
+        ),
+        "battery_expiry": (
+            "The AED 3 battery pack clicks into the back of the unit, its "
+            "white label facing out. Report the INSTALL-BY date: ZOLL's own "
+            "self-test fails the unit with CHANGE BATTERY once a fitted "
+            "battery is past it. On the label it sits on the barcode line "
+            "after the GS1 field code '(15)', as YYMMDD (for example "
+            "'(15)280419' is 2028-04-19), and may also be printed beside the "
+            "install-by or hourglass symbol. A date beside a factory symbol, "
+            "or after '(11)', is the manufacture date."
+        ),
+        "battery_attached": (
+            "The battery pack fits into the battery well in the back of the "
+            "AED 3, notch lined up with the well, and is pushed in until it "
+            "clicks. Correctly fitted it sits flush with the case, both side "
+            "tabs latched. An empty well, a tilted pack, a raised end or a "
+            "visible gap is a fail."
+        ),
+        "pads_connected": (
+            "ZOLL requires the pads to be pre-connected at all times: the "
+            "pads cable plugs into the defibrillation pad connector at the "
+            "top right of the front, and the sealed pads package sits in the "
+            "back. Pass only if the plug is fully seated in the connector. An "
+            "empty connector or a loose, half-inserted plug is a fail — the "
+            "AED would say PLUG IN PADS CABLE."
+        ),
+        "readiness_indicator": (
+            "The AED 3 shows readiness in the small Status Indicator window "
+            "at the top left of the front, just to the right of the blue "
+            "On/Off button. A GREEN CHECK MARK in the window means it passed "
+            "its last self-test and is ready (status='ready'); judge it on "
+            "the frames where the check is visible, and never fail it for not "
+            "blinking. A BLANK window, with no green check, means it failed "
+            "its self-test or has no working battery and is NOT ready "
+            "(status='fault') — but only call it blank when the window is "
+            "clearly in view and in focus. Ignore the touch screen, the "
+            "Shock and Child buttons and any reflection. In the first 4-5 "
+            "seconds after the unit is switched on the window changes from "
+            "blank to the check, which is normal. If the window can't be "
+            "seen or read, status='unclear'."
+        ),
+        "child_key_pad": (
+            "The AED 3 has no child key. Its CPR Uni-padz serve adults AND "
+            "children: for a child the rescuer presses the Child button "
+            "(two-children icon, bottom right of the front). Pedi-padz II "
+            "(child-only pads) also fit. Set present=true and pass if the "
+            "connected pads package is CPR Uni-padz (its label shows the "
+            "child weight/age range, under 8 years / 25 kg) or a sealed "
+            "Pedi-padz II pack is present. If the connected pads are adult-"
+            "only (CPR-D-padz, CPR Stat-padz or Stat-padz II) and no Pedi-"
+            "padz II is present, set present=false, passed=false and say the "
+            "unit has no child pads."
+        ),
+    },
+)
+
+
+POWERHEART_G3 = DeviceProfile(
+    id="Zoll Powerheart G3",
+    name="Cardiac Science (ZOLL) Powerheart G3",
+    brand="Cardiac Science",
+    brand_aliases=("ZOLL",),
+    readiness_retake="readiness_no_rescue_ready",
+    battery_life_months=48,
+    appearance=(
+        "A flat, navy-blue and yellow Cardiac Science Powerheart AED G3 with "
+        "a carry handle and a clear plastic lid that opens with a yellow "
+        "button. Through the lid you can see the sealed pads package and its "
+        "expiry date. The round Rescue Ready status indicator is beside the "
+        "handle. Under the lid: a diagnostic panel (battery gauge, pads and "
+        "service lights) and a text display. The battery fits into the "
+        "bottom of the unit."
+    ),
+    guidance={
+        "serial_number": (
+            "Cardiac Science puts the serial and model numbers on the label "
+            "on the UNDERSIDE of the AED. Report the number beside 'SN' or "
+            "the serial-number symbol. The model number (such as 9390A, "
+            "9300A, 9300P) and the REF are not the serial, and neither is "
+            "the battery's own label."
+        ),
+        "pads_expiry": (
+            "The G3 uses sealed defibrillation pads (adult 9131; child 9730) "
+            "stored in the lid, connected by their cable. The expiry date is "
+            "beside the hourglass ('use pads by this date') symbol on the "
+            "pads package and is visible through the clear lid without "
+            "opening it; it is printed on the front and the back of the "
+            "package, year-month-day (for example 2019-12-28). A date beside "
+            "a factory symbol is the manufacture date."
+        ),
+        "battery_expiry": (
+            "The G3's Intellisense lithium battery (9146 or 9145) fits into "
+            "the bottom of the unit. It carries NO expiry date: its label "
+            "shows the date it was MANUFACTURED (factory symbol, year and "
+            "month, sometimes a day). Cardiac Science guarantees it for 4 "
+            "years from installation, with a 5-year shelf life before "
+            "installation. Put that date in manufacture_date and leave "
+            "expiry_date null — the app works out the replacement date. If "
+            "an installation date has been written on the battery or a "
+            "sticker on it, put it in install_date. These notes override the "
+            "general date rules above: on this battery the manufacture date "
+            "IS the date to read, a missing expiry is normal, and notes must "
+            "never ask the inspector to find one. Set date_legible=true only "
+            "if you read the manufacture date with certainty."
+        ),
+        "battery_attached": (
+            "The battery fits into a slot in the BOTTOM of the G3 and is "
+            "pressed down until it clicks. Correctly fitted it is flush with "
+            "the case. An empty slot, a battery sitting raised or crooked, or "
+            "a gap is a fail. With the lid open, a red battery light on the "
+            "diagnostic panel's gauge means the battery is low."
+        ),
+        "pads_connected": (
+            "The pads must be pre-connected: the pads package sits in the "
+            "lid and its cable's connector plugs into the pad socket under "
+            "the lid. Pass only if the connector is fully plugged in. With "
+            "the lid open, a lit Pads indicator (pads icon on the diagnostic "
+            "panel) means the pads are not connected or not usable — a fail. "
+            "An empty socket or a loose connector is a fail."
+        ),
+        "readiness_indicator": (
+            "The G3 has NO blinking ready light. Its Rescue Ready status "
+            "indicator is the round window beside the carry handle. GREEN "
+            "(with no black X) means the self-tests passed and it is Rescue "
+            "Ready: status='ready'; never fail it for not blinking. RED with "
+            "a BLACK X means it needs attention and is not ready: "
+            "status='fault'. Opening or closing the lid runs a self-test "
+            "during which the indicator turns red for about 5 seconds and "
+            "then back to green — red that turns green within the clip is "
+            "normal and ready. Judge only this indicator, never the yellow "
+            "lid button or a reflection. If it can't be seen or its colour "
+            "read, status='unclear'."
+        ),
+        "child_key_pad": (
+            "The G3's child option is a separate sealed pack of 9730 "
+            "Pediatric Attenuated Defibrillation Electrodes, for children up "
+            "to 8 years or 25 kg (55 lb), kept with the AED as a spare while "
+            "the adult pads stay connected. Pass if a sealed pediatric pads "
+            "pack is present."
+        ),
+    },
+)
+
+
+POWERHEART_G5 = DeviceProfile(
+    id="Zoll Powerheart G5",
+    name="Cardiac Science (ZOLL) Powerheart G5",
+    brand="Cardiac Science",
+    brand_aliases=("ZOLL",),
+    readiness_retake="readiness_no_rescue_ready",
+    battery_life_months=48,
+    appearance=(
+        "An upright, orange Powerheart G5 (Cardiac Science or ZOLL) with a "
+        "grey carry handle and a lid. The front of the lid has a large AED "
+        "heart graphic and a small window, marked YEAR/MM, showing the pads' "
+        "expiry date. The round Rescue Ready indicator is at the top right, "
+        "beside the handle. Under the lid: the pads in their holders, the "
+        "pad socket, and a display panel with battery, pads and service "
+        "lights. The battery fits into the bottom of the unit."
+    ),
+    guidance={
+        "serial_number": (
+            "The serial number is on the device label after 'SN' or the "
+            "serial-number symbol (on the back of the unit), and is repeated "
+            "inside the battery compartment on the bottom. On a barcode line "
+            "it may follow '(21)', which is not part of the serial. The "
+            "model/REF number (for example G5A-80A) is not the serial, and "
+            "neither is the battery's own label."
+        ),
+        "pads_expiry": (
+            "The G5's pads (XELAED001 adult, XELAED002 adult with CPR "
+            "feedback device, XELAED003 paediatric) come in a sealed package "
+            "kept in the lid. The pads' expiry date shows through the "
+            "expiration window on the front of the lid (marked YEAR/MM) and "
+            "is printed beside the hourglass symbol on the package. A date "
+            "beside a factory symbol is the manufacture date."
+        ),
+        "battery_expiry": (
+            "The G5's Intellisense lithium battery (XBTAED001) fits into the "
+            "bottom of the unit. It carries NO expiry date: its label shows "
+            "the date it was MANUFACTURED (factory symbol). ZOLL guarantees "
+            "it for 4 years from installation, with a 5-year shelf life "
+            "before installation. Put that date in manufacture_date and leave "
+            "expiry_date null — the app works out the replacement date. If "
+            "an installation date has been written on the battery or a "
+            "sticker on it, put it in install_date. These notes override the "
+            "general date rules above: on this battery the manufacture date "
+            "IS the date to read, a missing expiry is normal, and notes must "
+            "never ask the inspector to find one. Set date_legible=true only "
+            "if you read the manufacture date with certainty."
+        ),
+        "battery_attached": (
+            "The battery fits into the compartment in the BOTTOM of the G5: "
+            "it is lowered in and pressed down until it clicks, and its tab "
+            "latches. Correctly fitted it is flush with the case. An empty "
+            "compartment, a battery sitting raised or crooked, or a gap is a "
+            "fail. With the lid open, a red battery light on the display "
+            "panel means the battery is low."
+        ),
+        "pads_connected": (
+            "The adult pads must be pre-connected: the package sits in the "
+            "pad package holders under the lid and its connector plugs into "
+            "the pad socket. Pass only if the connector is fully plugged in. "
+            "With the lid open, a lit pads indicator on the display panel "
+            "means the pads are not connected or not usable — a fail. An "
+            "empty socket or a loose connector is a fail."
+        ),
+        "readiness_indicator": (
+            "The G5 has NO blinking ready light. Its Rescue Ready indicator "
+            "is the round window at the top right, beside the handle, "
+            "ringed by the words RESCUE READY. GREEN means the self-tests "
+            "passed and it is Rescue Ready: status='ready'; never fail it "
+            "for not blinking. RED means it needs attention and is not "
+            "ready: status='fault'. Closing the lid runs a self-test during "
+            "which the indicator turns red for a few seconds and then back to "
+            "green — red that turns green within the clip is normal and "
+            "ready. Judge only this indicator, never the orange case or a "
+            "reflection. If it can't be seen or its colour read, "
+            "status='unclear'."
+        ),
+        "child_key_pad": (
+            "The G5's child option is XELAED003 paediatric pads, for "
+            "children 8 or under or 25 kg (55 lb) or less. ZOLL says they "
+            "are NOT to be pre-connected: keep them sealed beside the AED, "
+            "with the adult pads connected. Pass if a sealed paediatric pads "
+            "pack is present and stored beside the AED. If paediatric pads "
+            "are the ones plugged into the AED, set present=true but "
+            "passed=false and say to reconnect adult pads and keep the "
+            "paediatric pads beside it."
+        ),
+    },
+)
+
+
 GENERIC = DeviceProfile(
     id="generic",
     name="an automated external defibrillator (AED) whose make and model were not given",
@@ -296,21 +583,26 @@ GENERIC = DeviceProfile(
         ),
         "readiness_indicator": (
             "AEDs show readiness in different ways: a small green light that "
-            "blinks in standby (Philips and others), or a status window with a "
-            "green check/tick (ZOLL). A red light, a red X, a flashing service "
-            "or i-button, or chirping means the unit is not ready."
+            "blinks in standby (Philips and others), a status window with a "
+            "green check/tick (ZOLL), or a Rescue Ready indicator that is "
+            "green or red (Cardiac Science Powerheart). A red light, a red X, "
+            "a blank status window, a flashing service or i-button, or "
+            "chirping means the unit is not ready."
         ),
         "child_key_pad": (
             "Child options differ by brand: an infant/child key (Philips FRx), "
-            "an infant/child pads cartridge (Philips HS1), or a separate pack "
-            "of paediatric pads (ZOLL Pedi-padz II and others)."
+            "an infant/child pads cartridge (Philips HS1), pads that serve "
+            "adults and children with a Child button (ZOLL CPR Uni-padz), or a "
+            "separate pack of paediatric pads (ZOLL Pedi-padz II, Powerheart "
+            "and others)."
         ),
     },
 )
 
 
 PROFILES: Dict[str, DeviceProfile] = {
-    profile.id: profile for profile in (PHILIPS_FRX, PHILIPS_HS1, ZOLL_AED_PLUS)
+    profile.id: profile
+    for profile in (PHILIPS_FRX, PHILIPS_HS1, ZOLL_AED_PLUS, ZOLL_AED_3, POWERHEART_G3, POWERHEART_G5)
 }
 
 

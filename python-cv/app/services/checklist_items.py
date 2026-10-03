@@ -33,7 +33,7 @@ _DATE_SYMBOLS = """Medical device labels print more than one date, each tagged w
 - An HOURGLASS marks the USE BY / EXPIRY date.
 - An ARROW POINTING INTO A BRACKET, or the words 'Install before', mark the INSTALL-BEFORE date. On AED batteries this is usually the date that matters, and the one to report.
 - Printed words such as 'EXP', 'Use by', 'Install before' or 'Replace ... on or before' override any symbol.
-- Barcode labels often repeat dates in GS1 form: '(17)YYMMDD' is the expiry/use-by date and '(11)YYMMDD' the production date; '(10)' introduces the LOT and '(21)' the serial number. A '(17)' date confirms the expiry; a '(11)' date is a manufacture date.
+- Barcode labels often repeat dates in GS1 form: '(17)YYMMDD' is the expiry/use-by date, '(15)YYMMDD' a best-before or install-by date, and '(11)YYMMDD' the production date; '(10)' introduces the LOT and '(21)' the serial number. A '(17)' or '(15)' date confirms the expiry; a '(11)' date is a manufacture date.
 - A date written as NN/NN/YYYY is ambiguous when both numbers are 12 or less (12/05/2029 could be 12 May or 5 December): report the EARLIER of the two readings and mention the ambiguity in notes. When one number is over 12, it is the day.
 
 Set expiry_date to the USE BY / INSTALL BEFORE / REPLACE-BY date. Set manufacture_date to the factory date when one is visible. If two genuine expiry-type dates are present and you cannot tell which governs, report the EARLIER one and explain the ambiguity in notes — never the later one. If the only date you can read is a manufacture date, set expiry_date to null, passed=false, and say the expiry date was not visible.

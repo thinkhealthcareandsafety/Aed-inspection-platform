@@ -58,6 +58,9 @@ const MODEL_NAMES: Record<string, string> = {
   'Philips FRx': 'Philips HeartStart FRx',
   'Philips HS1': 'Philips HeartStart HS1',
   'Zoll AED Plus': 'ZOLL AED Plus',
+  'Zoll AED 3': 'ZOLL AED 3',
+  'Zoll Powerheart G3': 'Cardiac Science (ZOLL) Powerheart G3',
+  'Zoll Powerheart G5': 'Cardiac Science (ZOLL) Powerheart G5',
 };
 
 /** How often a routine visual check is suggested after this one. */

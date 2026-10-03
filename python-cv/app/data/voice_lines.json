@@ -15,6 +15,21 @@
     "text": "Serial number. Photograph the barcode label on the back, just below the handle, close enough to read."
   },
   {
+    "key": "9495bbce",
+    "lang": "en",
+    "text": "Serial number. Photograph the serial number label on the back, just above the battery, close enough to read."
+  },
+  {
+    "key": "d1ae86a2",
+    "lang": "en",
+    "text": "Serial number. Turn the AED over and photograph the serial number label on the underside, close enough to read."
+  },
+  {
+    "key": "855c8c0d",
+    "lang": "en",
+    "text": "Serial number. Photograph the “SN” serial number on the label on the back of the AED, close enough to read."
+  },
+  {
     "key": "e81ba263",
     "lang": "en",
     "text": "Pads expiry. Photograph the expiry date printed on the pads package."
@@ -33,6 +48,21 @@
     "key": "4ef22588",
     "lang": "en",
     "text": "Pads expiry. Photograph the expiry date on the pads pack or its box, beside the ⌛ symbol."
+  },
+  {
+    "key": "75160dc7",
+    "lang": "en",
+    "text": "Pads expiry. Photograph the pads package in the back of the AED, showing the date beside the ⌛."
+  },
+  {
+    "key": "5fdfe98d",
+    "lang": "en",
+    "text": "Pads expiry. Photograph the pads’ expiry date through the clear lid — no need to open it."
+  },
+  {
+    "key": "94ededd8",
+    "lang": "en",
+    "text": "Pads expiry. Photograph the small expiry window on the front of the lid, close enough to read the date."
   },
   {
     "key": "d163fdda",
@@ -55,6 +85,16 @@
     "text": "Battery expiry. Photograph the “Replace batteries on or before” label, just below the status window on the handle."
   },
   {
+    "key": "dc2417d1",
+    "lang": "en",
+    "text": "Battery expiry. Photograph the white label on the battery at the back, showing the install-by date."
+  },
+  {
+    "key": "d28e4fec",
+    "lang": "en",
+    "text": "Battery expiry. Turn the AED over and photograph the label on the battery in the bottom. It shows the date the battery was made."
+  },
+  {
     "key": "a45642d3",
     "lang": "en",
     "text": "Battery attached. Photograph the battery in place, showing it is pushed fully home."
@@ -68,6 +108,16 @@
     "key": "a9b86bec",
     "lang": "en",
     "text": "Battery attached. Photograph the battery compartment on the back: the cover closed and latched, or all ten cells seated."
+  },
+  {
+    "key": "744e720f",
+    "lang": "en",
+    "text": "Battery attached. Photograph the back of the AED, showing the battery clicked in flush with the case."
+  },
+  {
+    "key": "f8774640",
+    "lang": "en",
+    "text": "Battery attached. Turn the AED over and photograph the battery in the bottom, pushed fully in and flush."
   },
   {
     "key": "323b1912",
@@ -90,6 +140,16 @@
     "text": "Pads connected. Lift the cover and photograph the pads cable plugged into its socket."
   },
   {
+    "key": "3833f604",
+    "lang": "en",
+    "text": "Pads connected. Photograph the pads cable plugged into its socket at the top right of the front."
+  },
+  {
+    "key": "bda6027f",
+    "lang": "en",
+    "text": "Pads connected. Open the lid and photograph the pads connector plugged into its socket. The AED switches on and talks — that’s normal. Close the lid after."
+  },
+  {
     "key": "16163d42",
     "lang": "en",
     "text": "Readiness indicator. Film the AED’s ready indicator for at least 10 seconds, holding steady."
@@ -110,6 +170,16 @@
     "text": "Readiness indicator. Film the status window on the left of the handle for about 5 seconds, close enough to see the green ✓ or red ✗."
   },
   {
+    "key": "d8643de5",
+    "lang": "en",
+    "text": "Readiness indicator. Film the small status window just right of the On/Off button for about 5 seconds, close enough to see the green ✓."
+  },
+  {
+    "key": "7eb2a6e6",
+    "lang": "en",
+    "text": "Readiness indicator. With the lid closed, film the round Rescue Ready light beside the handle for about 10 seconds. Green means ready; red needs attention."
+  },
+  {
     "key": "e792f8da",
     "lang": "en",
     "text": "Child key / child pads. Photograph the child key or child pads, if this AED has them."
@@ -128,6 +198,21 @@
     "key": "7f23e64b",
     "lang": "en",
     "text": "Child key / child pads. Photograph the spare Pedi-padz II child pads pack, if you have one."
+  },
+  {
+    "key": "22619ba1",
+    "lang": "en",
+    "text": "Child key / child pads. Photograph the label on the pads package (CPR Uni-padz cover children too), or a spare Pedi-padz II pack."
+  },
+  {
+    "key": "33f68257",
+    "lang": "en",
+    "text": "Child key / child pads. Photograph the spare child (pediatric) pads pack, if you have one."
+  },
+  {
+    "key": "062db7ef",
+    "lang": "en",
+    "text": "Child key / child pads. Photograph the spare child (paediatric) pads pack — kept beside the AED, not plugged in."
   },
   {
     "key": "dae9b42a",
@@ -160,6 +245,21 @@
     "text": "सीरियल नंबर. पीछे, हैंडल के ठीक नीचे लगे बारकोड लेबल की फ़ोटो इतने पास से लें कि पढ़ा जा सके।"
   },
   {
+    "key": "116df242",
+    "lang": "hi",
+    "text": "सीरियल नंबर. पीछे, बैटरी के ठीक ऊपर लगे सीरियल नंबर लेबल की फ़ोटो इतने पास से लें कि पढ़ा जा सके।"
+  },
+  {
+    "key": "dee7b7d5",
+    "lang": "hi",
+    "text": "सीरियल नंबर. AED को पलटकर नीचे की तरफ़ लगे सीरियल नंबर लेबल की फ़ोटो इतने पास से लें कि पढ़ा जा सके।"
+  },
+  {
+    "key": "e0de3a34",
+    "lang": "hi",
+    "text": "सीरियल नंबर. AED के पीछे लगे लेबल पर “SN” वाले सीरियल नंबर की फ़ोटो इतने पास से लें कि पढ़ा जा सके।"
+  },
+  {
     "key": "51bdb6c1",
     "lang": "hi",
     "text": "पैड्स की एक्सपायरी. पैड्स के पैकेट पर छपी एक्सपायरी डेट की फ़ोटो लें।"
@@ -178,6 +278,21 @@
     "key": "7d8ad983",
     "lang": "hi",
     "text": "पैड्स की एक्सपायरी. पैड्स के पैकेट या उसके डिब्बे पर ⌛ निशान के पास छपी एक्सपायरी डेट की फ़ोटो लें।"
+  },
+  {
+    "key": "89403519",
+    "lang": "hi",
+    "text": "पैड्स की एक्सपायरी. AED के पीछे लगे पैड्स पैकेट की फ़ोटो लें, जिसमें ⌛ के पास छपी तारीख दिखे।"
+  },
+  {
+    "key": "9493ab09",
+    "lang": "hi",
+    "text": "पैड्स की एक्सपायरी. पारदर्शी ढक्कन के आर-पार दिखती पैड्स की एक्सपायरी डेट की फ़ोटो लें — ढक्कन खोलने की ज़रूरत नहीं।"
+  },
+  {
+    "key": "0ccfb737",
+    "lang": "hi",
+    "text": "पैड्स की एक्सपायरी. ढक्कन के आगे की छोटी एक्सपायरी विंडो की फ़ोटो इतने पास से लें कि तारीख पढ़ी जा सके।"
   },
   {
     "key": "f60c7fdd",
@@ -200,6 +315,16 @@
     "text": "बैटरी की एक्सपायरी. हैंडल पर स्टेटस विंडो के ठीक नीचे लगे “Replace batteries on or before” लेबल की फ़ोटो लें।"
   },
   {
+    "key": "3c577821",
+    "lang": "hi",
+    "text": "बैटरी की एक्सपायरी. पीछे लगी बैटरी के सफ़ेद लेबल की फ़ोटो लें, जिसमें install-by वाली तारीख दिखे।"
+  },
+  {
+    "key": "a97e9cec",
+    "lang": "hi",
+    "text": "बैटरी की एक्सपायरी. AED को पलटकर नीचे लगी बैटरी के लेबल की फ़ोटो लें। उस पर बैटरी बनने की तारीख होती है।"
+  },
+  {
     "key": "187edf89",
     "lang": "hi",
     "text": "बैटरी लगी है. बैटरी की फ़ोटो लें, जिसमें दिखे कि वह पूरी तरह अंदर बैठी है।"
@@ -213,6 +338,16 @@
     "key": "fa8383a9",
     "lang": "hi",
     "text": "बैटरी लगी है. पीछे के बैटरी खाने की फ़ोटो लें: ढक्कन बंद और लॉक, या सभी दस सेल ठीक से लगे हुए।"
+  },
+  {
+    "key": "ca53b0fc",
+    "lang": "hi",
+    "text": "बैटरी लगी है. AED के पीछे की फ़ोटो लें, जिसमें बैटरी क्लिक होकर पूरी अंदर और केस के बराबर बैठी दिखे।"
+  },
+  {
+    "key": "cda78fea",
+    "lang": "hi",
+    "text": "बैटरी लगी है. AED को पलटकर नीचे लगी बैटरी की फ़ोटो लें, जिसमें वह पूरी अंदर और बराबर में बैठी दिखे।"
   },
   {
     "key": "e3a19e48",
@@ -235,6 +370,16 @@
     "text": "पैड्स जुड़े हैं. ढक्कन उठाकर सॉकेट में लगी पैड्स की केबल की फ़ोटो लें।"
   },
   {
+    "key": "add10087",
+    "lang": "hi",
+    "text": "पैड्स जुड़े हैं. आगे, ऊपर दाईं ओर सॉकेट में लगी पैड्स की केबल की फ़ोटो लें।"
+  },
+  {
+    "key": "fcafdf90",
+    "lang": "hi",
+    "text": "पैड्स जुड़े हैं. ढक्कन खोलकर सॉकेट में लगे पैड्स कनेक्टर की फ़ोटो लें। AED चालू होकर बोलने लगेगा — यह सामान्य है। बाद में ढक्कन बंद कर दें।"
+  },
+  {
     "key": "de771ba3",
     "lang": "hi",
     "text": "रेडीनेस इंडिकेटर. AED के रेडी इंडिकेटर का कम से कम 10 सेकंड का वीडियो बनाएँ, फ़ोन स्थिर रखें।"
@@ -255,6 +400,16 @@
     "text": "रेडीनेस इंडिकेटर. हैंडल के बाईं ओर की स्टेटस विंडो का करीब 5 सेकंड का वीडियो इतने पास से बनाएँ कि हरा ✓ या लाल ✗ दिखे।"
   },
   {
+    "key": "e4667adc",
+    "lang": "hi",
+    "text": "रेडीनेस इंडिकेटर. On/Off बटन के ठीक दाईं ओर की छोटी स्टेटस विंडो का करीब 5 सेकंड का वीडियो इतने पास से बनाएँ कि हरा ✓ दिखे।"
+  },
+  {
+    "key": "cfe41a15",
+    "lang": "hi",
+    "text": "रेडीनेस इंडिकेटर. ढक्कन बंद रखकर, हैंडल के पास की गोल Rescue Ready लाइट का करीब 10 सेकंड का वीडियो बनाएँ। हरा मतलब तैयार, लाल मतलब जाँच ज़रूरी।"
+  },
+  {
     "key": "ec87c747",
     "lang": "hi",
     "text": "चाइल्ड Key / चाइल्ड पैड्स. अगर इस AED के साथ चाइल्ड Key या चाइल्ड पैड्स हैं, तो उनकी फ़ोटो लें।"
@@ -273,6 +428,21 @@
     "key": "ec6ceea8",
     "lang": "hi",
     "text": "चाइल्ड Key / चाइल्ड पैड्स. अगर है, तो बच्चों वाले Pedi-padz II पैड्स के अतिरिक्त पैकेट की फ़ोटो लें।"
+  },
+  {
+    "key": "e6c34f74",
+    "lang": "hi",
+    "text": "चाइल्ड Key / चाइल्ड पैड्स. पैड्स पैकेट के लेबल की फ़ोटो लें (CPR Uni-padz बच्चों के लिए भी हैं), या अतिरिक्त Pedi-padz II पैकेट की।"
+  },
+  {
+    "key": "179aff70",
+    "lang": "hi",
+    "text": "चाइल्ड Key / चाइल्ड पैड्स. अगर है, तो बच्चों वाले अतिरिक्त पैड्स के पैकेट की फ़ोटो लें।"
+  },
+  {
+    "key": "48f009d9",
+    "lang": "hi",
+    "text": "चाइल्ड Key / चाइल्ड पैड्स. बच्चों वाले अतिरिक्त पैड्स के पैकेट की फ़ोटो लें — वह AED के पास रखा हो, उसमें लगा न हो।"
   },
   {
     "key": "b0d38469",

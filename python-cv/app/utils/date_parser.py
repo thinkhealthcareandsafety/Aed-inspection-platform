@@ -83,14 +83,17 @@ def parse_expiry_date(text: str) -> Optional[str]:
 
 # GS1 human-readable element strings, as printed under barcodes on pads boxes
 # and device labels: "(17)221228" is the expiry and "(11)230301" the
-# production date, both YYMMDD. A day of "00" means the end of that month.
-# Unlike a printed date, a GS1 field says unambiguously what it is.
-_GS1_DATE_RE = re.compile(r"\((1[17])\)\s?(\d{2})(\d{2})(\d{2})")
+# production date, both YYMMDD. "(15)" is the best-before date, which is
+# where a ZOLL AED 3 battery label prints its install-by date. A day of "00"
+# means the end of that month. Unlike a printed date, a GS1 field says
+# unambiguously what it is.
+_GS1_DATE_RE = re.compile(r"\((1[157])\)\s?(\d{2})(\d{2})(\d{2})")
 
 
 def parse_gs1_dates(text: str) -> dict:
-    """{'17': expiry, '11': production} from GS1 text, normalised like the
-    other parsers ('YYYY-MM-DD', or 'YYYY-MM' when the day is '00')."""
+    """{'17': expiry, '15': best-before, '11': production} from GS1 text,
+    normalised like the other parsers ('YYYY-MM-DD', or 'YYYY-MM' when the
+    day is '00')."""
     found: dict = {}
     if not text:
         return found

@@ -127,7 +127,7 @@ IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
 THINKING_LEVEL: Optional[str] = None
 #: Bumped by hand when the shared prompt template's wording changes; the
 #: per-item and per-device wording is hashed in automatically.
-PROMPT_REVISION = "2026-10-01"
+PROMPT_REVISION = "2026-10-03"
 
 
 class ChecklistVerdict(BaseModel):
@@ -143,6 +143,9 @@ class ChecklistVerdict(BaseModel):
     # a Philips battery label carries both, and reading the wrong one reports
     # a five-year-old-stock battery as already dead.
     manufacture_date: Optional[str] = None
+    # A date someone wrote on the battery when fitting it. Read only where a
+    # battery carries no expiry of its own (Powerheart), and dated from.
+    install_date: Optional[str] = None
     lot_number: Optional[str] = None
     battery_serial_number: Optional[str] = None
     present: Optional[bool] = None
@@ -248,6 +251,26 @@ _OVERRIDE_NOTES = {
         "handle up close and steady for about 5 seconds. A red X means the AED needs attention.",
         "हमें स्टेटस विंडो में हरा ✓ साफ़ नहीं दिखा। हैंडल पर लगी विंडो का पास से, फ़ोन स्थिर रखकर, "
         "करीब 5 सेकंड का वीडियो बनाएँ। लाल ✗ का मतलब है कि AED को जाँच की ज़रूरत है।",
+    ),
+    "readiness_no_check_aed3": (
+        "We couldn't clearly see a green check in the status window. Film the small window just "
+        "right of the On/Off button, up close and steady, for about 5 seconds. If the window stays "
+        "blank, the AED needs attention.",
+        "हमें स्टेटस विंडो में हरा ✓ साफ़ नहीं दिखा। On/Off बटन के ठीक दाईं ओर की छोटी विंडो का पास से, "
+        "फ़ोन स्थिर रखकर, करीब 5 सेकंड का वीडियो बनाएँ। अगर विंडो खाली ही रहे, तो AED को जाँच की ज़रूरत है।",
+    ),
+    "readiness_no_rescue_ready": (
+        "We couldn't clearly see the Rescue Ready indicator showing green. With the lid closed, film "
+        "the round indicator beside the handle, up close and steady, for about 10 seconds. If it "
+        "stays red, the AED needs attention.",
+        "हमें Rescue Ready इंडिकेटर हरा नहीं दिखा। ढक्कन बंद रखकर, हैंडल के पास वाले गोल इंडिकेटर का पास से, "
+        "फ़ोन स्थिर रखकर, करीब 10 सेकंड का वीडियो बनाएँ। अगर यह लाल ही रहे, तो AED को जाँच की ज़रूरत है।",
+    ),
+    "battery_made_unread": (
+        "We couldn't read the date on the battery. This battery shows only the date it was made, "
+        "beside the factory symbol — photograph that part of its label, close and in focus.",
+        "बैटरी पर लिखी तारीख नहीं पढ़ी जा सकी। इस बैटरी पर सिर्फ़ उसके बनने की तारीख होती है, फ़ैक्टरी वाले "
+        "निशान के पास — लेबल के उस हिस्से की पास से, साफ़ फ़ोटो लें।",
     ),
     "readiness_no_evidence": (
         "We couldn't clearly see the AED's ready signal. Film the readiness indicator up close "
@@ -360,7 +383,7 @@ def _different_brand(item: ChecklistItem, result, profile: Optional[DeviceProfil
     if profile is None or not profile.brand or item.id not in _BRAND_CHECKED_ITEMS:
         return None
     seen = _aed_brand(result.brand_seen)
-    return seen if seen and seen != profile.brand else None
+    return seen if seen and seen != profile.brand and seen not in profile.brand_aliases else None
 
 
 def _brand_notes(seen: str, profile: DeviceProfile, language: Optional[str]) -> dict:
@@ -462,21 +485,25 @@ def _parse(response) -> ChecklistVerdict:
     return parsed if isinstance(parsed, ChecklistVerdict) else ChecklistVerdict.model_validate_json(response.text)
 
 
-def _reading(item: ChecklistItem, verdict) -> Optional[str]:
+def _reading(item: ChecklistItem, verdict, profile: Optional[DeviceProfile] = None) -> Optional[str]:
     """What a verdict read off the label, in a form two readings can be
-    compared in: the serial's letters and digits, or the expiry's month."""
+    compared in: the serial's letters and digits, or the expiry's month —
+    or, on a battery dated by its age, the month it is dated from."""
     if item.id == "serial_number":
         cleaned = validators.normalise_serial(verdict.serial_number or "") or ""
         cleaned = "".join(ch for ch in cleaned.upper() if ch.isalnum())
         return cleaned or None
-    value = (verdict.expiry_date or "").strip()
+    if item.id == "battery_expiry" and profile is not None and profile.battery_life_months:
+        value = (verdict.install_date or verdict.manufacture_date or verdict.expiry_date or "").strip()
+    else:
+        value = (verdict.expiry_date or "").strip()
     return value[:7] if len(value) >= 7 else None
 
 
-def _compare_readings(item: ChecklistItem, first, second) -> str:
+def _compare_readings(item: ChecklistItem, first, second, profile: Optional[DeviceProfile] = None) -> str:
     """agrees / disagrees / unread. A second model that couldn't read the
     label doesn't contradict one that could — it only fails to confirm."""
-    a, b = _reading(item, first), _reading(item, second)
+    a, b = _reading(item, first, profile), _reading(item, second, profile)
     if not b:
         return "unread"
     if not a:
@@ -675,7 +702,7 @@ async def analyze_checklist_item(
         remaining = max(0.0, budget - (time.monotonic() - started))
         try:
             other = await asyncio.wait_for(second, timeout=min(SECOND_READ_GRACE_SECONDS, remaining))
-            second_read = _compare_readings(item, result, other)
+            second_read = _compare_readings(item, result, other, profile)
         except Exception as exc:  # noqa: BLE001 — slow, refused or unparseable: read once
             second.cancel()
             second_read = "unavailable"
@@ -773,13 +800,7 @@ def _check_readiness(
             cited=result.ready_frames,
             flashes=getattr(video, "flash_count", None),
         )
-        key = (
-            "readiness_no_blink"
-            if profile is not None and profile.blinking_ready
-            else "readiness_no_check"
-            if profile is not None and profile.id == "Zoll AED Plus"
-            else "readiness_no_evidence"
-        )
+        key = profile.readiness_retake if profile is not None else "readiness_no_evidence"
         return result.model_copy(
             update={
                 "status": "unclear",
@@ -849,6 +870,9 @@ def _apply_deterministic_checks(
                 }
             )
 
+    if item.id == "battery_expiry" and profile is not None and profile.battery_life_months:
+        return _date_battery_by_age(result, profile, today=today, language=language, overruled=overruled)
+
     if item.id in ("pads_expiry", "battery_expiry") and result.expiry_date:
         gs1 = parse_gs1_dates(result.expiry_raw_text or "")
 
@@ -859,8 +883,11 @@ def _apply_deterministic_checks(
         # date the barcode itself labels as production, it read one date and
         # guessed at its meaning; refuse it rather than publish it.
         gs1_production = gs1.get("11")
+        # '(17)' is the expiry; '(15)' the best-before, which a ZOLL AED 3
+        # battery uses for its install-by date.
+        gs1_expiry = gs1.get("17") or gs1.get("15")
         if (result.manufacture_date and result.manufacture_date == result.expiry_date) or (
-            gs1_production and gs1_production == result.expiry_date and gs1.get("17") != result.expiry_date
+            gs1_production and gs1_production == result.expiry_date and gs1_expiry != result.expiry_date
         ):
             overruled("expiry_was_manufacture_date")
             logger.warning(
@@ -877,10 +904,10 @@ def _apply_deterministic_checks(
                 }
             )
 
-        # A GS1 '(17)' field is the expiry by definition of the standard —
-        # no symbol to interpret, no date order to guess. When the model's
-        # reading of the printed dates disagrees with it, the barcode wins.
-        gs1_expiry = gs1.get("17")
+        # A GS1 '(17)' (or '(15)') field is the expiry by definition of the
+        # standard — no symbol to interpret, no date order to guess. When the
+        # model's reading of the printed dates disagrees with it, the barcode
+        # wins.
         if gs1_expiry and gs1_expiry[:7] != result.expiry_date[:7]:
             overruled("expiry_corrected_from_gs1")
             logger.warning(
@@ -964,3 +991,161 @@ def _apply_deterministic_checks(
                 )
 
     return result
+
+
+def _add_months(value: str, months: int) -> Optional[str]:
+    """'YYYY-MM' or 'YYYY-MM-DD' moved on by whole months, at the same
+    precision. A day the target month lacks (29 Feb) falls to its last day."""
+    try:
+        parts = [int(p) for p in value.strip().split("-")]
+    except ValueError:
+        return None
+    if len(parts) not in (2, 3):
+        return None
+    total = parts[0] * 12 + (parts[1] - 1) + months
+    year, month = divmod(total, 12)
+    month += 1
+    if len(parts) == 2:
+        return f"{year:04d}-{month:02d}"
+    last = expiry_last_valid_day(f"{year:04d}-{month:02d}")
+    return date(year, month, min(parts[2], last.day)).isoformat()
+
+
+def _english_date(value: str) -> str:
+    day = expiry_last_valid_day(value)
+    return day.strftime("%b %Y") if len(value) == 7 else day.strftime("%d %b %Y")
+
+
+def _hindi_short_date(value: str) -> str:
+    day = expiry_last_valid_day(value)
+    return f"{_HINDI_MONTHS[day.month - 1]} {day.year}" if len(value) == 7 else _hindi_date(day)
+
+
+def _battery_age_notes(
+    dated_from: str, base: str, due: date, years: int, today: date, language: Optional[str]
+) -> dict:
+    """The verdict on a battery that carries no expiry, in words that say
+    how the date was reached — a guess dressed up as a printed expiry would
+    be a lie to the person relying on it."""
+    expired = due < today
+    soon = not expired and (due - today).days <= 90
+    when = due.strftime("%d %b %Y")
+    if dated_from == "install":
+        english = (
+            f"Battery installed {_english_date(base)}; its {years}-year life "
+            + (f"ended on {when}. Replace the battery before this AED is relied on in an emergency."
+               if expired else f"runs to {when}.")
+        )
+    elif expired:
+        english = (
+            f"This battery has no expiry date printed, only the date it was made ({_english_date(base)}). "
+            f"Counting ZOLL's {years}-year battery life from then, it was due for replacement by {when}. "
+            "Replace it, unless you have a record that it was installed later."
+        )
+    else:
+        english = (
+            f"Battery made {_english_date(base)}, with no expiry date printed. Counting ZOLL's {years}-year "
+            f"battery life from then, plan to replace it by {when}."
+        )
+    if soon:
+        english += " That's within three months — order a replacement battery soon."
+
+    hindi = None
+    if language == "hi":
+        due_hi = _hindi_date(due)
+        if dated_from == "install":
+            hindi = f"बैटरी {_hindi_short_date(base)} को लगाई गई थी; इसकी {years} साल की लाइफ़ " + (
+                f"{due_hi} को पूरी हो चुकी है। किसी इमरजेंसी में इस AED पर भरोसा करने से पहले बैटरी बदलें।"
+                if expired
+                else f"{due_hi} तक है।"
+            )
+        elif expired:
+            hindi = (
+                f"इस बैटरी पर एक्सपायरी डेट नहीं छपी, सिर्फ़ बनने की तारीख ({_hindi_short_date(base)}) है। उससे "
+                f"{years} साल की बैटरी लाइफ़ गिनें तो इसे {due_hi} तक बदल देना था। अगर इसे बाद में लगाने का "
+                "रिकॉर्ड नहीं है, तो बैटरी बदलें।"
+            )
+        else:
+            hindi = (
+                f"बैटरी {_hindi_short_date(base)} में बनी है, इस पर एक्सपायरी डेट नहीं छपी। {years} साल की "
+                f"बैटरी लाइफ़ गिनें तो इसे {due_hi} तक बदल दें।"
+            )
+        if soon:
+            hindi += " जल्द नई बैटरी मँगवा लें।"
+    return {"notes": english, "notes_hi": hindi}
+
+
+def _date_battery_by_age(
+    result: ChecklistAnalysisResult,
+    profile: DeviceProfile,
+    *,
+    today: Optional[date],
+    language: Optional[str],
+    overruled,
+) -> ChecklistAnalysisResult:
+    """Date a battery that carries no expiry of its own (Powerheart G3/G5).
+
+    Its maker prints only the manufacture date and guarantees the battery
+    for a fixed life from installation. So: from the installation date when
+    one is written on it, else from manufacture. Counting from manufacture
+    can only come out EARLIER than the truth — a battery is never fitted
+    before it is made — which is the safe direction for a safety device:
+    it may ask for a battery a little early, never pass a dead one."""
+    reference_day = today or datetime.now(timezone.utc).date()
+
+    def usable(value: Optional[str]) -> Optional[str]:
+        value = (value or "").strip()
+        if not validators.is_plausible_expiry(value, today=reference_day):
+            return None
+        # A date in the future can't be when a battery was made or fitted.
+        first_day = date.fromisoformat(value if len(value) == 10 else f"{value}-01")
+        return value if first_day <= reference_day else None
+
+    made = usable(result.manufacture_date)
+    if made is None and not result.manufacture_date and not result.install_date and result.expiry_date:
+        # This battery has no expiry, so a lone date read as one is the
+        # manufacture date the model was told to look for.
+        made = usable(result.expiry_date)
+        if made:
+            overruled("battery_date_read_as_manufacture")
+    installed = usable(result.install_date)
+    if installed and made and installed[:7] < made[:7]:
+        installed = None  # fitted before it was made: a misread
+
+    base, dated_from = (installed, "install") if installed else (made, "manufacture")
+    if base is None:
+        overruled("battery_date_unread")
+        return result.model_copy(
+            update={
+                "passed": False,
+                "expiry_date": None,
+                "confidence": min(result.confidence, 0.4),
+                **_override_notes("battery_made_unread", language),
+            }
+        )
+
+    due_str = _add_months(base, profile.battery_life_months)
+    due = expiry_last_valid_day(due_str)
+    overruled(f"battery_dated_from_{dated_from}")
+    logger.info("checklist.battery_dated_by_age", profile=profile.id, base=base, dated_from=dated_from, due=due_str)
+    dated = result.model_copy(
+        update={
+            "expiry_date": due_str,
+            "manufacture_date": made or result.manufacture_date,
+            "install_date": installed,
+        }
+    )
+    years = profile.battery_life_months // 12
+
+    if due < reference_day:
+        overruled("expired_model_said_pass" if result.passed else "expired")
+        return dated.model_copy(
+            update={"passed": False, **_battery_age_notes(dated_from, base, due, years, reference_day, language)}
+        )
+    if result.damage_seen:
+        return dated.model_copy(update={"passed": False})
+    if result.date_legible is False or result.confidence < 0.5:
+        return dated.model_copy(update={"passed": False})
+    return dated.model_copy(
+        update={"passed": True, **_battery_age_notes(dated_from, base, due, years, reference_day, language)}
+    )

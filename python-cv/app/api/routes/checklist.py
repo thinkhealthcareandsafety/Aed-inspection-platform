@@ -39,7 +39,7 @@ async def list_items():
 async def analyze_item(
     item_id: str,
     file: UploadFile = File(...),
-    # Which AED this is ('Philips FRx', 'Philips HS1', 'Zoll AED Plus'), so
+    # Which AED this is ('Philips FRx', 'Zoll AED 3', 'Zoll Powerheart G5'…), so
     # the prompt describes the unit actually in the photo. Optional: an older
     # caller that doesn't send it gets the brand-neutral profile.
     aed_model: Optional[str] = Form(None),

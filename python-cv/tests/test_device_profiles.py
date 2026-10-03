@@ -15,11 +15,21 @@ import pytest
 
 from app.services import gemini_checklist_service as svc
 from app.services.checklist_items import CHECKLIST_ITEMS, get_item
-from app.services.device_profiles import GENERIC, PHILIPS_FRX, PHILIPS_HS1, PROFILES, ZOLL_AED_PLUS, get_profile
+from app.services.device_profiles import (
+    GENERIC,
+    PHILIPS_FRX,
+    PHILIPS_HS1,
+    POWERHEART_G3,
+    POWERHEART_G5,
+    PROFILES,
+    ZOLL_AED_3,
+    ZOLL_AED_PLUS,
+    get_profile,
+)
 from app.utils.date_parser import parse_all_expiry_dates, parse_gs1_dates
 from app.utils.validators import normalise_serial
 
-SUPPORTED = (PHILIPS_FRX, PHILIPS_HS1, ZOLL_AED_PLUS)
+SUPPORTED = (PHILIPS_FRX, PHILIPS_HS1, ZOLL_AED_PLUS, ZOLL_AED_3, POWERHEART_G3, POWERHEART_G5)
 DEVICE_SPECIFIC_ITEMS = (
     "serial_number",
     "pads_expiry",
@@ -48,7 +58,14 @@ def test_every_supported_unit_has_guidance_for_every_device_specific_check(profi
 
 @pytest.mark.unit
 def test_profiles_are_keyed_by_the_model_ids_the_app_stores():
-    assert set(PROFILES) == {"Philips FRx", "Philips HS1", "Zoll AED Plus"}
+    assert set(PROFILES) == {
+        "Philips FRx",
+        "Philips HS1",
+        "Zoll AED Plus",
+        "Zoll AED 3",
+        "Zoll Powerheart G3",
+        "Zoll Powerheart G5",
+    }
     assert get_profile("Zoll AED Plus") is ZOLL_AED_PLUS
     assert get_profile(" Philips HS1 ") is PHILIPS_HS1
 

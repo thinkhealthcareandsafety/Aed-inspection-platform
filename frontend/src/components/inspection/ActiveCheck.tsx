@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { readinessSeconds } from '@/lib/aed-models';
 import { spokenInstruction } from '@/lib/voice-key';
 import { ListenButton } from './ListenButton';
 import { api, apiErrorOf, BASE_URL, type ApiErrorKey } from '@/lib/api';
@@ -72,8 +73,7 @@ function useStuckToBottom() {
 
 /** The three things that decide whether the AI can read a capture — said
  *  before the shutter, where they're cheap, instead of after a failed read.
- *  A ZOLL's status window reads in about five seconds; a Philips Ready light
- *  blinks only every few, so it needs ten to be sure of catching one. */
+ *  How long to film depends on the unit's indicator — see readinessSeconds. */
 function captureTips(
   mediaType: 'image' | 'video',
   aedModel: string | undefined,
@@ -86,7 +86,7 @@ function captureTips(
         { icon: Hand, label: tips.holdSteady },
       ]
     : [
-        { icon: Timer, label: tips.seconds(aedModel === 'Zoll AED Plus' ? 5 : 10) },
+        { icon: Timer, label: tips.seconds(readinessSeconds(aedModel)) },
         { icon: Hand, label: tips.holdSteady },
         { icon: Focus, label: tips.lightInFrame },
       ];
