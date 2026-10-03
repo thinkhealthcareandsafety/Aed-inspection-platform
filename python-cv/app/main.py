@@ -31,7 +31,7 @@ import structlog
 
 from app.core.config import settings
 from app.core.logger import configure_logging, get_logger
-from app.api.routes import checklist, health
+from app.api.routes import checklist, health, voice
 
 configure_logging()
 logger = get_logger(__name__)
@@ -72,6 +72,7 @@ def create_app() -> FastAPI:
     # REST routes
     app.include_router(health.router, prefix="/health", tags=["health"])
     app.include_router(checklist.router, prefix="/api/v1/checklist", tags=["checklist"])
+    app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
 
     return app
 

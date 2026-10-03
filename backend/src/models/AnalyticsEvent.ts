@@ -34,6 +34,7 @@ export const DIAGNOSTIC_EVENTS = [
   'report_downloaded',
   'language_changed',
   'sample_report_opened',
+  'instructions_played',
 ] as const;
 
 export const TRACKED_EVENTS = [...FUNNEL_STEPS, ...DIAGNOSTIC_EVENTS] as const;

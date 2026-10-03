@@ -158,6 +158,8 @@ export const en = {
     passed: 'Passed',
     needsAttention: 'Needs attention',
     yourPhoto: (title: string) => `Your photo: ${title}`,
+    listen: 'Listen to the instructions',
+    stopListening: 'Stop',
     faultGuidance: 'Fix it if you can, then retake. Or carry on — it will be flagged in your report.',
     expiredGuidance: {
       pads: "Expired pads can't be fixed on the spot. Carry on — you can ask us for a replacement quote when you finish.",

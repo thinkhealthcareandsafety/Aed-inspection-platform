@@ -370,3 +370,24 @@ html:lang(hi) :is(.text-footnote, .text-caption) {
 html:lang(hi) .leading-none {
   line-height: 1.3;
 }
+
+/* The listen button while it speaks: three bars, like a level meter. */
+.voice-bar {
+  height: 4px;
+  animation: voice-bar 0.9s ease-in-out infinite;
+}
+@keyframes voice-bar {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-bar {
+    animation: none;
+    height: 10px;
+  }
+}

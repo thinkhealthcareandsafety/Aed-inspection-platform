@@ -19,6 +19,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { spokenInstruction } from '@/lib/voice-key';
+import { ListenButton } from './ListenButton';
 import { api, apiErrorOf, BASE_URL, type ApiErrorKey } from '@/lib/api';
 import { compressImage } from '@/lib/compress-image';
 import { describeExpiry, urgencyOf } from '@/lib/expiry';
@@ -334,14 +336,23 @@ export function ActiveCheck({
           )}
         </div>
 
-        <h2
-          ref={headingRef}
-          id={`check-${item.id}`}
-          tabIndex={-1}
-          className="text-title text-foreground mt-3 outline-none"
-        >
-          {copy.title}
-        </h2>
+        <div className="mt-3 flex items-start gap-3">
+          <h2
+            ref={headingRef}
+            id={`check-${item.id}`}
+            tabIndex={-1}
+            className="min-w-0 flex-1 text-title text-foreground outline-none"
+          >
+            {copy.title}
+          </h2>
+          {mode === 'capture' && (
+            <ListenButton
+              itemId={item.id}
+              text={spokenInstruction(copy.title, copy.description)}
+              className="-mr-1 -mt-0.5"
+            />
+          )}
+        </div>
 
         {mode === 'capture' && (
           <>

@@ -20,6 +20,7 @@ import userRouter from './api/routes/users';
 import publicRouter from './api/routes/public';
 import eventsRouter from './api/routes/events';
 import insightsRouter from './api/routes/insights';
+import voiceRouter from './api/routes/voice';
 
 export function createApp(): Application {
   const app = express();
@@ -118,6 +119,7 @@ export function createApp(): Application {
   // ── API routes ────────────────────────────────────────────────────────
   app.use('/api/v1/public', publicRouter);
   app.use('/api/v1/events', eventsRouter);
+  app.use('/api/v1/voice', voiceRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/inspections', authMiddleware, inspectionRouter);
   app.use('/api/v1/inspections', authMiddleware, checklistRouter);

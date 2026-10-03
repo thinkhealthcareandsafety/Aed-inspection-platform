@@ -156,6 +156,8 @@ export const hi: Messages = {
     passed: 'पास',
     needsAttention: 'ध्यान दें',
     yourPhoto: (title: string) => `आपकी फ़ोटो: ${title}`,
+    listen: 'निर्देश सुनें',
+    stopListening: 'रोकें',
     faultGuidance: 'हो सके तो ठीक करें और फिर से फ़ोटो लें। या आगे बढ़ें — यह आपकी रिपोर्ट में दर्ज होगा।',
     expiredGuidance: {
       pads: 'एक्सपायर पैड्स मौके पर ठीक नहीं हो सकते। आगे बढ़ें — जाँच पूरी होने पर आप हमसे नए पैड्स का कोटेशन माँग सकते हैं।',
