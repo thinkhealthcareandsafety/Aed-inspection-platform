@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import array
+import io
 import json
+import struct
+import wave
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -39,6 +42,38 @@ def test_symbols_are_said_as_words():
     assert voice_service.spoken("en", "SMART Pads II case") == "SMART Pads two case"
 
 
+def _wav(samples, trailer: bytes = b"") -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24_000)
+        w.writeframes(array.array("h", samples).tobytes())
+    data = buf.getvalue() + trailer
+    return data[:4] + struct.pack("<I", len(data) - 8) + data[8:]
+
+
+@pytest.mark.unit
+def test_only_the_audio_in_a_wav_is_played():
+    # The model's WAV ends with a C2PA signature. Played as sound, it was a
+    # burst of full-volume crackle after every line.
+    speech = [5_000, -5_000] * 2_400
+    signature = b"C2PA" + struct.pack("<I", 6_016) + bytes(range(256)) * 23 + b"\xff" * 128
+    pcm = voice_service.samples_of(_wav(speech, signature))
+    assert array.array("h", pcm).tolist() == speech
+
+
+@pytest.mark.unit
+def test_bare_samples_from_older_models_pass_through():
+    raw = array.array("h", [1, -1, 2]).tobytes()
+    assert voice_service.samples_of(raw) == raw
+
+
+@pytest.mark.unit
+def test_pedi_padz_is_said_as_a_name():
+    assert voice_service.spoken("en", "the spare Pedi-padz II child pads") == "the spare Peedee Pads two child pads"
+
+
 @pytest.mark.unit
 def test_dead_air_at_either_end_is_cut():
     quiet, loud = [0] * 24_000, [8_000, -8_000] * 12_000
@@ -48,9 +83,8 @@ def test_dead_air_at_either_end_is_cut():
 
 
 def _tts_response(seconds: float = 1.0):
-    pcm = array.array("h", [6_000, -6_000] * int(12_000 * seconds)).tobytes()
     part = MagicMock()
-    part.inline_data.data = pcm
+    part.inline_data.data = _wav([6_000, -6_000] * int(12_000 * seconds), b"C2PA" + struct.pack("<I", 4) + b"sig!")
     response = MagicMock()
     response.candidates = [MagicMock(content=MagicMock(parts=[part]))]
     return response

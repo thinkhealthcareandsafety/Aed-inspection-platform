@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import array
 import asyncio
+import io
 import json
+import wave
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -42,12 +44,14 @@ TIMEOUT_SECONDS = 45
 SAY = {
     "en": [
         ("“SN”", "S N"), ("⌛", "hourglass"), ("✓", "tick"), ("✗", "cross"),
-        (" II", " two"), ("Child key / child pads", "Child key, or child pads"),
+        ("Pedi-padz II", "Peedee Pads two"), (" II", " two"),
+        ("Child key / child pads", "Child key, or child pads"),
         ("infant/child", "infant or child"), ("On/Off", "On-Off"), ("—", ","),
     ],
     "hi": [
         ("“SN”", "S N"), ("⌛", "रेत-घड़ी"), ("✓", "सही का निशान"), ("✗", "क्रॉस का निशान"),
-        (" II", " टू"), ("चाइल्ड Key / चाइल्ड पैड्स", "चाइल्ड Key या चाइल्ड पैड्स"),
+        ("Pedi-padz II", "Peedee Pads टू"), (" II", " टू"),
+        ("चाइल्ड Key / चाइल्ड पैड्स", "चाइल्ड Key या चाइल्ड पैड्स"),
         ("इन्फ़ैंट/चाइल्ड", "इन्फ़ैंट या चाइल्ड"), ("On/Off", "On-Off"), ("—", ","),
     ],
 }
@@ -66,6 +70,25 @@ def spoken(lang: str, text: str) -> str:
     for a, b in SAY[lang]:
         text = text.replace(a, b)
     return text.replace("“", "").replace("”", "")
+
+
+def samples_of(audio: bytes) -> bytes:
+    """The 16-bit mono samples in what the model sent.
+
+    This model sends a WAV file, and after the audio that file carries a
+    C2PA block (Google's signature marking it as AI-made). Read as raw
+    samples, the header was a click at the start and the signature a burst
+    of full-volume crackle at the end of every line. Only the audio itself,
+    the "data" chunk, is taken. Older models sent bare samples; those pass
+    through unchanged."""
+    if audio[:4] != b"RIFF":
+        return audio
+    with wave.open(io.BytesIO(audio)) as wav:
+        if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (1, 2, SAMPLE_RATE):
+            raise ValueError(
+                f"Unexpected audio: {wav.getnchannels()} ch, {wav.getsampwidth() * 8} bit, {wav.getframerate()} Hz"
+            )
+        return wav.readframes(wav.getnframes())
 
 
 def trim_silence(pcm: bytes, keep_ms: int = 120) -> bytes:
@@ -106,7 +129,7 @@ async def record(key: str) -> bytes:
         ),
         timeout=TIMEOUT_SECONDS,
     )
-    pcm = trim_silence(response.candidates[0].content.parts[0].inline_data.data)
+    pcm = trim_silence(samples_of(response.candidates[0].content.parts[0].inline_data.data))
     mp3 = to_mp3(pcm)
     logger.info("voice.recorded", key=key, lang=line["lang"], seconds=round(len(pcm) / (SAMPLE_RATE * 2), 1),
                 kb=len(mp3) // 1024)

@@ -8,6 +8,10 @@ import { track } from '@/lib/track';
 import { voiceKey } from '@/lib/voice-key';
 import { useI18n } from '@/i18n';
 
+/** Which set of recordings to ask for (backend routes/voice.ts RECORDING).
+ *  Browsers keep a clip for a year, so a new set needs a new address. */
+const RECORDING = 'r2';
+
 /** Only one voice at a time, across every button on the page. */
 let stopCurrent: (() => void) | null = null;
 
@@ -72,7 +76,7 @@ export function ListenButton({ text, itemId, className }: { text: string; itemId
     stopCurrent = stop;
 
     setState('loading');
-    const audio = new Audio(`${BASE_URL}/api/v1/voice/${voiceKey(lang, text)}.mp3`);
+    const audio = new Audio(`${BASE_URL}/api/v1/voice/${voiceKey(lang, text)}.mp3?r=${RECORDING}`);
     let fellBack = false;
     const fallBack = () => {
       if (fellBack) return;

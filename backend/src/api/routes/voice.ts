@@ -19,8 +19,14 @@ const router = Router();
 const KEY = /^[0-9a-f]{8}$/;
 const RECORDING_TIMEOUT_MS = 60_000;
 
+/** Bumped when recordings must all be made again (as when every line ended
+ *  in a crackle: the model's WAV signature, played as sound). Each set of
+ *  recordings lives in its own folder; the page asks for this one by
+ *  RECORDING in ListenButton, so browsers fetch the new ones too. */
+const RECORDING = 'r2';
+
 function voiceDir(): string {
-  return path.join(config.UPLOAD_DIR, 'voice');
+  return path.join(config.UPLOAD_DIR, 'voice', RECORDING);
 }
 
 /** Two taps on a line not yet recorded make one recording, not two. */
