@@ -123,6 +123,8 @@ def _cases():
              photo("zoll-aed-plus-pads-unplugged.jpg", how="blur_mild"), tags=("degraded", "fault")))
     # An FRx with nothing in its pads port, sent in by the owner on 3 Oct
     # 2026: the model passed it one time in two, "the plug inserted".
+    add(Case("connected-frx", "pads_connected", FRX, "pass",
+             photo("repo:python-cv/eval/media/frx-pads-connected.png"), tags=("clean",)))
     add(Case("connected-frx-unplugged", "pads_connected", FRX, "fail",
              photo("repo:python-cv/eval/media/frx-pads-unplugged.png"), tags=("clean", "fault")))
     add(Case("connected-wrong-photo", "pads_connected", HS1, "fail", photo("philips-hs1-back.jpg"),
