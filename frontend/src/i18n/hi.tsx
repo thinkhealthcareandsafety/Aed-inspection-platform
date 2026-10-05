@@ -311,6 +311,7 @@ export const hi: Messages = {
   reading: {
     serial: 'सीरियल नंबर',
     expiry: 'एक्सपायरी डेट',
+    replaceBy: 'इस तारीख तक बदलें',
     statusLight: 'स्टेटस लाइट',
     status: { ready: 'तैयार', fault: 'खराबी', unclear: 'साफ़ नहीं' },
   },

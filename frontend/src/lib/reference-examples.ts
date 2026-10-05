@@ -261,7 +261,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     },
     {
       src: AED3_BACK,
-      focus: { x: 0.33, y: 0.43, w: 0.36, h: 0.38 },
+      focus: { x: 0.19, y: 0.18, w: 0.61, h: 0.5 },
       caption: 'Battery clicked into the back, flush with the case.',
       captionHi: 'बैटरी पीछे क्लिक होकर लगी है, केस के बराबर।',
       kind: 'good',
@@ -280,7 +280,7 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
     },
     {
       src: G5_BACK,
-      focus: { x: 0.38, y: 0.5, w: 0.24, h: 0.42 },
+      focus: { x: 0.27, y: 0.22, w: 0.45, h: 0.78 },
       caption: 'Battery pressed into the back until it clicks, flush with the case.',
       captionHi: 'बैटरी पीछे क्लिक होने तक दबाकर लगी है, केस के बराबर।',
       kind: 'good',

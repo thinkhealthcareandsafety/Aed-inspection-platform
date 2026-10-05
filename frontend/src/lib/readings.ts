@@ -28,8 +28,12 @@ export function readingOf(result: ChecklistItemResult, m: Messages = en): Readin
   const expiry = typeof data.expiry_date === 'string' ? data.expiry_date.trim() : '';
   if (expiry) {
     const at = parseExpiry(expiry);
+    // A Powerheart battery prints no expiry: the date is worked out from when
+    // it was made or installed (4-year guarantee), so it is a "replace by".
+    const overrides = (data.meta as { overrides?: unknown } | undefined)?.overrides;
+    const reckoned = Array.isArray(overrides) && overrides.some((o) => String(o).startsWith('battery_dated_from_'));
     return {
-      label: m.reading.expiry,
+      label: reckoned ? m.reading.replaceBy : m.reading.expiry,
       value: formatExpiry(expiry, m.expiry),
       mono: false,
       expiry: at ? { at, days: daysUntil(at) } : undefined,

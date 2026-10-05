@@ -323,6 +323,7 @@ export const en = {
   reading: {
     serial: 'Serial number',
     expiry: 'Expiry date',
+    replaceBy: 'Replace by',
     statusLight: 'Status light',
     status: { ready: 'Ready', fault: 'Fault', unclear: 'Unclear' } as Record<string, string>,
   },

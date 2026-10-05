@@ -653,6 +653,14 @@ function drawDetailGrid(doc: PDFKit.PDFDocument, details: Detail[]): void {
   doc.y += 16;
 }
 
+/** A Powerheart battery prints no expiry; the date shown is worked out from
+ *  when it was made or installed, so it is a replace-by date. */
+function batteryDateReckoned(ctx: Ctx): boolean {
+  const entry = ctx.checklist.find((c) => c.itemId === 'battery_expiry');
+  const overrides = (entry?.aiData as { meta?: { overrides?: unknown } } | undefined)?.meta?.overrides;
+  return Array.isArray(overrides) && overrides.some((o) => String(o).startsWith('battery_dated_from_'));
+}
+
 /** How old the unit is, from its serial label (utils/device-age). */
 function unitAgeOf(ctx: Ctx) {
   const entry = ctx.checklist.find((c) => c.itemId === 'serial_number' && c.status === 'pass');
@@ -695,7 +703,7 @@ function deviceDetails(ctx: Ctx): Detail[] {
       sub: pads?.describe ? { text: pads.describe, color: pads.color } : undefined,
     },
     {
-      label: 'Battery expiry',
+      label: batteryDateReckoned(ctx) ? 'Battery replace by' : 'Battery expiry',
       value: battery?.label ?? 'Not read',
       sub: battery?.describe ? { text: battery.describe, color: battery.color } : undefined,
     },
