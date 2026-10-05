@@ -35,7 +35,8 @@ export type TrackedEvent =
   | 'sample_report_opened'
   | 'instructions_played'
   | 'quick_check_finished'
-  | 'full_inspection_chosen';
+  | 'full_inspection_chosen'
+  | 'path_chosen';
 
 interface EventPayload {
   inspectionId?: string;

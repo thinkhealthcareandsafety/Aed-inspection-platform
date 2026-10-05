@@ -130,7 +130,7 @@ export function ModelSelect({ selected, starting, contact, onSelect, onBack }: P
         className="flex items-center gap-1.5 h-11 px-3 text-callout text-muted-foreground hover:text-foreground transition-colors mt-4 mx-auto disabled:opacity-50"
       >
         <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-        {m.model.editDetails}
+        {m.model.back}
       </button>
     </motion.div>
   );

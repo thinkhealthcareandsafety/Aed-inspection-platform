@@ -26,7 +26,10 @@ const eventSchema = z.object({
   referrer: z.string().trim().max(300).optional(),
 });
 
-const batchSchema = z.object({ events: z.array(eventSchema).min(1).max(40) });
+// Each event is validated on its own: a browser running a newer build can
+// send an event name this server doesn't know yet, and that one event —
+// not the funnel steps batched beside it — is what should be dropped.
+const batchSchema = z.object({ events: z.array(z.unknown()).min(1).max(40) });
 
 const eventsLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -45,11 +48,17 @@ router.post('/', eventsLimiter, async (req: Request, res: Response) => {
     return res.status(202).json({ accepted: 0 });
   }
 
+  const events = parsed.data.events.flatMap((raw) => {
+    const event = eventSchema.safeParse(raw);
+    return event.success ? [event.data] : [];
+  });
+  if (events.length === 0) return res.status(202).json({ accepted: 0 });
+
   try {
     // ordered:false so one duplicate funnel step (a refresh, a double-fire)
     // doesn't discard the rest of the batch — the unique index is what makes
     // "one step per session" true, and rejecting the repeat is the point.
-    await AnalyticsEvent.insertMany(parsed.data.events, { ordered: false });
+    await AnalyticsEvent.insertMany(events, { ordered: false });
   } catch (err) {
     const code = (err as { code?: number }).code;
     if (code !== 11000) {
@@ -57,7 +66,7 @@ router.post('/', eventsLimiter, async (req: Request, res: Response) => {
     }
   }
 
-  return res.status(202).json({ accepted: parsed.data.events.length });
+  return res.status(202).json({ accepted: events.length });
 });
 
 export default router;

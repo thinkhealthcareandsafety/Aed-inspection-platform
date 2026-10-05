@@ -20,6 +20,7 @@ import { ActiveCheck, CheckRow } from '@/components/inspection/ActiveCheck';
 import { ProgressRail } from '@/components/inspection/ProgressRail';
 import { ContactForm, type ContactFormData } from '@/components/public/ContactForm';
 import { ModelSelect } from '@/components/public/ModelSelect';
+import { WelcomeStep, type InspectionPath } from '@/components/public/WelcomeStep';
 import { InspectionComplete } from '@/components/public/InspectionComplete';
 import { StepIndicator } from '@/components/public/StepIndicator';
 import { BrandFooter } from '@/components/public/BrandFooter';
@@ -37,7 +38,7 @@ import type { ChecklistItemId, ChecklistItemResult, Inspection, ReplacementReque
 const loadInspectionMenu = () => import('@/components/public/InspectionMenu');
 const InspectionMenu = dynamic(loadInspectionMenu, { ssr: false });
 
-type Step = 'contact' | 'model' | 'inspecting';
+type Step = 'contact' | 'welcome' | 'model' | 'inspecting';
 
 /**
  * Inspections are done on a phone, in a stairwell, often one-handed — tabs get
@@ -47,20 +48,36 @@ type Step = 'contact' | 'model' | 'inspecting';
  * re-fetch rather than a client-side copy of someone's personal data.
  */
 const ACTIVE_INSPECTION_KEY = 'aed_active_inspection';
+/** The path picked on the welcome screen, so a refresh after the quick
+ *  check doesn't stop someone who chose the full inspection at the fork. */
+const ACTIVE_PATH_KEY = 'aed_active_path';
 /** Past this, resuming is more confusing than helpful. */
 const MAX_RESUME_AGE_MS = 24 * 60 * 60 * 1000;
 
-function rememberInspection(id: string) {
+function rememberInspection(id: string, path?: InspectionPath) {
   try {
     localStorage.setItem(ACTIVE_INSPECTION_KEY, id);
+    // A path left by an earlier inspection on this device isn't this one's.
+    if (path) localStorage.setItem(ACTIVE_PATH_KEY, path);
+    else localStorage.removeItem(ACTIVE_PATH_KEY);
   } catch {
     // Private mode or storage disabled — resume just won't be available.
+  }
+}
+
+function rememberedPath(): InspectionPath | null {
+  try {
+    const v = localStorage.getItem(ACTIVE_PATH_KEY);
+    return v === 'quick' || v === 'full' ? v : null;
+  } catch {
+    return null;
   }
 }
 
 function forgetInspection() {
   try {
     localStorage.removeItem(ACTIVE_INSPECTION_KEY);
+    localStorage.removeItem(ACTIVE_PATH_KEY);
   } catch {
     // Nothing to do.
   }
@@ -86,6 +103,16 @@ export default function PublicInspectionPage() {
   const { lang, m } = useI18n();
   const [step, setStep] = useState<Step>('contact');
   const [contact, setContact] = useState<ContactFormData | null>(null);
+  /** Chosen on the welcome screen; kept for every AED inspected this visit. */
+  const [path, setPath] = useState<InspectionPath | null>(null);
+  /** Past the quick-check fork: chosen there, or by picking the full
+   *  inspection up front. The ref is what checkpointFor consults. */
+  const [goFull, setGoFull] = useState(false);
+  const goFullRef = useRef(false);
+  const applyGoFull = useCallback((full: boolean) => {
+    goFullRef.current = full;
+    setGoFull(full);
+  }, []);
   const [starting, setStarting] = useState(false);
   /** Which model row was tapped, so that row — not every row — shows the
    *  spinner. It was hard-wired to null, so a tap only faded the whole list
@@ -157,6 +184,9 @@ export default function PublicInspectionPage() {
           forgetInspection();
           return;
         }
+        const restoredPath = rememberedPath();
+        setPath(restoredPath);
+        applyGoFull(restoredPath === 'full');
         setInspection(restored);
         setContact({
           name: restored.guestName ?? '',
@@ -179,7 +209,7 @@ export default function PublicInspectionPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyGoFull]);
 
   const requiredResolvedCount = useMemo(() => {
     if (!inspection) return 0;
@@ -229,8 +259,6 @@ export default function PublicInspectionPage() {
    * inspection. The fork stands while both are answered and nothing of the
    * full inspection has been started, so a refresh lands back on it.
    */
-  const [goFull, setGoFull] = useState(false);
-  const goFullRef = useRef(false);
   const checkpointFor = useCallback(
     (insp: Inspection | null | undefined): boolean => {
       if (!insp || insp.inspectionStatus === 'complete' || goFullRef.current) return false;
@@ -323,8 +351,14 @@ export default function PublicInspectionPage() {
 
   const handleContactSubmit = useCallback((data: ContactFormData) => {
     setContact(data);
-    setStep('model');
+    setStep('welcome');
     track('contact_submitted');
+  }, []);
+
+  const handleChoosePath = useCallback((chosen: InspectionPath) => {
+    setPath(chosen);
+    setStep('model');
+    track('path_chosen', { outcome: chosen });
   }, []);
 
   const handleSelectModel = useCallback(
@@ -335,7 +369,9 @@ export default function PublicInspectionPage() {
       track('model_selected', { aedModel });
       try {
         const res = await api.public.createInspection({ ...contact, aedModel });
-        rememberInspection(res.data.inspection.inspectionId);
+        rememberInspection(res.data.inspection.inspectionId, path ?? undefined);
+        // Chose the full inspection up front: no stopping at the fork.
+        applyGoFull(path === 'full');
         setInspection(res.data.inspection);
         setStep('inspecting');
         track('inspection_started', { inspectionId: res.data.inspection.inspectionId, aedModel });
@@ -346,7 +382,7 @@ export default function PublicInspectionPage() {
         setPendingModel(null);
       }
     },
-    [contact, starting, m],
+    [contact, starting, path, applyGoFull, m],
   );
 
   /** Read outside the state updater so tracking fires once per real change,
@@ -445,8 +481,7 @@ export default function PublicInspectionPage() {
 
   /** From the fork into the full inspection: straight to its first check. */
   const continueFull = useCallback(() => {
-    goFullRef.current = true;
-    setGoFull(true);
+    applyGoFull(true);
     if (inspection) {
       track('full_inspection_chosen', { inspectionId: inspection.inspectionId, aedModel: inspection.aedModel });
     }
@@ -457,7 +492,7 @@ export default function PublicInspectionPage() {
     });
     setActiveId(next?.id ?? null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [ALL_ITEMS, inspection]);
+  }, [ALL_ITEMS, inspection, applyGoFull]);
 
   const openCheck = useCallback((id: string) => {
     setActiveId(id);
@@ -470,10 +505,12 @@ export default function PublicInspectionPage() {
     setOpenedOnce(false);
     setStep('contact');
     setContact(null);
+    setPath(null);
+    applyGoFull(false);
     setInspection(null);
     setEmailStatus(null);
     window.scrollTo({ top: 0 });
-  }, []);
+  }, [applyGoFull]);
 
   /** A facilities manager rarely has one AED. The next one should cost a
    *  single tap on the model, not the whole contact form again. */
@@ -481,11 +518,14 @@ export default function PublicInspectionPage() {
     forgetInspection();
     setActiveId(null);
     setOpenedOnce(false);
+    // The next AED starts from its own quick check — or none, on the full
+    // path; continuing past the last one's fork doesn't carry over.
+    applyGoFull(false);
     setInspection(null);
     setEmailStatus(null);
     setStep(contact ? 'model' : 'contact');
     window.scrollTo({ top: 0 });
-  }, [contact]);
+  }, [contact, applyGoFull]);
 
   const handleReplacementRequested = useCallback((request: ReplacementRequest) => {
     setInspection((prev) => (prev ? { ...prev, replacementRequest: request } : prev));
@@ -518,7 +558,8 @@ export default function PublicInspectionPage() {
       : null;
   const openHandoff = useCallback(() => setMenu('phone'), []);
 
-  const stepIndex: 0 | 1 | 2 = step === 'contact' ? 0 : step === 'model' ? 1 : 2;
+  // The welcome is the start of choosing what to inspect, not a step of its own.
+  const stepIndex: 0 | 1 | 2 = step === 'contact' ? 0 : step === 'inspecting' ? 2 : 1;
 
   // Finishing saves the result, renders the PDF with its photos, and sends it:
   // a few seconds, so the button says which of those it is on rather than
@@ -635,6 +676,16 @@ export default function PublicInspectionPage() {
             <ContactForm key="contact" defaultValues={contact ?? undefined} onSubmit={handleContactSubmit} />
           )}
 
+          {resume === 'done' && step === 'welcome' && contact && (
+            <WelcomeStep
+              key="welcome"
+              name={contact.name}
+              email={contact.email}
+              onChoose={handleChoosePath}
+              onEditDetails={() => setStep('contact')}
+            />
+          )}
+
           {resume === 'done' && step === 'model' && (
             <ModelSelect
               key="model"
@@ -642,7 +693,7 @@ export default function PublicInspectionPage() {
               starting={starting}
               contact={contact}
               onSelect={handleSelectModel}
-              onBack={() => setStep('contact')}
+              onBack={() => setStep(contact ? 'welcome' : 'contact')}
             />
           )}
         </AnimatePresence>

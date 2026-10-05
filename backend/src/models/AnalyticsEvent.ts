@@ -37,6 +37,8 @@ export const DIAGNOSTIC_EVENTS = [
   'instructions_played',
   'quick_check_finished',
   'full_inspection_chosen',
+  /** On the welcome screen, before a model: outcome 'quick' | 'full'. */
+  'path_chosen',
 ] as const;
 
 export const TRACKED_EVENTS = [...FUNNEL_STEPS, ...DIAGNOSTIC_EVENTS] as const;

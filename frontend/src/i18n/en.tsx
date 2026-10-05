@@ -68,12 +68,32 @@ export const en = {
       `${country} numbers need ${min === max ? `${min} digits` : `${min}-${max} digits`} (${sofar} so far)`,
   },
 
+  /** Between the details and the model: who they are, where the report
+   *  goes, and how far they want to go. */
+  welcome: {
+    greeting: (firstName: string) => (firstName ? `Welcome, ${firstName}` : 'Welcome'),
+    intro: 'Start with a quick check, or go through everything now. A quick check can always become a full one.',
+    choose: 'How would you like to inspect?',
+    quick: {
+      title: 'Quick check',
+      meta: (n: number) => `${n} checks · about 1 min`,
+      body: 'The readiness indicator and serial number: will it work right now?',
+    },
+    full: {
+      title: 'Full inspection',
+      meta: (n: number) => `${n} checks · about 6 min`,
+      body: 'Also the pads, battery and accessories, where expiry dates catch people out.',
+    },
+    reportTo: (email: ReactNode): ReactNode => <>Your report will be emailed to {email}</>,
+    edit: 'Edit',
+  },
+
   model: {
     title: ['Which AED are', 'you inspecting?'],
     intro: 'Your checks and example photos are matched to this exact model.',
     settingUp: 'Setting up your checklist…',
     notSure: 'Not sure? The model name is printed on the front of the unit and on the label at the back.',
-    editDetails: 'Edit my details',
+    back: 'Back',
     enlarge: (name: string) => `See a larger photo of the ${name}`,
     thisIsMine: 'This is my AED',
     others: 'Compare with the others',
