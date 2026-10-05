@@ -185,7 +185,13 @@ export function ReferenceFigure({
   const KindIcon = k.icon;
   // A drawing says it's a drawing, so nobody hunts for a part that looks
   // exactly like it.
-  const label = example.illustration && kind === 'neutral' ? m.reference.illustration : m.reference[k.label];
+  // A drawing says so. Where it also shows a fault, "Wrong" is the thing the
+  // inspector must take from it, so that leads and "illustration" follows.
+  const label = example.illustration
+    ? kind === 'neutral'
+      ? m.reference.illustration
+      : `${m.reference[k.label]} · ${m.reference.illustration.toLowerCase()}`
+    : m.reference[k.label];
   const lens = showLens && focus && wantsLoupe(focus) ? focus : undefined;
   const lensCorner = lens ? farthestCorner(lens) : undefined;
   const expandCorner = farthestCorner(focus ?? { x: 0.5, y: 0.5, w: 0, h: 0 }, lensCorner);

@@ -267,6 +267,15 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'good',
       models: ['Zoll AED 3'],
     },
+    {
+      src: '/reference/zoll-aed3-battery-missing.jpg',
+      focus: { x: 0.35, y: 0.39, w: 0.35, h: 0.3 },
+      caption: 'Battery well empty, no battery fitted. This needs fixing.',
+      captionHi: 'बैटरी का खाना खाली है, बैटरी लगी ही नहीं। इसे ठीक करना होगा।',
+      kind: 'bad',
+      models: ['Zoll AED 3'],
+      illustration: true,
+    },
     // No photo of a fitted G3 battery was found: a generated picture, drawn
     // from real photos of the unit and its battery, and labelled as such.
     {
@@ -275,6 +284,15 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       caption: 'Battery pushed fully into its slot at the bottom end, flush with the case.',
       captionHi: 'बैटरी नीचे वाले सिरे पर अपने खाने में पूरी अंदर तक लगी है, केस के बराबर।',
       kind: 'neutral', // shows as "Illustration", not as a photo of a real unit
+      models: ['Zoll Powerheart G3'],
+      illustration: true,
+    },
+    {
+      src: '/reference/powerheart-g3-battery-missing.jpg',
+      focus: { x: 0.29, y: 0.44, w: 0.52, h: 0.3 },
+      caption: 'The slot at the bottom end is empty, no battery fitted. This needs fixing.',
+      captionHi: 'नीचे वाले सिरे का खाना खाली है, बैटरी लगी ही नहीं। इसे ठीक करना होगा।',
+      kind: 'bad',
       models: ['Zoll Powerheart G3'],
       illustration: true,
     },
@@ -338,11 +356,29 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       models: ['Zoll AED 3'],
     },
     {
+      src: '/reference/zoll-aed3-pads-unplugged.jpg',
+      focus: { x: 0.53, y: 0.16, w: 0.075, h: 0.15 },
+      caption: 'Socket empty, the pads cable lying loose. This needs fixing.',
+      captionHi: 'सॉकेट खाली है, पैड्स की केबल ढीली पड़ी है। इसे ठीक करना होगा।',
+      kind: 'bad',
+      models: ['Zoll AED 3'],
+      illustration: true,
+    },
+    {
       src: '/reference/powerheart-g3-lid-open.jpg',
       focus: { x: 0.665, y: 0.54, w: 0.09, h: 0.13 },
       caption: 'Lid open: the pads cable’s plug pushed fully into its socket.',
       captionHi: 'ढक्कन खुला: पैड्स की केबल का प्लग अपने सॉकेट में पूरा लगा है।',
       kind: 'neutral', // shows as "Illustration", not as a photo of a real unit
+      models: ['Zoll Powerheart G3'],
+      illustration: true,
+    },
+    {
+      src: '/reference/powerheart-g3-pads-unplugged.jpg',
+      focus: { x: 0.455, y: 0.545, w: 0.175, h: 0.105 },
+      caption: 'Socket empty, the plug lying loose beside it. This needs fixing.',
+      captionHi: 'सॉकेट खाली है, प्लग उसके पास ढीला पड़ा है। इसे ठीक करना होगा।',
+      kind: 'bad',
       models: ['Zoll Powerheart G3'],
       illustration: true,
     },
@@ -353,6 +389,15 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'ढक्कन खुला: पैड्स की केबल का ग्रे कनेक्टर अपने सॉकेट में लगा है।',
       kind: 'good',
       models: ['Zoll Powerheart G5'],
+    },
+    {
+      src: '/reference/powerheart-g5-pads-unplugged.jpg',
+      focus: { x: 0.32, y: 0.46, w: 0.155, h: 0.145 },
+      caption: 'Socket empty, the connector lying loose. This needs fixing.',
+      captionHi: 'सॉकेट खाली है, कनेक्टर ढीला पड़ा है। इसे ठीक करना होगा।',
+      kind: 'bad',
+      models: ['Zoll Powerheart G5'],
+      illustration: true,
     },
   ],
 
