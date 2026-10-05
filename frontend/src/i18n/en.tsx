@@ -397,6 +397,39 @@ export const en = {
     },
   },
 
+  /** The checkpoint after the quick check, and its result. */
+  quick: {
+    eyebrow: 'Quick check done',
+    next: 'See the result',
+    ready: {
+      title: 'Your AED is showing ready',
+      body: 'Its readiness indicator shows ready and its serial number is recorded. Finish here with a quick-check report, or carry on with the full inspection.',
+      finish: 'Finish quick check',
+      full: 'Continue full inspection',
+    },
+    notReady: {
+      title: 'Your AED is not showing ready',
+      body: 'Its readiness indicator doesn’t show ready, so it may not work in an emergency. The full inspection checks the pads and battery, the usual causes.',
+      full: 'Find out why: full inspection',
+      finish: 'Finish with this result',
+    },
+    fullDetail: (n: number) => `${n} more checks, about 5 minutes: pads, battery and accessories.`,
+    readiness: 'Readiness indicator',
+    isReady: 'Ready',
+    notReadyShort: 'Not ready',
+    serial: 'Serial number',
+    notRead: 'Not read',
+    result: {
+      eyebrow: { PASS: 'Quick check passed', FAIL: 'Quick check failed' } as Record<string, string>,
+      subtitle: {
+        PASS: (model: string) => `Your ${model}’s readiness indicator shows ready.`,
+        FAIL: (model: string) => `Your ${model}’s readiness indicator doesn’t show ready.`,
+      } as Record<string, (model: string) => string>,
+      scope: 'A quick check covers the readiness indicator and serial number. The pads, battery and accessories weren’t checked: a full inspection is recommended.',
+      badge: 'Quick check',
+    },
+  },
+
   score: {
     aria: (score: number, max: number) => `Readiness score ${score} out of ${max}`,
     label: 'Readiness score',

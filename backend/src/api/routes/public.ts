@@ -18,6 +18,7 @@ import { isPublicAedModel, PUBLIC_AED_MODELS } from '../../config/aed-models';
 import {
   analyzeChecklistItem,
   completeInspection,
+  quickCheckDone,
   isFeedbackLanguage,
   skipChecklistItem,
 } from '../../services/checklistService';
@@ -43,6 +44,11 @@ const createSchema = z.object({
     message: `AED model must be one of: ${PUBLIC_AED_MODELS.join(', ')}`,
   }),
 });
+
+/** How the inspector finished: after the quick check, or every check. */
+const completeSchema = z
+  .object({ scope: z.enum(['quick', 'full']).default('full') })
+  .default({ scope: 'full' });
 
 const replacementSchema = z.object({
   items: z.array(z.enum(REPLACEMENT_ITEMS)).min(1).max(REPLACEMENT_ITEMS.length),
@@ -205,7 +211,18 @@ router.post('/inspections/:id/complete', async (req: Request, res: Response, nex
       return;
     }
 
-    const completed = await completeInspection(inspection);
+    const { scope } = completeSchema.parse(req.body ?? {});
+    // A quick-check report vouches for the readiness indicator and serial
+    // number; it can't be issued before both have been answered.
+    if (scope === 'quick' && !quickCheckDone(inspection.checklist)) {
+      throw createError(
+        'Check the readiness indicator and the serial number before finishing the quick check.',
+        400,
+        'QUICK_CHECK_INCOMPLETE',
+      );
+    }
+
+    const completed = await completeInspection(inspection, scope);
 
     const pdfBuffer = await generateInspectionPdfBuffer(completed.toObject());
     const emailResult = await sendInspectionReportEmail({
@@ -214,7 +231,10 @@ router.post('/inspections/:id/complete', async (req: Request, res: Response, nex
       inspectionResult: completed.inspectionResult,
       guestName: completed.guestName,
       guestEmail: completed.guestEmail,
-      score: readinessScore(completed.checklist),
+      // The score is out of all ten checks; a quick check reports its verdict
+      // without one rather than a misleading 40 out of 100.
+      score: scope === 'full' ? readinessScore(completed.checklist) : undefined,
+      quick: scope === 'quick',
       pdfBuffer,
     });
 

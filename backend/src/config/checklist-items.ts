@@ -1,5 +1,6 @@
 /**
- * AED inspection checklist catalogue — 3 sections, 10 items.
+ * AED inspection checklist catalogue — 3 sections, 10 items, in the order
+ * they are done: the two-check quick check first, then the full inspection.
  *
  * Mirrors python-cv/app/services/checklist_items.py (which owns the actual
  * Gemini prompt text). This copy only needs the metadata the backend uses
@@ -18,17 +19,29 @@ export interface ChecklistItemMeta {
 }
 
 export const CHECKLIST_ITEMS: ChecklistItemMeta[] = [
-  { id: 'serial_number', section: 1, order: 1, title: 'Serial number', required: true, mediaType: 'image' },
-  { id: 'pads_expiry', section: 1, order: 2, title: 'Pads expiry', required: true, mediaType: 'image' },
-  { id: 'battery_expiry', section: 1, order: 3, title: 'Battery expiry', required: true, mediaType: 'image' },
-  { id: 'battery_attached', section: 2, order: 4, title: 'Battery attached', required: true, mediaType: 'image' },
-  { id: 'pads_connected', section: 2, order: 5, title: 'Pads connected', required: true, mediaType: 'image' },
-  { id: 'readiness_indicator', section: 2, order: 6, title: 'Readiness indicator', required: true, mediaType: 'video' },
+  // 1 — The quick check: will it work right now, and which unit is it.
+  { id: 'readiness_indicator', section: 1, order: 1, title: 'Readiness indicator', required: true, mediaType: 'video' },
+  { id: 'serial_number', section: 1, order: 2, title: 'Serial number', required: true, mediaType: 'image' },
+  // 2 — The full inspection: consumables and connections.
+  { id: 'pads_expiry', section: 2, order: 3, title: 'Pads expiry', required: true, mediaType: 'image' },
+  { id: 'battery_expiry', section: 2, order: 4, title: 'Battery expiry', required: true, mediaType: 'image' },
+  { id: 'battery_attached', section: 2, order: 5, title: 'Battery attached', required: true, mediaType: 'image' },
+  { id: 'pads_connected', section: 2, order: 6, title: 'Pads connected', required: true, mediaType: 'image' },
+  // 3 — Accessories and signage, each with "I don't have this".
   { id: 'child_key_pad', section: 3, order: 7, title: 'Child key / child pads', required: false, mediaType: 'image' },
   { id: 'aed_cabinet', section: 3, order: 8, title: 'AED cabinet', required: false, mediaType: 'image' },
   { id: 'first_response_kit', section: 3, order: 9, title: 'Fast response kit', required: false, mediaType: 'image' },
   { id: 'emergency_contacts', section: 3, order: 10, title: 'Emergency contacts sticker', required: false, mediaType: 'image' },
 ];
+
+/**
+ * The quick check: the readiness indicator says whether the AED will work
+ * right now, the serial says which unit (and how old). An inspector may
+ * finish after these two; the report then says it was a quick check.
+ */
+export const QUICK_CHECK_IDS = ['readiness_indicator', 'serial_number'];
+
+export type InspectionScope = 'quick' | 'full';
 
 export const CHECKLIST_ITEM_IDS = CHECKLIST_ITEMS.map((i) => i.id);
 

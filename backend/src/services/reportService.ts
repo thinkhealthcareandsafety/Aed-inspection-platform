@@ -51,10 +51,15 @@ const BODY_BOTTOM = PAGE.height - 52;
 const CONTINUATION_TOP = PAGE.margin + 26;
 
 const SECTION_TITLES: Record<number, string> = {
-  1: 'Consumables & identification',
-  2: 'Physical status',
+  1: 'Quick check: readiness & identity',
+  2: 'Consumables & connections',
   3: 'Accessories & signage',
 };
+
+/** Finished after the quick check — the readiness indicator and serial. */
+function isQuick(ctx: Ctx): boolean {
+  return ctx.inspection.scope === 'quick';
+}
 
 const MODEL_NAMES: Record<string, string> = {
   'Philips FRx': 'Philips HeartStart FRx',
@@ -259,7 +264,8 @@ function consumableExpiry(ctx: Ctx, itemId: 'pads_expiry' | 'battery_expiry'): E
  *  optional check nobody attempted isn't a finding, and listing it as "not
  *  done" made a clean pass look unfinished. */
 function reportedEntries(ctx: Ctx): Entry[] {
-  return ctx.checklist.filter((c) => c.required || ['pass', 'fail', 'skipped'].includes(c.status));
+  const done = (c: Entry) => ['pass', 'fail', 'skipped'].includes(c.status);
+  return ctx.checklist.filter((c) => (isQuick(ctx) ? done(c) : c.required || done(c)));
 }
 
 // ── Drawing primitives ─────────────────────────────────────────────────────
@@ -348,7 +354,9 @@ function drawHeaderBand(doc: PDFKit.PDFDocument, ctx: Ctx): void {
   doc.rect(third * 2, 0, PAGE.width - third * 2, 3).fill(BRAND.green);
 
   drawLockup(doc, PAGE.margin, 30, 17, 13);
-  font(doc, 'regular', 8, COLOR.inkLight).text('AED inspection report', PAGE.margin, 54, { lineBreak: false });
+  font(doc, 'regular', 8, COLOR.inkLight).text(isQuick(ctx) ? 'AED quick check report' : 'AED inspection report', PAGE.margin, 54, {
+    lineBreak: false,
+  });
 
   if (ctx.sample) {
     const label = 'SAMPLE REPORT';
@@ -395,6 +403,18 @@ function verdictOf(ctx: Ctx): Swatch & { title: string; detail: string } {
   const model = ctx.model;
   const score = readinessScore(ctx.checklist);
   const marks = `Readiness score ${score}/${MAX_SCORE}`;
+  if (isQuick(ctx)) {
+    const ready = ctx.inspection.inspectionResult === 'PASS';
+    return {
+      color: ready ? COLOR.ok : COLOR.bad,
+      tint: ready ? COLOR.okTint : COLOR.badTint,
+      label: ready ? 'PASS · QUICK CHECK' : 'FAIL · QUICK CHECK',
+      title: ready ? 'Ready for use' : 'Not ready for use',
+      detail: ready
+        ? `The readiness indicator shows ready · Quick check: pads, battery and accessories not checked · ${model}`
+        : `The readiness indicator does not show ready · Quick check · ${model}`,
+    };
+  }
   switch (ctx.inspection.inspectionResult) {
     case 'PASS':
       return {
@@ -501,12 +521,27 @@ type Step = { tone: 'bad' | 'warn' | 'muted'; text: string };
 function nextSteps(ctx: Ctx): { steps: Step[]; supply: boolean } {
   const steps: Step[] = [];
   let supply = false;
+  if (isQuick(ctx)) {
+    steps.push(
+      ctx.inspection.inspectionResult === 'PASS'
+        ? {
+            tone: 'warn',
+            text: 'Do a full inspection soon: this quick check did not look at the pads, battery or accessories.',
+          }
+        : {
+            tone: 'bad',
+            text: 'Do not rely on this AED. Do a full inspection to find the cause — most often the pads or the battery — and contact us for service.',
+          },
+    );
+  }
   const consumables = [
     { itemId: 'pads_expiry' as const, noun: 'the pads', order: 'replacement pads', it: 'they', s: '' },
     { itemId: 'battery_expiry' as const, noun: 'the battery', order: 'a replacement battery', it: 'it', s: 's' },
   ];
 
   for (const entry of ctx.checklist.filter((c) => c.required)) {
+    // A quick check leaves these undone on purpose; its step above says so.
+    if (isQuick(ctx) && entry.status === 'pending') continue;
     const consumable = consumables.find((c) => c.itemId === entry.itemId);
     const expiry = consumable ? consumableExpiry(ctx, consumable.itemId) : undefined;
 
@@ -699,12 +734,12 @@ function deviceDetails(ctx: Ctx): Detail[] {
     },
     {
       label: 'Pads expiry',
-      value: pads?.label ?? 'Not read',
+      value: pads?.label ?? (isQuick(ctx) ? 'Not checked' : 'Not read'),
       sub: pads?.describe ? { text: pads.describe, color: pads.color } : undefined,
     },
     {
       label: batteryDateReckoned(ctx) ? 'Battery replace by' : 'Battery expiry',
-      value: battery?.label ?? 'Not read',
+      value: battery?.label ?? (isQuick(ctx) ? 'Not checked' : 'Not read'),
       sub: battery?.describe ? { text: battery.describe, color: battery.color } : undefined,
     },
     { label: 'Readiness indicator', value: status?.text ?? i.statusIndicator ?? 'Not checked' },
@@ -864,8 +899,10 @@ function drawChecks(doc: PDFKit.PDFDocument, ctx: Ctx): void {
   ensureSpace(doc, 40 + 26 + THUMB_H + 20);
   drawSectionLabel(doc, 'Checks');
 
+  const sectionOf = (c: Entry) => itemMeta(c)?.section ?? c.section;
+  const orderOf = (c: Entry) => itemMeta(c)?.order ?? 99;
   for (const section of [1, 2, 3]) {
-    const rows = entries.filter((c) => c.section === section);
+    const rows = entries.filter((c) => sectionOf(c) === section).sort((a, b) => orderOf(a) - orderOf(b));
     if (!rows.length) continue;
 
     ensureSpace(doc, 26 + THUMB_H + 20);

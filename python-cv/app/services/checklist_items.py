@@ -79,7 +79,7 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
     ChecklistItem(
         id="serial_number",
         section=1,
-        order=1,
+        order=2,
         title="Serial number",
         description="Photo of the manufacturer serial number label.",
         media_type="image",
@@ -98,8 +98,8 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
     ),
     ChecklistItem(
         id="pads_expiry",
-        section=1,
-        order=2,
+        section=2,
+        order=3,
         title="Pads expiry",
         description="Photo of the electrode pads packaging expiry date.",
         media_type="image",
@@ -114,8 +114,8 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
     ),
     ChecklistItem(
         id="battery_expiry",
-        section=1,
-        order=3,
+        section=2,
+        order=4,
         title="Battery expiry",
         description="Photo of the battery label expiry date. Lot & serial number are optional.",
         media_type="image",
@@ -138,7 +138,7 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
     ChecklistItem(
         id="battery_attached",
         section=2,
-        order=4,
+        order=5,
         title="Battery attached",
         description="Photo confirming the battery is fully seated in the machine.",
         media_type="image",
@@ -155,7 +155,7 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
     ChecklistItem(
         id="pads_connected",
         section=2,
-        order=5,
+        order=6,
         title="Pads connected",
         description="Photo confirming the pads are connected to the machine.",
         media_type="image",
@@ -175,8 +175,8 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
     ),
     ChecklistItem(
         id="readiness_indicator",
-        section=2,
-        order=6,
+        section=1,
+        order=1,
         title="Readiness indicator",
         description="Short video of the readiness indicator.",
         media_type="video",

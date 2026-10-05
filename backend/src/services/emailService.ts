@@ -56,8 +56,10 @@ export interface SendReportParams {
   inspectionResult: string;
   guestName?: string;
   guestEmail?: string;
-  /** Readiness score out of 100. */
+  /** Readiness score out of 100 (full inspections only). */
   score?: number;
+  /** Finished after the readiness indicator and serial number. */
+  quick?: boolean;
   pdfBuffer: Buffer;
 }
 
@@ -83,7 +85,7 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
     await t.sendMail({
       from: config.EMAIL_FROM || config.SMTP_USER,
       to: [...recipients].join(', '),
-      subject: `AED Inspection Report — ${modelLine}${resultLabel}${
+      subject: `AED ${params.quick ? 'Quick Check' : 'Inspection'} Report — ${modelLine}${resultLabel}${
         params.score !== undefined ? ` (${params.score}/100)` : ''
       }`,
       html: `
@@ -93,9 +95,14 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
             <span style="color: #ccc; margin: 0 8px; vertical-align: middle;">|</span>
             <span style="font-weight: 600; vertical-align: middle;">Inspector</span>
           </p>
-          <h2 style="margin-bottom: 4px;">AED Inspection Report</h2>
+          <h2 style="margin-bottom: 4px;">AED ${params.quick ? 'Quick Check' : 'Inspection'} Report</h2>
           <p style="color: #555; margin-top: 0;">${escapeHtml(params.aedModel ?? 'AED')} inspection completed by ${escapeHtml(params.guestName ?? 'inspector')}.</p>
           <p><strong>Result:</strong> ${resultLabel}</p>
+          ${
+            params.quick
+              ? '<p style="color: #555;">A quick check: the readiness indicator and serial number. Pads, battery and accessories were not checked — a full inspection is recommended.</p>'
+              : ''
+          }
           ${params.score !== undefined ? `<p><strong>Readiness score:</strong> ${params.score}/100 (80 needed to pass)</p>` : ''}
           <p><strong>Inspection ID:</strong> ${params.inspectionId}</p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">The full report is attached as a PDF.</p>

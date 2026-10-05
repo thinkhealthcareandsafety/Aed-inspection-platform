@@ -50,6 +50,9 @@ export interface IInspection extends Document {
   guestEmail?: string;
   guestPhone?: string;
   emailSentAt?: Date;
+  /** "quick": finished after the readiness indicator and serial number;
+   *  "full": every check. Unset on inspections finished before the choice. */
+  scope?: 'quick' | 'full';
   locationId?: string;
   startedAt: Date;
   completedAt?: Date;
@@ -130,6 +133,7 @@ const InspectionSchema = new Schema<IInspection>(
     guestEmail: { type: String, trim: true, lowercase: true },
     guestPhone: { type: String, trim: true },
     emailSentAt: { type: Date },
+    scope: { type: String, enum: ['quick', 'full'] },
     locationId: { type: String },
     startedAt: { type: Date, required: true, default: Date.now },
     completedAt: { type: Date },

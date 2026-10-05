@@ -287,11 +287,11 @@ export const api = {
         ),
     },
 
-    complete: (id: string) =>
+    complete: (id: string, scope: 'quick' | 'full' = 'full') =>
       apiClient.post<{
         inspection: import('@/types').Inspection;
         email: { sent: boolean; recipients: string[]; reason?: string };
-      }>(`/public/inspections/${id}/complete`),
+      }>(`/public/inspections/${id}/complete`, { scope }),
 
     /** The visitor's AED isn't one the app supports yet: keep them as a
      *  lead, with the brand, rather than losing them at the picker. */

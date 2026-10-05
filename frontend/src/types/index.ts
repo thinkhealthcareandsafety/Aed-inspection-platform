@@ -143,6 +143,8 @@ export interface Inspection {
   guestEmail?: string;
   guestPhone?: string;
   emailSentAt?: string;
+  /** "quick": finished after the readiness indicator and serial number. */
+  scope?: 'quick' | 'full';
   locationId?: string;
   startedAt: string;
   completedAt?: string;

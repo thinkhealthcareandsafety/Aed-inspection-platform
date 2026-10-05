@@ -8,7 +8,7 @@ import { READY_THRESHOLD, SAFETY_CRITICAL, readinessScore } from '../config/scor
 import fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { IInspection, IChecklistItemResult } from '../models/Inspection';
-import { getChecklistItem, REQUIRED_ITEM_IDS } from '../config/checklist-items';
+import { getChecklistItem, QUICK_CHECK_IDS, REQUIRED_ITEM_IDS, type InspectionScope } from '../config/checklist-items';
 import { createError } from '../api/middleware/error-handler';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
@@ -64,7 +64,19 @@ function syncTopLevelFields(itemId: string, data: AnalysisResponse) {
  * check fails whatever the score (see config/scoring). A serial number that
  * couldn't be read costs its 10 marks but doesn't make the unit unready.
  */
-export function deriveResult(checklist: IChecklistItemResult[]): 'PASS' | 'FAIL' | 'REVIEW' | 'INCOMPLETE' {
+export function deriveResult(
+  checklist: IChecklistItemResult[],
+  scope: InspectionScope = 'full',
+): 'PASS' | 'FAIL' | 'REVIEW' | 'INCOMPLETE' {
+  // A quick check answers one question — will this AED work right now — and
+  // the readiness indicator is that answer. The serial identifies the unit
+  // and never fails it.
+  if (scope === 'quick') {
+    const readiness = checklist.find((c) => c.itemId === 'readiness_indicator')?.status;
+    if (readiness === 'pass') return 'PASS';
+    if (readiness === 'fail') return 'FAIL';
+    return 'INCOMPLETE';
+  }
   const required = checklist.filter((c) => REQUIRED_ITEM_IDS.includes(c.itemId));
   if (required.every((c) => c.status === 'pending')) return 'INCOMPLETE';
   if (required.some((c) => c.status === 'fail' && SAFETY_CRITICAL.includes(c.itemId))) return 'FAIL';
@@ -289,13 +301,22 @@ export async function skipChecklistItem(inspection: IInspection, itemId: string)
   return entry;
 }
 
-export async function completeInspection(inspection: IInspection): Promise<IInspection> {
+/** Whether the quick check is done: both its checks answered. */
+export function quickCheckDone(checklist: IChecklistItemResult[]): boolean {
+  return QUICK_CHECK_IDS.every((id) => {
+    const status = checklist.find((c) => c.itemId === id)?.status;
+    return status === 'pass' || status === 'fail';
+  });
+}
+
+export async function completeInspection(inspection: IInspection, scope: InspectionScope = 'full'): Promise<IInspection> {
   // Idempotent: completing twice (a double-tap, a network retry) returns the
   // record as issued rather than restamping completedAt and duration on a
   // report that has already gone out.
   if (inspection.inspectionStatus === 'complete') return inspection;
 
-  inspection.inspectionResult = deriveResult(inspection.checklist);
+  inspection.scope = scope;
+  inspection.inspectionResult = deriveResult(inspection.checklist, scope);
   inspection.inspectionStatus = 'complete';
   inspection.completedAt = new Date();
   inspection.durationSeconds = (inspection.completedAt.getTime() - inspection.startedAt.getTime()) / 1000;

@@ -114,3 +114,29 @@ describe('readinessScore', () => {
     ).toBe(53);
   });
 });
+
+describe('deriveResult — the quick check', () => {
+  const quick = (readiness: string, serial = 'pass') =>
+    [
+      { itemId: 'readiness_indicator', section: 1, required: true, status: readiness },
+      { itemId: 'serial_number', section: 1, required: true, status: serial },
+      { itemId: 'pads_expiry', section: 2, required: true, status: 'pending' },
+      { itemId: 'battery_expiry', section: 2, required: true, status: 'pending' },
+    ] as Parameters<typeof deriveResult>[0];
+
+  it('passes an AED whose readiness indicator shows ready, with the rest not checked', () => {
+    expect(deriveResult(quick('pass'), 'quick')).toBe('PASS');
+  });
+
+  it('fails an AED whose readiness indicator does not show ready', () => {
+    expect(deriveResult(quick('fail'), 'quick')).toBe('FAIL');
+  });
+
+  it('does not fail a ready AED over a serial number it could not read', () => {
+    expect(deriveResult(quick('pass', 'fail'), 'quick')).toBe('PASS');
+  });
+
+  it('judges the same checklist as a full inspection by every check', () => {
+    expect(deriveResult(quick('pass'), 'full')).toBe('REVIEW');
+  });
+});

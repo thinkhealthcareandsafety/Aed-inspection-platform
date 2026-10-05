@@ -7,6 +7,11 @@ jest.mock('../../services/emailService', () => ({
   sendModelRequestEmail: jest.fn().mockResolvedValue({ sent: true }),
 }));
 
+jest.mock('../../services/reportService', () => ({
+  ...jest.requireActual('../../services/reportService'),
+  generateInspectionPdfBuffer: jest.fn().mockResolvedValue(Buffer.from('%PDF')),
+}));
+
 jest.mock('../../models/Inspection', () => ({
   ...jest.requireActual('../../models/Inspection'),
   Inspection: { findOne: jest.fn() },
@@ -20,7 +25,7 @@ import publicRouter from './public';
 import { errorHandler } from '../middleware/error-handler';
 import { Inspection } from '../../models/Inspection';
 import { ModelRequest } from '../../models/ModelRequest';
-import { sendModelRequestEmail, sendReplacementRequestEmail } from '../../services/emailService';
+import { sendInspectionReportEmail, sendModelRequestEmail, sendReplacementRequestEmail } from '../../services/emailService';
 import { logger } from '../../utils/logger';
 
 const findOne = Inspection.findOne as jest.Mock;
@@ -160,5 +165,41 @@ describe('POST /public/inspections/:id/replacement-request', () => {
 
     expect(res.status).toBe(404);
     expect(notifySales).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /public/inspections/:id/complete — the quick check', () => {
+  const checklist = (readiness: string, serial: string) => [
+    { itemId: 'readiness_indicator', section: 1, required: true, status: readiness },
+    { itemId: 'serial_number', section: 1, required: true, status: serial, aiData: { serial_number: 'B17C-00514' } },
+    { itemId: 'pads_expiry', section: 2, required: true, status: 'pending' },
+  ];
+  const complete = () => request(makeApp()).post('/api/v1/public/inspections/insp-1/complete');
+  beforeEach(() => {
+    (sendInspectionReportEmail as jest.Mock).mockResolvedValue({ sent: true, recipients: ['priya@acme.in'] });
+  });
+
+  it('issues a quick-check report once the readiness indicator and serial are answered', async () => {
+    const inspection = fakeInspection({ inspectionStatus: 'in_progress', checklist: checklist('pass', 'pass'), startedAt: new Date() });
+    findOne.mockResolvedValue({ ...inspection, toObject: () => inspection });
+    const res = await complete().send({ scope: 'quick' });
+    expect(res.status).toBe(200);
+    expect(res.body.inspection.scope).toBe('quick');
+    expect(res.body.inspection.inspectionResult).toBe('PASS');
+  });
+
+  it('refuses a quick-check report before the serial number is answered', async () => {
+    findOne.mockResolvedValue(fakeInspection({ inspectionStatus: 'in_progress', checklist: checklist('pass', 'pending') }));
+    const res = await complete().send({ scope: 'quick' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('QUICK_CHECK_INCOMPLETE');
+  });
+
+  it('treats a finish that names no scope as a full inspection', async () => {
+    const inspection = fakeInspection({ inspectionStatus: 'in_progress', checklist: checklist('pass', 'pass'), startedAt: new Date() });
+    findOne.mockResolvedValue({ ...inspection, toObject: () => inspection });
+    const res = await complete();
+    expect(res.status).toBe(200);
+    expect(res.body.inspection.scope).toBe('full');
   });
 });

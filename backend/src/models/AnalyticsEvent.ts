@@ -35,6 +35,8 @@ export const DIAGNOSTIC_EVENTS = [
   'language_changed',
   'sample_report_opened',
   'instructions_played',
+  'quick_check_finished',
+  'full_inspection_chosen',
 ] as const;
 
 export const TRACKED_EVENTS = [...FUNNEL_STEPS, ...DIAGNOSTIC_EVENTS] as const;

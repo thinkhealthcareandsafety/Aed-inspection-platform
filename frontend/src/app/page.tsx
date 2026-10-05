@@ -10,7 +10,9 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { scoreOf } from '@/lib/score';
 import { ScoreCounter } from '@/components/inspection/ScoreCounter';
-import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
+import { CHECKLIST_SECTIONS, QUICK_CHECK_IDS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
+import { deviceAge } from '@/lib/device-age';
+import { QuickCheckpoint } from '@/components/public/QuickCheckpoint';
 import { modelDisplayName } from '@/lib/aed-models';
 import { readingOf } from '@/lib/readings';
 import { preloadReferenceImages } from '@/lib/reference-examples';
@@ -30,7 +32,7 @@ import { usePending } from '@/lib/use-pending';
 import { useElapsed } from '@/lib/use-elapsed';
 import { useIsDesktop, useOnline } from '@/lib/use-device';
 import type { MenuView } from '@/components/public/InspectionMenu';
-import type { ChecklistItemResult, Inspection, ReplacementRequest } from '@/types';
+import type { ChecklistItemId, ChecklistItemResult, Inspection, ReplacementRequest } from '@/types';
 
 const loadInspectionMenu = () => import('@/components/public/InspectionMenu');
 const InspectionMenu = dynamic(loadInspectionMenu, { ssr: false });
@@ -221,12 +223,33 @@ export default function PublicInspectionPage() {
   const inspectionModel = inspection?.aedModel;
   useEffect(() => preloadReferenceImages(inspectionModel), [inspectionModel]);
 
+  /**
+   * The quick check — readiness indicator, then serial number — ends at a
+   * fork: finish with a quick-check report, or carry on with the full
+   * inspection. The fork stands while both are answered and nothing of the
+   * full inspection has been started, so a refresh lands back on it.
+   */
+  const [goFull, setGoFull] = useState(false);
+  const goFullRef = useRef(false);
+  const checkpointFor = useCallback(
+    (insp: Inspection | null | undefined): boolean => {
+      if (!insp || insp.inspectionStatus === 'complete' || goFullRef.current) return false;
+      const statusOf = (id: string) => insp.checklist.find((c) => c.itemId === id)?.status;
+      const quickDone = QUICK_CHECK_IDS.every((id) => statusOf(id) === 'pass' || statusOf(id) === 'fail');
+      const fullStarted = ALL_ITEMS.some((i) => !QUICK_CHECK_IDS.includes(i.id) && statusOf(i.id) !== 'pending');
+      return quickDone && !fullStarted;
+    },
+    [ALL_ITEMS],
+  );
+  // goFull is read for its re-render; the ref is what the check consults.
+  const atCheckpoint = useMemo(() => checkpointFor(inspection), [checkpointFor, inspection, goFull]);
+
   const [openedOnce, setOpenedOnce] = useState(false);
   useEffect(() => {
     if (!inspection || openedOnce) return;
     setOpenedOnce(true);
-    setActiveId(firstOutstandingRequired ?? null);
-  }, [inspection, openedOnce, firstOutstandingRequired]);
+    setActiveId(checkpointFor(inspection) ? null : (firstOutstandingRequired ?? null));
+  }, [inspection, openedOnce, firstOutstandingRequired, checkpointFor]);
 
   /** Every check but the open one, in inspection order: the six required
    *  ones always (numbered, so the list reads as a route, not a pile), plus
@@ -277,9 +300,17 @@ export default function PublicInspectionPage() {
       const s = inspection?.checklist.find((c) => c.itemId === id)?.status;
       return s === 'pending' || s === 'error';
     };
+    // The last quick check leads to the quick-check result, not a check.
+    const quickLeft = QUICK_CHECK_IDS.some((id) => outstanding(id));
+    const fullStarted = ALL_ITEMS.some(
+      (i) => !QUICK_CHECK_IDS.includes(i.id) && inspection?.checklist.find((c) => c.itemId === i.id)?.status !== 'pending',
+    );
+    if (activeId && QUICK_CHECK_IDS.includes(activeId as ChecklistItemId) && !quickLeft && !fullStarted && !goFull) {
+      return m.quick.next;
+    }
     if (ALL_ITEMS.some((i) => outstanding(i.id))) return m.check.next.check;
     return m.check.next.finish;
-  }, [inspection, activeId, ALL_ITEMS, m]);
+  }, [inspection, activeId, ALL_ITEMS, goFull, m]);
 
   useEffect(() => {
     if (allRequiredResolved && inspection) {
@@ -351,13 +382,20 @@ export default function PublicInspectionPage() {
     });
   }, []);
 
-  const handleComplete = useCallback(async () => {
+  const handleComplete = useCallback(async (scope: 'quick' | 'full' = 'full') => {
     if (!inspection) return;
     setCompleting(true);
     try {
-      const res = await api.public.complete(inspection.inspectionId);
+      const res = await api.public.complete(inspection.inspectionId, scope);
       setInspection(res.data.inspection);
       setEmailStatus(res.data.email);
+      if (scope === 'quick') {
+        track('quick_check_finished', {
+          inspectionId: inspection.inspectionId,
+          aedModel: inspection.aedModel,
+          outcome: res.data.inspection.inspectionResult,
+        });
+      }
       track('inspection_completed', {
         inspectionId: inspection.inspectionId,
         aedModel: inspection.aedModel,
@@ -385,6 +423,12 @@ export default function PublicInspectionPage() {
         const s = current?.checklist.find((c) => c.itemId === id)?.status;
         return s === 'pending' || s === 'error';
       };
+      // The quick check done: stop at the fork rather than run on.
+      if (QUICK_CHECK_IDS.includes(doneId as ChecklistItemId) && checkpointFor(current)) {
+        setActiveId(null);
+        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
       // On through all ten in order; the last four each offer "I don't
       // have this", so a site without a cabinet or kit loses one tap.
       const order: string[] = ALL_ITEMS.map((i) => i.id);
@@ -396,8 +440,24 @@ export default function PublicInspectionPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     },
-    [ALL_ITEMS],
+    [ALL_ITEMS, checkpointFor],
   );
+
+  /** From the fork into the full inspection: straight to its first check. */
+  const continueFull = useCallback(() => {
+    goFullRef.current = true;
+    setGoFull(true);
+    if (inspection) {
+      track('full_inspection_chosen', { inspectionId: inspection.inspectionId, aedModel: inspection.aedModel });
+    }
+    const next = ALL_ITEMS.find((i) => {
+      if (QUICK_CHECK_IDS.includes(i.id)) return false;
+      const st = inspection?.checklist.find((c) => c.itemId === i.id)?.status;
+      return st === 'pending' || st === 'error';
+    });
+    setActiveId(next?.id ?? null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [ALL_ITEMS, inspection]);
 
   const openCheck = useCallback((id: string) => {
     setActiveId(id);
@@ -493,7 +553,10 @@ export default function PublicInspectionPage() {
               </span>
               {/* The score, live: each check that passes adds its marks here
                   as it happens. How far along the job is, the rail shows. */}
-              {!isComplete && <ScoreCounter score={scoreOf(inspection.checklist)} />}
+              {/* Hidden at the quick-check fork: 40 of 100 beside "your AED
+                  is ready" would read as a failing grade. The score is out of
+                  all ten checks, and comes back with the full inspection. */}
+              {!isComplete && !atCheckpoint && <ScoreCounter score={scoreOf(inspection.checklist)} />}
               {/* With the job done there is no options menu, so the language
                   switch sits in the bar itself for reading the result. */}
               {isComplete && <LanguageSwitch className="-mr-2" />}
@@ -622,7 +685,26 @@ export default function PublicInspectionPage() {
               />
             )}
 
-            {/* Every required check answered: say so, point at anything
+            {atCheckpoint && !activeItem && (() => {
+              const serialEntry = inspection.checklist.find((c) => c.itemId === 'serial_number');
+              const serial =
+                serialEntry?.status === 'pass' && typeof serialEntry.aiData?.serial_number === 'string'
+                  ? serialEntry.aiData.serial_number
+                  : null;
+              return (
+                <QuickCheckpoint
+                  ready={inspection.checklist.find((c) => c.itemId === 'readiness_indicator')?.status === 'pass'}
+                  serial={serial}
+                  age={serial ? deviceAge(inspection.aedModel, serial, serialEntry?.aiData?.manufacture_date) : null}
+                  remaining={ALL_ITEMS.length - QUICK_CHECK_IDS.length}
+                  finishing={completing}
+                  onFinish={() => void handleComplete('quick')}
+                  onContinue={continueFull}
+                />
+              );
+            })()}
+
+            {/* Every check answered: say so, point at anything
                 still worth fixing, and hand over to the finish button. */}
             {readyToFinish && (
               <motion.section
@@ -709,7 +791,7 @@ export default function PublicInspectionPage() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={springSnappy}
-                  onClick={handleComplete}
+                  onClick={() => void handleComplete('full')}
                   disabled={completing}
                   className="pressable w-full flex items-center justify-center gap-2 h-[52px] rounded-2xl text-headline bg-primary hover:bg-primary/92 text-primary-foreground transition-colors disabled:opacity-60 shadow-[0_12px_28px_-14px_hsl(var(--primary)/0.7)]"
                 >

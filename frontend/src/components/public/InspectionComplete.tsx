@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus, Share } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deviceAge } from '@/lib/device-age';
 import { DeviceAgeNotice } from '@/components/inspection/DeviceAgeNotice';
@@ -109,15 +109,21 @@ export function InspectionComplete({
   const firstName = inspection.guestName?.trim().split(/\s+/)[0];
   const requested = inspection.replacementRequest;
 
+  /** Finished after the readiness indicator and serial number. */
+  const quick = inspection.scope === 'quick';
+
   const rows = useMemo(
     () =>
       CHECKLIST_ITEMS.map((item) => ({
         item,
         entry: inspection.checklist.find((c) => c.itemId === item.id),
-      })).filter(
-        ({ item, entry }) => entry && (item.required || entry.status === 'pass' || entry.status === 'fail'),
-      ),
-    [inspection.checklist],
+      })).filter(({ item, entry }) => {
+        if (!entry) return false;
+        const done = entry.status === 'pass' || entry.status === 'fail';
+        // A quick check lists what it checked, not eight checks it skipped.
+        return quick ? done : item.required || done;
+      }),
+    [inspection.checklist, quick],
   );
 
   const required = rows.filter((r) => r.item.required);
@@ -174,8 +180,10 @@ export function InspectionComplete({
     : null;
   // The marking scheme's line: below 80, the AED fails readiness.
   const belowThreshold = inspection.inspectionResult === 'FAIL' && score < READY_THRESHOLD;
-  const subtitle =
-    inspection.inspectionResult === 'PASS'
+  const quickResult = inspection.inspectionResult === 'PASS' ? 'PASS' : 'FAIL';
+  const subtitle = quick
+    ? m.quick.result.subtitle[quickResult](model)
+    : inspection.inspectionResult === 'PASS'
       ? t.subtitle.PASS(model, required.length)
       : belowThreshold
         ? m.score.below(model, READY_THRESHOLD)
@@ -207,26 +215,34 @@ export function InspectionComplete({
         transition={springSnappy}
         className={cn('rounded-3xl ring-1 ring-inset px-6 pt-8 pb-5 text-center', verdict.panel)}
       >
-        <ScoreRing
-          score={score}
-          tone={
-            inspection.inspectionResult === 'PASS'
-              ? 'ok'
-              : inspection.inspectionResult === 'FAIL'
-                ? 'bad'
-                : inspection.inspectionResult === 'REVIEW'
-                  ? 'warn'
-                  : 'neutral'
-          }
-        />
+        {/* A quick check has no score out of 100 — two of ten checks would
+            read as 20 — so it shows its verdict, plainly labelled. */}
+        {quick ? (
+          <QuickBadge ready={quickResult === 'PASS'} label={m.quick.result.badge} />
+        ) : (
+          <ScoreRing
+            score={score}
+            tone={
+              inspection.inspectionResult === 'PASS'
+                ? 'ok'
+                : inspection.inspectionResult === 'FAIL'
+                  ? 'bad'
+                  : inspection.inspectionResult === 'REVIEW'
+                    ? 'warn'
+                    : 'neutral'
+            }
+          />
+        )}
 
         <p className={cn('mt-5 text-caption uppercase tracking-[0.08em] font-semibold', verdict.tone)}>
-          {verdictCopy.eyebrow}
+          {quick ? m.quick.result.eyebrow[quickResult] : verdictCopy.eyebrow}
         </p>
-        <h1 className="text-display text-foreground mt-1.5">{belowThreshold ? m.score.failsTitle : verdictCopy.title}</h1>
+        <h1 className="text-display text-foreground mt-1.5">
+          {!quick && belowThreshold ? m.score.failsTitle : verdictCopy.title}
+        </h1>
         <p className="text-body text-muted-foreground mt-2">{subtitle}</p>
         <p className="mt-1.5 text-footnote text-muted-foreground">
-          {m.score.label} {score}/{MAX_SCORE} · {m.score.needed(READY_THRESHOLD)}
+          {quick ? m.quick.result.scope : `${m.score.label} ${score}/${MAX_SCORE} · ${m.score.needed(READY_THRESHOLD)}`}
         </p>
 
         <div className="mt-6 pt-4 border-t border-foreground/10 text-left">
@@ -446,6 +462,28 @@ export function InspectionComplete({
           {t.startOver(firstName || undefined)}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** The quick check's verdict: a tick or a warning, labelled as a quick check. */
+function QuickBadge({ ready, label }: { ready: boolean; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <motion.span
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+        className={cn(
+          'flex h-[88px] w-[88px] items-center justify-center rounded-full text-white shadow-lg',
+          ready ? 'bg-emerald-600' : 'bg-destructive',
+        )}
+      >
+        {ready ? <Check className="h-11 w-11" strokeWidth={2.8} /> : <AlertTriangle className="h-10 w-10" strokeWidth={2.2} />}
+      </motion.span>
+      <span className="mt-3 rounded-full bg-background/70 px-2.5 py-0.5 text-caption font-semibold uppercase tracking-[0.08em] text-muted-foreground ring-1 ring-border">
+        {label}
+      </span>
     </div>
   );
 }
