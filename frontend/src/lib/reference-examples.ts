@@ -286,6 +286,14 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'good',
       models: ['Zoll Powerheart G5'],
     },
+    {
+      src: '/reference/powerheart-g5-battery-out.jpg',
+      focus: { x: 0.29, y: 0.03, w: 0.38, h: 0.95 },
+      caption: 'Battery lifted out of its slot, not clicked in. This needs fixing.',
+      captionHi: 'बैटरी अपने खाने से बाहर निकली है, क्लिक होकर नहीं लगी। इसे ठीक करना होगा।',
+      kind: 'bad',
+      models: ['Zoll Powerheart G5'],
+    },
   ],
 
   pads_connected: [
