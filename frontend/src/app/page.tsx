@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Check, ChevronDown, Loader2, MoreHorizontal, WifiOff } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, MoreHorizontal, WifiOff } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 
@@ -98,7 +98,6 @@ export default function PublicInspectionPage() {
   const [resume, setResume] = useState<'checking' | 'restoring' | 'done'>('checking');
   /** The one check currently expanded. Null once everything is resolved. */
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [showOptional, setShowOptional] = useState(false);
   /** The header's options sheet, and which face of it is showing. */
   const [menu, setMenu] = useState<MenuView | null>(null);
   const isDesktop = useIsDesktop();
@@ -193,18 +192,29 @@ export default function PublicInspectionPage() {
   const ALL_ITEMS = useMemo(() => CHECKLIST_SECTIONS.flatMap((s) => s.items), []);
   const REQUIRED_ITEMS = useMemo(() => ALL_ITEMS.filter((i) => i.required), [ALL_ITEMS]);
 
-  /** Open the first outstanding REQUIRED check as soon as there's an
-   *  inspection to work on — including after a refresh, which lands mid-list.
-   *  Never auto-opens an optional extra: with the required set finished, the
-   *  thing to put in front of someone is the finish button. */
+  /** Every check answered: passed, failed, or — for the four a site may not
+   *  have — "I don't have this". Only then is there a report to finish. */
+  const allResolved = useMemo(
+    () =>
+      Boolean(inspection) &&
+      ALL_ITEMS.every((i) => {
+        const st = inspection?.checklist.find((c) => c.itemId === i.id)?.status;
+        return st === 'pass' || st === 'fail' || st === 'skipped';
+      }),
+    [inspection, ALL_ITEMS],
+  );
+
+  /** Open the first outstanding check as soon as there's an inspection to
+   *  work on — including after a refresh, which lands mid-list. All ten are
+   *  one sequence: the last four each offer "I don't have this". */
   const firstOutstandingRequired = useMemo(() => {
     if (!inspection) return undefined;
     const outstanding = (id: string) => {
       const st = inspection.checklist.find((c) => c.itemId === id)?.status;
       return st === 'pending' || st === 'error';
     };
-    return REQUIRED_ITEMS.find((i) => outstanding(i.id))?.id;
-  }, [inspection, REQUIRED_ITEMS]);
+    return ALL_ITEMS.find((i) => outstanding(i.id))?.id;
+  }, [inspection, ALL_ITEMS]);
 
   // Every example this model's checks will show, fetched while the first
   // check is being read — so the next one's photo is already on screen.
@@ -222,18 +232,7 @@ export default function PublicInspectionPage() {
    *  ones always (numbered, so the list reads as a route, not a pile), plus
    *  any optional extra already done. Items stay where they are as they get
    *  ticked off — they used to jump between "Still to do" and "Done". */
-  const listed = useMemo(() => {
-    if (!inspection) return { checklist: [], optional: [] };
-    const statusOf = (id: string) => inspection.checklist.find((c) => c.itemId === id)?.status;
-    const outstanding = (id: string) => {
-      const s = statusOf(id);
-      return s === 'pending' || s === 'error' || s === 'analyzing';
-    };
-    return {
-      checklist: ALL_ITEMS.filter((i) => i.required || i.id === activeId || !outstanding(i.id)),
-      optional: ALL_ITEMS.filter((i) => i.id !== activeId && !i.required && outstanding(i.id)),
-    };
-  }, [inspection, activeId, ALL_ITEMS]);
+  const listed = useMemo(() => ({ checklist: inspection ? ALL_ITEMS : [] }), [inspection, ALL_ITEMS]);
 
   /** Required checks the AI marked as faults. Worth interrupting for: most
    *  are a thirty-second fix (reseat a connector, close a lid) and fixing one
@@ -263,13 +262,12 @@ export default function PublicInspectionPage() {
   const activeItem = ALL_ITEMS.find((i) => i.id === activeId);
   const activeResult = inspection?.checklist.find((c) => c.itemId === activeId);
 
-  /** "Check 3 of 6" counts required checks only — the optional extras are a
-   *  bonus, and numbering them into the total makes the job look longer. */
+  /** "Check 7 of 10": one sequence, every check counted. */
   const activePosition = useMemo(() => {
-    if (!activeItem?.required) return undefined;
-    const index = REQUIRED_ITEMS.findIndex((i) => i.id === activeItem.id);
-    return index < 0 ? undefined : { index: index + 1, total: REQUIRED_ITEMS.length };
-  }, [activeItem, REQUIRED_ITEMS]);
+    if (!activeItem) return undefined;
+    const index = ALL_ITEMS.findIndex((i) => i.id === activeItem.id);
+    return index < 0 ? undefined : { index: index + 1, total: ALL_ITEMS.length };
+  }, [activeItem, ALL_ITEMS]);
 
   /** Where moving on from the open check leads, said on its button — the
    *  same rule handleAdvance follows. */
@@ -279,12 +277,9 @@ export default function PublicInspectionPage() {
       const s = inspection?.checklist.find((c) => c.itemId === id)?.status;
       return s === 'pending' || s === 'error';
     };
-    if (ALL_ITEMS.some((i) => i.required && outstanding(i.id))) return m.check.next.check;
-    if (activeItem && !activeItem.required && ALL_ITEMS.some((i) => !i.required && outstanding(i.id))) {
-      return m.check.next.extra;
-    }
+    if (ALL_ITEMS.some((i) => outstanding(i.id))) return m.check.next.check;
     return m.check.next.finish;
-  }, [inspection, activeId, activeItem, ALL_ITEMS, m]);
+  }, [inspection, activeId, ALL_ITEMS, m]);
 
   useEffect(() => {
     if (allRequiredResolved && inspection) {
@@ -390,18 +385,12 @@ export default function PublicInspectionPage() {
         const s = current?.checklist.find((c) => c.itemId === id)?.status;
         return s === 'pending' || s === 'error';
       };
-      // Only ever auto-advance within the required set. Once those are done
-      // the next thing to offer is the finish button, not a fourth optional
-      // extra — pushing someone into bonus work right after they've earned
-      // the report is how a three-minute job starts feeling like ten.
-      // The exception is someone who opened the extras themselves: they are
-      // carried through the rest of them, not dropped back after one.
-      const rest = ALL_ITEMS.map((i) => i.id).filter((id) => id !== doneId);
-      const inExtras = ALL_ITEMS.some((i) => i.id === doneId && !i.required);
-      const next =
-        rest.find((id) => REQUIRED_ITEM_IDS.includes(id) && outstanding(id)) ??
-        (inExtras ? rest.find((id) => !REQUIRED_ITEM_IDS.includes(id) && outstanding(id)) : undefined) ??
-        null;
+      // On through all ten in order; the last four each offer "I don't
+      // have this", so a site without a cabinet or kit loses one tap.
+      const order: string[] = ALL_ITEMS.map((i) => i.id);
+      const at = order.indexOf(doneId);
+      const after = order.slice(at + 1).concat(order.slice(0, at));
+      const next = after.find((id) => id !== doneId && outstanding(id)) ?? null;
       setActiveId(next);
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -419,7 +408,6 @@ export default function PublicInspectionPage() {
     forgetInspection();
     setActiveId(null);
     setOpenedOnce(false);
-    setShowOptional(false);
     setStep('contact');
     setContact(null);
     setInspection(null);
@@ -433,7 +421,6 @@ export default function PublicInspectionPage() {
     forgetInspection();
     setActiveId(null);
     setOpenedOnce(false);
-    setShowOptional(false);
     setInspection(null);
     setEmailStatus(null);
     setStep(contact ? 'model' : 'contact');
@@ -488,7 +475,7 @@ export default function PublicInspectionPage() {
       : null);
 
   const inspecting = resume === 'done' && step === 'inspecting' && inspection !== null;
-  const readyToFinish = !isComplete && !activeItem && allRequiredResolved;
+  const readyToFinish = !isComplete && !activeItem && allResolved;
 
   const expiredKinds = expired.map((i) => (i.id === 'pads_expiry' ? ('pads' as const) : ('battery' as const)));
   const expiredSentence = expiredKinds.length ? m.inspection.ready.expired(expiredKinds) : '';
@@ -525,7 +512,7 @@ export default function PublicInspectionPage() {
             </div>
             <ProgressRail
               className="mt-2.5"
-              items={REQUIRED_ITEMS}
+              items={ALL_ITEMS}
               checklist={inspection.checklist}
               activeId={isComplete ? null : activeId}
             />
@@ -658,7 +645,7 @@ export default function PublicInspectionPage() {
                 </span>
                 <h2 className="text-title text-foreground mt-4">
                   {failedRequired.length === 0
-                    ? m.inspection.ready.allDone(REQUIRED_ITEM_IDS.length)
+                    ? m.inspection.ready.allDone(ALL_ITEMS.length)
                     : m.inspection.ready.needAttention(failedRequired.length)}
                 </h2>
                 <p className="text-body text-muted-foreground mt-1.5">
@@ -685,15 +672,6 @@ export default function PublicInspectionPage() {
                     ))}
                   </div>
                 )}
-                {listed.optional.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => openCheck(listed.optional[0].id)}
-                    className="mt-5 h-10 px-3 text-callout font-medium text-primary hover:text-primary/80 transition-colors"
-                  >
-                    {m.inspection.ready.addOptional(listed.optional.length)}
-                  </button>
-                )}
               </motion.section>
             )}
 
@@ -706,7 +684,7 @@ export default function PublicInspectionPage() {
                   {listed.checklist.map((item) => {
                     const result = inspection.checklist.find((c) => c.itemId === item.id);
                     if (!result) return null;
-                    const index = REQUIRED_ITEMS.findIndex((r) => r.id === item.id);
+                    const index = ALL_ITEMS.findIndex((r) => r.id === item.id);
                     return (
                       <CheckRow
                         key={item.id}
@@ -719,36 +697,6 @@ export default function PublicInspectionPage() {
                     );
                   })}
                 </div>
-              </section>
-            )}
-
-            {/* Folded away by default: four optional extras on screen make a
-                six-check job look like a ten-check one. */}
-            {listed.optional.length > 0 && (
-              <section>
-                <button
-                  type="button"
-                  onClick={() => setShowOptional((v) => !v)}
-                  className="group-label flex h-11 items-center gap-1.5 pb-0 hover:text-foreground transition-colors"
-                  aria-expanded={showOptional}
-                >
-                  {m.inspection.optionalExtras(listed.optional.length)}
-                  <ChevronDown
-                    className={cn('w-3.5 h-3.5 transition-transform', showOptional && 'rotate-180')}
-                    strokeWidth={2.2}
-                  />
-                </button>
-                {showOptional && (
-                  <div className="-mx-2 fade-in">
-                    {listed.optional.map((item) => {
-                      const result = inspection.checklist.find((c) => c.itemId === item.id);
-                      if (!result) return null;
-                      return (
-                        <CheckRow key={item.id} item={item} result={result} onSelect={() => openCheck(item.id)} />
-                      );
-                    })}
-                  </div>
-                )}
               </section>
             )}
 

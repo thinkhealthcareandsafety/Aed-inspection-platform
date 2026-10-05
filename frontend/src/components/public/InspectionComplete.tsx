@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { deviceAge } from '@/lib/device-age';
+import { DeviceAgeNotice } from '@/components/inspection/DeviceAgeNotice';
 import { MAX_SCORE, READY_THRESHOLD, scoreOf } from '@/lib/score';
 import { ScoreRing } from './ScoreRing';
 import { api } from '@/lib/api';
@@ -166,6 +168,10 @@ export function InspectionComplete({
   }
 
   const score = scoreOf(inspection.checklist);
+  const serialEntry = inspection.checklist.find((c) => c.itemId === 'serial_number' && c.status === 'pass');
+  const unitAge = serialEntry
+    ? deviceAge(inspection.aedModel, serialEntry.aiData?.serial_number, serialEntry.aiData?.manufacture_date)
+    : null;
   // The marking scheme's line: below 80, the AED fails readiness.
   const belowThreshold = inspection.inspectionResult === 'FAIL' && score < READY_THRESHOLD;
   const subtitle =
@@ -339,6 +345,8 @@ export function InspectionComplete({
           )}
         </motion.section>
       )}
+
+      {unitAge && <DeviceAgeNotice age={unitAge} />}
 
       <section>
         <div className="group-label">{t.whatWeChecked}</div>

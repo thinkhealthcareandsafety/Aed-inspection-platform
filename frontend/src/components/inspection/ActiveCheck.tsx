@@ -19,6 +19,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { deviceAge, type DeviceAge } from '@/lib/device-age';
+import { DeviceAgeNotice } from './DeviceAgeNotice';
 import { CHECK_POINTS } from '@/lib/score';
 import { readinessSeconds } from '@/lib/aed-models';
 import { spokenInstruction } from '@/lib/voice-key';
@@ -398,6 +400,11 @@ export function ActiveCheck({
             title={copy.title}
             sources={[previewUrl, serverMedia].filter((s): s is string => Boolean(s))}
             reading={reading}
+            deviceAge={
+              item.id === 'serial_number' && result.status === 'pass'
+                ? deviceAge(aedModel, result.aiData?.serial_number, result.aiData?.manufacture_date)
+                : null
+            }
             notes={feedbackOf(result, lang)}
             guidance={result.status === 'pass' ? undefined : (expiredGuidance ?? m.check.faultGuidance)}
           />
@@ -437,7 +444,7 @@ export function ActiveCheck({
                   ) : (
                     <SkipForward className="w-4 h-4" strokeWidth={2} />
                   )}
-                  {m.check.skip}
+                  {m.check.dontHave}
                 </button>
               )}
               <button type="button" disabled={skipping} onClick={openCamera} className={PRIMARY_BUTTON}>
@@ -521,6 +528,7 @@ export function ActiveCheck({
 /** The capture with its verdict and reading laid over it — the moment the
  *  AI proves it read the label. */
 function ResultView({
+  deviceAge: age,
   passed,
   marks,
   fresh,
@@ -531,6 +539,8 @@ function ResultView({
   notes,
   guidance,
 }: {
+  /** How old the unit is, from its serial label — serial number only. */
+  deviceAge?: DeviceAge | null;
   passed: boolean;
   /** What this check adds to the readiness score when it passes. */
   marks?: number;
@@ -602,6 +612,7 @@ function ResultView({
       )}
 
       {notes && <p className="mt-3 text-callout text-muted-foreground">{notes}</p>}
+      {age && <DeviceAgeNotice age={age} fresh={fresh} className="mt-3" />}
       {guidance && <p className="mt-2 text-footnote text-foreground/80">{guidance}</p>}
     </div>
   );

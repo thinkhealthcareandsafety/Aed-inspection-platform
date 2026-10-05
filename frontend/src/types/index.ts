@@ -36,6 +36,8 @@ export interface ChecklistAiData {
   battery_serial_number?: string | null;
   present?: boolean | null;
   status?: string | null;
+  /** A date of manufacture read off the label, when one is printed. */
+  manufacture_date?: string | null;
 }
 
 export interface ChecklistItemResult {

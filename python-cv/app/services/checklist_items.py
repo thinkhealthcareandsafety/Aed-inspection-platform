@@ -90,7 +90,10 @@ CHECKLIST_ITEMS: list[ChecklistItem] = [
             "keep leading zeros). Do not report a REF/model number, a LOT "
             "number or a service number as the serial. On GS1 barcode labels "
             "the serial follows '(21)' — the '(21)' is a field code, not part "
-            f"of the serial. {_FINE_PRINT}"
+            "of the serial. If the same label prints the unit's date of "
+            "manufacture (beside the factory symbol), copy it into "
+            "manufacture_date as YYYY-MM or YYYY-MM-DD — it tells the owner "
+            f"how old the AED is. {_FINE_PRINT}"
         ),
     ),
     ChecklistItem(

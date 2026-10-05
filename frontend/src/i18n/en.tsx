@@ -153,6 +153,7 @@ export const en = {
     recordVideo: 'Record the video',
     tryAgain: 'Try again',
     skip: 'Skip',
+    dontHave: 'I don’t have this',
     retake: 'Retake',
     carryOn: 'Carry on',
     next: { check: 'Next check', extra: 'Next extra', finish: 'Review & finish' },
@@ -369,6 +370,30 @@ export const en = {
     qrAlt: 'QR code that opens this inspection on a phone',
     qrFailed: 'Couldn’t draw the code. Use the link below.',
     done: 'Done',
+  },
+
+  /** How old the AED is, from its serial label, against Think Health's
+   *  5-year replacement cycle. */
+  age: {
+    shows: {
+      serial: (year: number) => `This AED’s serial number shows it was made in ${year}.`,
+      label: (year: number) => `This AED’s label shows it was made in ${year}.`,
+    },
+    title: {
+      current: (year: number) => `Made in ${year} · under warranty`,
+      checkInvoice: (year: number) => `Made in ${year} · check your warranty`,
+      replace: (year: number, age: number) => `Made in ${year} · about ${age} years old`,
+      replaceUrgently: (year: number) => `Made in ${year} · over 10 years old`,
+    },
+    body: {
+      current: (shows: string) => `${shows} Its warranty is still valid. You can carry on with the inspection.`,
+      checkInvoice: (shows: string) =>
+        `${shows} Its warranty may still be valid, depending on the month you bought it — please check your invoice. You can carry on with the inspection.`,
+      replace: (shows: string, age: number) =>
+        `${shows} That makes it about ${age} years old, so its warranty has expired under our 5-year replacement policy. We recommend replacing it, as it may not meet the latest AHA guidelines. An AED usually lasts about 10 years when well maintained, so you can carry on with the inspection.`,
+      replaceUrgently: (shows: string, age: number) =>
+        `${shows} That makes it about ${age} years old — past the 10 years an AED usually lasts — and its warranty has expired under our 5-year replacement policy. We highly recommend replacing it, as it may not meet the latest AHA guidelines. You can still carry on with the inspection.`,
+    },
   },
 
   score: {

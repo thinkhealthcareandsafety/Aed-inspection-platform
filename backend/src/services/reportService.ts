@@ -13,6 +13,7 @@
  * one place and the sample can never promise more than the real thing.
  */
 import PDFDocument from 'pdfkit';
+import { deviceAge } from '../utils/device-age';
 import { MAX_SCORE, READY_THRESHOLD, readinessScore } from '../config/scoring';
 import path from 'path';
 import fs from 'fs';
@@ -532,6 +533,23 @@ function nextSteps(ctx: Ctx): { steps: Step[]; supply: boolean } {
     }
   }
 
+  // An old unit is a replacement conversation, said where the owner reads
+  // what to do next.
+  const unit = unitAgeOf(ctx);
+  if (unit?.band === 'replaceUrgently') {
+    steps.push({
+      tone: 'bad',
+      text: `Replace this AED — made in ${unit.year}, it is past the 10 years an AED usually lasts and may not meet the latest AHA guidelines.`,
+    });
+    supply = true;
+  } else if (unit?.band === 'replace') {
+    steps.push({
+      tone: 'warn',
+      text: `Plan to replace this AED — made in ${unit.year}, about ${unit.age} years old, its warranty has expired under the 5-year replacement policy.`,
+    });
+    supply = true;
+  }
+
   const next = new Date(ctx.asOf.getTime() + NEXT_CHECK_DAYS * 86_400_000);
   steps.push({ tone: 'muted', text: `Next routine check due by ${formatDay(next)}.` });
   return { steps, supply };
@@ -546,7 +564,7 @@ function drawNextSteps(doc: PDFKit.PDFDocument, ctx: Ctx): void {
 
   font(doc, 'regular', 9, COLOR.ink);
   const heights = steps.map((s) => doc.heightOfString(s.text, { width: textWidth, lineGap: 1.5 }));
-  const supplyText = `aedsmartx by Think Health supplies replacement pads, batteries and accessories for the ${ctx.model} — aedsmartx.com`;
+  const supplyText = `aedsmartx by Think Health supplies new AEDs, and replacement pads, batteries and accessories for the ${ctx.model} — aedsmartx.com`;
   font(doc, 'regular', 7.8, COLOR.inkMuted);
   const supplyHeight = supply ? doc.heightOfString(supplyText, { width: textWidth + 13, lineGap: 1 }) + 10 : 0;
   const height = pad + 16 + heights.reduce((a, b) => a + b, 0) + gap * (steps.length - 1) + supplyHeight + pad - 2;
@@ -635,6 +653,27 @@ function drawDetailGrid(doc: PDFKit.PDFDocument, details: Detail[]): void {
   doc.y += 16;
 }
 
+/** How old the unit is, from its serial label (utils/device-age). */
+function unitAgeOf(ctx: Ctx) {
+  const entry = ctx.checklist.find((c) => c.itemId === 'serial_number' && c.status === 'pass');
+  const ai = (entry?.aiData ?? {}) as Record<string, unknown>;
+  return entry ? deviceAge(ctx.inspection.aedModel, ai.serial_number ?? ctx.inspection.serialNumber, ai.manufacture_date) : null;
+}
+
+const AGE_COLOR = { current: COLOR.ok, checkInvoice: COLOR.warn, replace: '#c2410c', replaceUrgently: COLOR.bad };
+
+function unitAgeLine(ctx: Ctx): { text: string; color: string } | undefined {
+  const a = unitAgeOf(ctx);
+  if (!a) return undefined;
+  const text = {
+    current: `Made in ${a.year} · under warranty`,
+    checkInvoice: `Made in ${a.year} · warranty may still be valid: check the invoice`,
+    replace: `Made in ${a.year} · about ${a.age} years old · replacement recommended`,
+    replaceUrgently: `Made in ${a.year} · over 10 years old · replacement strongly recommended`,
+  }[a.band];
+  return { text, color: AGE_COLOR[a.band] };
+}
+
 function deviceDetails(ctx: Ctx): Detail[] {
   const i = ctx.inspection;
   const pads = consumableExpiry(ctx, 'pads_expiry');
@@ -644,7 +683,12 @@ function deviceDetails(ctx: Ctx): Detail[] {
 
   const details: Detail[] = [
     { label: 'AED model', value: ctx.model },
-    { label: 'Serial number', value: i.serialNumber ?? 'Not read', mono: Boolean(i.serialNumber) },
+    {
+      label: 'Serial number',
+      value: i.serialNumber ?? 'Not read',
+      mono: Boolean(i.serialNumber),
+      sub: unitAgeLine(ctx),
+    },
     {
       label: 'Pads expiry',
       value: pads?.label ?? 'Not read',
