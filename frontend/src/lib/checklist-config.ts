@@ -147,6 +147,9 @@ export const REQUIRED_ITEM_IDS = CHECKLIST_ITEMS.filter((i) => i.required).map((
  */
 export const QUICK_CHECK_IDS: ChecklistItemId[] = ['readiness_indicator', 'serial_number'];
 
+/** Every check in the full inspection. */
+export const ALL_CHECK_COUNT = CHECKLIST_SECTIONS.reduce((n, s) => n + s.items.length, 0);
+
 export function getChecklistItemMeta(id: string): ChecklistItemMeta | undefined {
   return CHECKLIST_ITEMS.find((i) => i.id === id);
 }

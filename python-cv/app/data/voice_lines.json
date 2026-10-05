@@ -1,5 +1,10 @@
 [
   {
+    "key": "a24a6af5",
+    "lang": "en",
+    "text": "Welcome. You can start with a quick check, or go through everything now. The quick check is 2 checks and takes about a minute: the readiness indicator and serial number, to tell you whether your AED will work right now. The full inspection is 10 checks and takes about six minutes. It also covers the pads, battery and accessories, where expiry dates catch people out. A quick check can always become a full one."
+  },
+  {
     "key": "7966eeb5",
     "lang": "en",
     "text": "Serial number. Photograph the label on the back of the AED so the serial number is sharp."
@@ -228,6 +233,11 @@
     "key": "42a97295",
     "lang": "en",
     "text": "Emergency contacts sticker. Photograph the emergency contact sticker on the AED or its cabinet."
+  },
+  {
+    "key": "c39f5f0e",
+    "lang": "hi",
+    "text": "स्वागत है। आप क्विक चेक से शुरू कर सकते हैं, या अभी पूरी जाँच कर सकते हैं। क्विक चेक में 2 जाँचें हैं और लगभग एक मिनट लगता है: रेडीनेस इंडिकेटर और सीरियल नंबर, जिससे पता चलता है कि आपका AED अभी काम करेगा या नहीं। पूरी जाँच में 10 जाँचें हैं और लगभग छह मिनट लगते हैं। इसमें पैड्स, बैटरी और सामान भी देखे जाते हैं, जहाँ एक्सपायरी अक्सर छूट जाती है। क्विक चेक को बाद में कभी भी पूरी जाँच में बदला जा सकता है।"
   },
   {
     "key": "2f02c097",

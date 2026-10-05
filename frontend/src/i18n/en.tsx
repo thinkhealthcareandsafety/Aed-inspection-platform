@@ -86,6 +86,10 @@ export const en = {
     },
     reportTo: (email: ReactNode): ReactNode => <>Your report will be emailed to {email}</>,
     edit: 'Edit',
+    /** Read aloud by the speaker button. No name: it is recorded once, for
+     *  everyone, and a name would go to the voice service. */
+    spoken: (quick: number, full: number) =>
+      `Welcome. You can start with a quick check, or go through everything now. The quick check is ${quick} checks and takes about a minute: the readiness indicator and serial number, to tell you whether your AED will work right now. The full inspection is ${full} checks and takes about six minutes. It also covers the pads, battery and accessories, where expiry dates catch people out. A quick check can always become a full one.`,
   },
 
   model: {

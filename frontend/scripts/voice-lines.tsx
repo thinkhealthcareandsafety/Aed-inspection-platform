@@ -6,10 +6,13 @@
  */
 import { en } from '../src/i18n/en';
 import { hi } from '../src/i18n/hi';
-import { spokenInstruction, voiceKey } from '../src/lib/voice-key';
+import { spokenInstruction, spokenWelcome, voiceKey } from '../src/lib/voice-key';
 
 const lines = new Map<string, { key: string; lang: string; text: string }>();
 for (const m of [en, hi]) {
+  const welcome = spokenWelcome(m);
+  lines.set(voiceKey(m.lang, welcome), { key: voiceKey(m.lang, welcome), lang: m.lang, text: welcome });
+
   for (const [, entry] of Object.entries(m.items)) {
     const variants = [entry.description, ...Object.values(entry.byModel ?? {})];
     for (const description of variants) {

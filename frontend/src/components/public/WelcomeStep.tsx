@@ -2,8 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { ChevronRight, ListChecks, Mail, Zap } from 'lucide-react';
-import { CHECKLIST_SECTIONS, QUICK_CHECK_IDS } from '@/lib/checklist-config';
+import { ALL_CHECK_COUNT, QUICK_CHECK_IDS } from '@/lib/checklist-config';
 import { screenTransition } from '@/lib/motion';
+import { spokenWelcome } from '@/lib/voice-key';
+import { ListenButton } from '@/components/inspection/ListenButton';
 import { useI18n } from '@/i18n';
 
 export type InspectionPath = 'quick' | 'full';
@@ -14,8 +16,6 @@ interface Props {
   onChoose: (path: InspectionPath) => void;
   onEditDetails: () => void;
 }
-
-const TOTAL_CHECKS = CHECKLIST_SECTIONS.reduce((n, s) => n + s.items.length, 0);
 
 /**
  * The moment after someone hands over their details. It does three jobs:
@@ -32,13 +32,18 @@ export function WelcomeStep({ name, email, onChoose, onEditDetails }: Props) {
 
   const paths = [
     { id: 'quick' as const, Icon: Zap, copy: t.quick, count: QUICK_CHECK_IDS.length },
-    { id: 'full' as const, Icon: ListChecks, copy: t.full, count: TOTAL_CHECKS },
+    { id: 'full' as const, Icon: ListChecks, copy: t.full, count: ALL_CHECK_COUNT },
   ];
 
   return (
     <motion.div {...screenTransition} className="w-full max-w-sm mx-auto">
       <div className="mb-6 px-1">
-        <h1 className="text-display text-foreground break-words">{t.greeting(firstName)}</h1>
+        <div className="flex items-start gap-3">
+          <h1 className="min-w-0 flex-1 text-display text-foreground break-words">{t.greeting(firstName)}</h1>
+          {/* Says the screen, like the speaker on each check — without the
+              name, which is the one part that can't be recorded ahead. */}
+          <ListenButton itemId="welcome" text={spokenWelcome(m)} className="-mr-1 mt-0.5" />
+        </div>
         <p className="text-body text-muted-foreground mt-3">{t.intro}</p>
       </div>
 
