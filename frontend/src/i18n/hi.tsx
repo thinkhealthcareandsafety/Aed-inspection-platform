@@ -359,6 +359,15 @@ export const hi: Messages = {
     done: 'हो गया',
   },
 
+  score: {
+    aria: (score: number, max: number) => `रेडीनेस स्कोर ${max} में से ${score}`,
+    label: 'रेडीनेस स्कोर',
+    earned: (marks: number) => `+${marks}`,
+    needed: (n: number) => `पास होने के लिए ${n} चाहिए`,
+    failsTitle: 'रेडीनेस में फ़ेल',
+    below: (model: string, n: number) => `आपके ${model} का स्कोर ${n} से कम है: यह रेडीनेस में फ़ेल है।`,
+  },
+
   result: {
     verdict: {
       PASS: { eyebrow: 'जाँच पास', title: 'जान बचाने के लिए तैयार' },

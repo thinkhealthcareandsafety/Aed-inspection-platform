@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CHECK_POINTS } from '@/lib/score';
 import { readinessSeconds } from '@/lib/aed-models';
 import { spokenInstruction } from '@/lib/voice-key';
 import { ListenButton } from './ListenButton';
@@ -391,6 +392,7 @@ export function ActiveCheck({
         {mode === 'result' && (
           <ResultView
             passed={result.status === 'pass'}
+            marks={CHECK_POINTS[item.id]}
             fresh={fresh}
             isVideo={isVideo}
             title={copy.title}
@@ -520,6 +522,7 @@ export function ActiveCheck({
  *  AI proves it read the label. */
 function ResultView({
   passed,
+  marks,
   fresh,
   isVideo,
   title,
@@ -529,6 +532,8 @@ function ResultView({
   guidance,
 }: {
   passed: boolean;
+  /** What this check adds to the readiness score when it passes. */
+  marks?: number;
   fresh: boolean;
   isVideo: boolean;
   title: string;
@@ -571,7 +576,7 @@ function ResultView({
             <img src={src} alt={m.check.yourPhoto(title)} onError={onError} className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/0 pointer-events-none" />
-          <Verdict passed={passed} fresh={fresh} className="absolute top-3 left-3" />
+          <Verdict passed={passed} marks={marks} fresh={fresh} className="absolute top-3 left-3" />
           {readingBlock && <div className="absolute inset-x-4 bottom-3.5 text-white">{readingBlock}</div>}
         </div>
       ) : (
@@ -581,7 +586,7 @@ function ResultView({
             passed ? 'bg-emerald-500/10' : 'bg-destructive/8',
           )}
         >
-          <Verdict passed={passed} fresh={fresh} />
+          <Verdict passed={passed} marks={marks} fresh={fresh} />
           {readingBlock && <div className="mt-3 text-foreground">{readingBlock}</div>}
         </div>
       )}
@@ -602,7 +607,17 @@ function ResultView({
   );
 }
 
-function Verdict({ passed, fresh, className }: { passed: boolean; fresh: boolean; className?: string }) {
+function Verdict({
+  passed,
+  marks,
+  fresh,
+  className,
+}: {
+  passed: boolean;
+  marks?: number;
+  fresh: boolean;
+  className?: string;
+}) {
   const { m } = useI18n();
   return (
     <motion.span
@@ -630,6 +645,16 @@ function Verdict({ passed, fresh, className }: { passed: boolean; fresh: boolean
         )}
       </span>
       {passed ? m.check.passed : m.check.needsAttention}
+      {passed && marks ? (
+        <motion.span
+          initial={fresh ? { opacity: 0, x: -4 } : false}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: fresh ? 0.45 : 0, duration: 0.3 }}
+          className="ml-0.5 rounded-full bg-white/25 px-1.5 text-caption font-bold tabular-nums"
+        >
+          {m.score.earned(marks)}
+        </motion.span>
+      ) : null}
     </motion.span>
   );
 }

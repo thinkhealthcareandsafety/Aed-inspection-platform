@@ -4,6 +4,7 @@
  * unauthenticated router (api/routes/public.ts) so the two flows can't drift.
  */
 import path from 'path';
+import { READY_THRESHOLD, SAFETY_CRITICAL, readinessScore } from '../config/scoring';
 import fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { IInspection, IChecklistItemResult } from '../models/Inspection';
@@ -58,12 +59,17 @@ function syncTopLevelFields(itemId: string, data: AnalysisResponse) {
   }
 }
 
+/**
+ * The AED fails readiness when its score is below 80, or when any safety
+ * check fails whatever the score (see config/scoring). A serial number that
+ * couldn't be read costs its 10 marks but doesn't make the unit unready.
+ */
 export function deriveResult(checklist: IChecklistItemResult[]): 'PASS' | 'FAIL' | 'REVIEW' | 'INCOMPLETE' {
   const required = checklist.filter((c) => REQUIRED_ITEM_IDS.includes(c.itemId));
   if (required.every((c) => c.status === 'pending')) return 'INCOMPLETE';
-  if (required.some((c) => c.status === 'fail')) return 'FAIL';
-  if (required.every((c) => c.status === 'pass')) return 'PASS';
-  return 'REVIEW';
+  if (required.some((c) => c.status === 'fail' && SAFETY_CRITICAL.includes(c.itemId))) return 'FAIL';
+  if (required.some((c) => c.status !== 'pass' && c.status !== 'fail')) return 'REVIEW';
+  return readinessScore(checklist) < READY_THRESHOLD ? 'FAIL' : 'PASS';
 }
 
 /**

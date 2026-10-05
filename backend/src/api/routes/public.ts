@@ -12,6 +12,7 @@ import { Inspection, REPLACEMENT_ITEMS } from '../../models/Inspection';
 import { ModelRequest } from '../../models/ModelRequest';
 import { createError } from '../middleware/error-handler';
 import { config } from '../../config/env';
+import { readinessScore } from '../../config/scoring';
 import { logger } from '../../utils/logger';
 import { isPublicAedModel, PUBLIC_AED_MODELS } from '../../config/aed-models';
 import {
@@ -213,6 +214,7 @@ router.post('/inspections/:id/complete', async (req: Request, res: Response, nex
       inspectionResult: completed.inspectionResult,
       guestName: completed.guestName,
       guestEmail: completed.guestEmail,
+      score: readinessScore(completed.checklist),
       pdfBuffer,
     });
 

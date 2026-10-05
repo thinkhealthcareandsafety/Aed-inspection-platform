@@ -56,6 +56,8 @@ export interface SendReportParams {
   inspectionResult: string;
   guestName?: string;
   guestEmail?: string;
+  /** Readiness score out of 100. */
+  score?: number;
   pdfBuffer: Buffer;
 }
 
@@ -81,7 +83,9 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
     await t.sendMail({
       from: config.EMAIL_FROM || config.SMTP_USER,
       to: [...recipients].join(', '),
-      subject: `AED Inspection Report — ${modelLine}${resultLabel}`,
+      subject: `AED Inspection Report — ${modelLine}${resultLabel}${
+        params.score !== undefined ? ` (${params.score}/100)` : ''
+      }`,
       html: `
         <div style="font-family: -apple-system, Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
           <p style="margin: 0 0 20px;">
@@ -92,6 +96,7 @@ export async function sendInspectionReportEmail(params: SendReportParams): Promi
           <h2 style="margin-bottom: 4px;">AED Inspection Report</h2>
           <p style="color: #555; margin-top: 0;">${escapeHtml(params.aedModel ?? 'AED')} inspection completed by ${escapeHtml(params.guestName ?? 'inspector')}.</p>
           <p><strong>Result:</strong> ${resultLabel}</p>
+          ${params.score !== undefined ? `<p><strong>Readiness score:</strong> ${params.score}/100 (80 needed to pass)</p>` : ''}
           <p><strong>Inspection ID:</strong> ${params.inspectionId}</p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">The full report is attached as a PDF.</p>
           <p style="color: #aaa; font-size: 11px; margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">

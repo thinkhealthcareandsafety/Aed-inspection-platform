@@ -371,6 +371,15 @@ export const en = {
     done: 'Done',
   },
 
+  score: {
+    aria: (score: number, max: number) => `Readiness score ${score} out of ${max}`,
+    label: 'Readiness score',
+    earned: (marks: number) => `+${marks}`,
+    needed: (n: number) => `${n} needed to pass`,
+    failsTitle: 'Fails readiness',
+    below: (model: string, n: number) => `Your ${model} scored below ${n}: it fails readiness.`,
+  },
+
   result: {
     verdict: {
       PASS: { eyebrow: 'Inspection passed', title: 'Ready to save a life' },

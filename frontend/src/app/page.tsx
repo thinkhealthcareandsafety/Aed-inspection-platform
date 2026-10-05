@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { scoreOf } from '@/lib/score';
+import { ScoreCounter } from '@/components/inspection/ScoreCounter';
 import { CHECKLIST_SECTIONS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
 import { modelDisplayName } from '@/lib/aed-models';
 import { readingOf } from '@/lib/readings';
@@ -502,14 +504,9 @@ export default function PublicInspectionPage() {
               <span className="text-headline text-foreground truncate min-w-0 flex-1">
                 {modelDisplayName(inspection.aedModel)}
               </span>
-              {!isComplete && (
-                <span className="text-callout tabular-nums text-muted-foreground shrink-0">
-                  {m.inspection.doneCount(
-                    <span className="text-foreground font-semibold">{requiredResolvedCount}</span>,
-                    REQUIRED_ITEM_IDS.length,
-                  )}
-                </span>
-              )}
+              {/* The score, live: each check that passes adds its marks here
+                  as it happens. How far along the job is, the rail shows. */}
+              {!isComplete && <ScoreCounter score={scoreOf(inspection.checklist)} />}
               {/* With the job done there is no options menu, so the language
                   switch sits in the bar itself for reading the result. */}
               {isComplete && <LanguageSwitch className="-mr-2" />}

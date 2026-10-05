@@ -13,6 +13,7 @@
  * one place and the sample can never promise more than the real thing.
  */
 import PDFDocument from 'pdfkit';
+import { MAX_SCORE, READY_THRESHOLD, readinessScore } from '../config/scoring';
 import path from 'path';
 import fs from 'fs';
 import { CHECKLIST_ITEMS, getChecklistItem } from '../config/checklist-items';
@@ -391,6 +392,8 @@ function verdictOf(ctx: Ctx): Swatch & { title: string; detail: string } {
   const failed = required.filter((c) => c.status === 'fail').length;
   const done = required.filter((c) => c.status === 'pass' || c.status === 'fail').length;
   const model = ctx.model;
+  const score = readinessScore(ctx.checklist);
+  const marks = `Readiness score ${score}/${MAX_SCORE}`;
   switch (ctx.inspection.inspectionResult) {
     case 'PASS':
       return {
@@ -398,15 +401,18 @@ function verdictOf(ctx: Ctx): Swatch & { title: string; detail: string } {
         tint: COLOR.okTint,
         label: 'PASS',
         title: 'Ready for use',
-        detail: `All ${n} required checks passed · ${model}`,
+        detail: `${marks} · All safety checks passed · ${model}`,
       };
     case 'FAIL':
       return {
         color: COLOR.bad,
         tint: COLOR.badTint,
         label: 'FAIL',
-        title: 'Not ready for use',
-        detail: `${failed} of ${n} required checks failed · ${model}`,
+        title: score < READY_THRESHOLD ? 'Fails readiness' : 'Not ready for use',
+        detail:
+          score < READY_THRESHOLD
+            ? `${marks}, below the ${READY_THRESHOLD} needed · ${failed} of ${n} required checks failed · ${model}`
+            : `${marks}, but a safety check failed · ${model}`,
       };
     case 'REVIEW':
       return {

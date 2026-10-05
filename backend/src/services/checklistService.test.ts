@@ -3,7 +3,7 @@ jest.mock('fs/promises', () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
 }));
 
-import { analyzeChecklistItem, isFeedbackLanguage } from './checklistService';
+import { analyzeChecklistItem, deriveResult, isFeedbackLanguage } from './checklistService';
 import { logger } from '../utils/logger';
 
 function fakeInspection(aedModel?: string) {
@@ -69,5 +69,48 @@ describe('isFeedbackLanguage', () => {
     for (const value of ['en', 'HI', '', undefined, null, 42, 'fr']) {
       expect(isFeedbackLanguage(value)).toBe(false);
     }
+  });
+});
+
+describe('deriveResult — the readiness score', () => {
+  const ALL = ['serial_number', 'pads_expiry', 'battery_expiry', 'battery_attached', 'pads_connected', 'readiness_indicator'];
+  const checks = (status: Record<string, string> = {}) =>
+    ALL.map((itemId) => ({ itemId, section: 1, required: true, status: status[itemId] ?? 'pass' })) as Parameters<
+      typeof deriveResult
+    >[0];
+
+  it('passes an AED whose every required check passes (90 of 100)', () => {
+    expect(deriveResult(checks())).toBe('PASS');
+  });
+
+  it('fails expired pads: 70, below 80', () => {
+    expect(deriveResult(checks({ pads_expiry: 'fail' }))).toBe('FAIL');
+  });
+
+  it('fails unplugged pads even though the score, 85, is above 80', () => {
+    expect(deriveResult(checks({ pads_connected: 'fail' }))).toBe('FAIL');
+  });
+
+  it('does not fail the AED over a serial number it could not read: 80', () => {
+    expect(deriveResult(checks({ serial_number: 'fail' }))).toBe('PASS');
+  });
+
+  it('waits for checks still in progress', () => {
+    expect(deriveResult(checks({ battery_attached: 'pending' }))).toBe('REVIEW');
+  });
+});
+
+describe('readinessScore', () => {
+  it('adds the marks of the checks that passed, out of 100', () => {
+    const { readinessScore } = jest.requireActual('../config/scoring');
+    expect(
+      readinessScore([
+        { itemId: 'pads_expiry', status: 'pass' },
+        { itemId: 'readiness_indicator', status: 'pass' },
+        { itemId: 'battery_expiry', status: 'fail' },
+        { itemId: 'aed_cabinet', status: 'pass' },
+        { itemId: 'child_key_pad', status: 'skipped' },
+      ]),
+    ).toBe(53);
   });
 });

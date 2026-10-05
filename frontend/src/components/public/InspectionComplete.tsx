@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus, Share } from 'lucide-react';
+import { ArrowRight, Check, Download, Loader2, Mail, PackagePlus, Plus, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MAX_SCORE, READY_THRESHOLD, scoreOf } from '@/lib/score';
+import { ScoreRing } from './ScoreRing';
 import { api } from '@/lib/api';
 import { CHECKLIST_ITEMS } from '@/lib/checklist-config';
 import { modelDisplayName } from '@/lib/aed-models';
@@ -11,32 +13,28 @@ import { formatPhone } from '@/lib/countries';
 import { describeExpiry, urgencyOf } from '@/lib/expiry';
 import { readingOf } from '@/lib/readings';
 import { URGENCY } from '@/lib/urgency';
-import { EASE_OUT, springSnappy } from '@/lib/motion';
+import { springSnappy } from '@/lib/motion';
 import { ChecklistIcon } from '@/components/icons';
 import { StatusDot } from '@/components/inspection/StatusDot';
 import { itemCopy, useI18n } from '@/i18n';
 import type { Inspection, InspectionResult, ReplacementItem, ReplacementRequest } from '@/types';
 
 /** How each verdict looks; what it says is in the messages. */
-const VERDICT: Record<InspectionResult, { panel: string; badge: string; tone: string }> = {
+const VERDICT: Record<InspectionResult, { panel: string; tone: string }> = {
   PASS: {
     panel: 'bg-emerald-500/[0.08] ring-emerald-500/20',
-    badge: 'bg-emerald-600 text-white',
     tone: 'text-emerald-700 dark:text-emerald-400',
   },
   FAIL: {
     panel: 'bg-destructive/[0.07] ring-destructive/20',
-    badge: 'bg-destructive text-destructive-foreground',
     tone: 'text-destructive',
   },
   REVIEW: {
     panel: 'bg-amber-500/[0.09] ring-amber-500/25',
-    badge: 'bg-amber-500 text-white',
     tone: 'text-amber-700 dark:text-amber-400',
   },
   INCOMPLETE: {
     panel: 'bg-secondary ring-border',
-    badge: 'bg-muted-foreground text-background',
     tone: 'text-muted-foreground',
   },
 };
@@ -167,9 +165,14 @@ export function InspectionComplete({
     }
   }
 
+  const score = scoreOf(inspection.checklist);
+  // The marking scheme's line: below 80, the AED fails readiness.
+  const belowThreshold = inspection.inspectionResult === 'FAIL' && score < READY_THRESHOLD;
   const subtitle =
     inspection.inspectionResult === 'PASS'
       ? t.subtitle.PASS(model, required.length)
+      : belowThreshold
+        ? m.score.below(model, READY_THRESHOLD)
       : inspection.inspectionResult === 'FAIL'
         ? t.subtitle.FAIL(model, failedCount, required.length)
         : inspection.inspectionResult === 'REVIEW'
@@ -198,47 +201,27 @@ export function InspectionComplete({
         transition={springSnappy}
         className={cn('rounded-3xl ring-1 ring-inset px-6 pt-8 pb-5 text-center', verdict.panel)}
       >
-        <div className="relative mx-auto w-[72px] h-[72px]">
-          {inspection.inspectionResult === 'PASS' && (
-            <motion.span
-              aria-hidden
-              className="absolute inset-0 rounded-full bg-emerald-500"
-              initial={{ scale: 1, opacity: 0.35 }}
-              animate={{ scale: 1.9, opacity: 0 }}
-              transition={{ duration: 1.2, ease: EASE_OUT, delay: 0.25 }}
-            />
-          )}
-          <motion.span
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-            className={cn(
-              'relative w-full h-full rounded-full flex items-center justify-center shadow-lg',
-              verdict.badge,
-            )}
-          >
-            {inspection.inspectionResult === 'PASS' ? (
-              <svg viewBox="0 0 24 24" className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <motion.path
-                  d="M5 12.5l4.5 4.5L19 7.5"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 0.45, delay: 0.2, ease: EASE_OUT }}
-                />
-              </svg>
-            ) : inspection.inspectionResult === 'FAIL' ? (
-              <span className="text-[34px] font-bold leading-none">!</span>
-            ) : (
-              <AlertTriangle className="w-8 h-8" strokeWidth={2.2} />
-            )}
-          </motion.span>
-        </div>
+        <ScoreRing
+          score={score}
+          tone={
+            inspection.inspectionResult === 'PASS'
+              ? 'ok'
+              : inspection.inspectionResult === 'FAIL'
+                ? 'bad'
+                : inspection.inspectionResult === 'REVIEW'
+                  ? 'warn'
+                  : 'neutral'
+          }
+        />
 
         <p className={cn('mt-5 text-caption uppercase tracking-[0.08em] font-semibold', verdict.tone)}>
           {verdictCopy.eyebrow}
         </p>
-        <h1 className="text-display text-foreground mt-1.5">{verdictCopy.title}</h1>
+        <h1 className="text-display text-foreground mt-1.5">{belowThreshold ? m.score.failsTitle : verdictCopy.title}</h1>
         <p className="text-body text-muted-foreground mt-2">{subtitle}</p>
+        <p className="mt-1.5 text-footnote text-muted-foreground">
+          {m.score.label} {score}/{MAX_SCORE} · {m.score.needed(READY_THRESHOLD)}
+        </p>
 
         <div className="mt-6 pt-4 border-t border-foreground/10 text-left">
           <p className="text-footnote text-foreground flex items-center gap-1.5">
