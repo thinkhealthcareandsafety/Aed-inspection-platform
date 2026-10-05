@@ -59,6 +59,10 @@ const ZOLL_FRONT = '/reference/zoll-aed-plus-pads-connected.jpg';
 const AED3_FRONT = '/reference/zoll-aed3-front.jpg';
 const G3_FRONT = '/reference/powerheart-g3-front.jpg';
 const G5_FRONT = '/reference/powerheart-g5-front.jpg';
+// Photos of real units, from Action First Aid's inspection guides for each
+// model (actionfirstaid.ca/aed-guide), cropped to the part each check needs.
+const AED3_BACK = '/reference/zoll-aed3-back.jpg';
+const G5_BACK = '/reference/powerheart-g5-back.jpg';
 
 export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExample[]>> = {
   serial_number: [
@@ -85,6 +89,30 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'पीछे, हैंडल के ठीक नीचे लगा बारकोड लेबल।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
+    },
+    {
+      src: '/reference/zoll-aed3-back-serial.jpg',
+      focus: { x: 0.3, y: 0.38, w: 0.33, h: 0.17 },
+      caption: 'The serial number label on the back, just above the battery.',
+      captionHi: 'पीछे, बैटरी के ठीक ऊपर लगा सीरियल नंबर लेबल।',
+      kind: 'neutral',
+      models: ['Zoll AED 3'],
+    },
+    {
+      src: '/reference/powerheart-g3-serial.jpg',
+      focus: { x: 0.13, y: 0.37, w: 0.35, h: 0.14 },
+      caption: 'The number beside “SN”, on the label on the underside.',
+      captionHi: 'नीचे की तरफ़ लगे लेबल पर “SN” के पास वाला नंबर।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G3'],
+    },
+    {
+      src: '/reference/powerheart-g5-serial.jpg',
+      focus: { x: 0.18, y: 0.26, w: 0.34, h: 0.1 },
+      caption: 'The number beside “SN”, on the label on the back.',
+      captionHi: 'पीछे लगे लेबल पर “SN” के पास वाला नंबर।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G5'],
     },
   ],
 
@@ -115,6 +143,14 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'CPR-D-padz डिब्बा: आगे के लेबल पर ⌛ के पास छपी तारीख।',
       kind: 'neutral',
       models: ['Zoll AED Plus'],
+    },
+    {
+      src: '/reference/zoll-aed3-pads.jpg',
+      focus: { x: 0.7, y: 0.5, w: 0.25, h: 0.11 },
+      caption: 'CPR Uni-padz package: the date beside the ⌛.',
+      captionHi: 'CPR Uni-padz पैकेट: ⌛ के पास छपी तारीख।',
+      kind: 'neutral',
+      models: ['Zoll AED 3'],
     },
     {
       src: G3_FRONT,
@@ -162,6 +198,32 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       models: ['Zoll AED Plus'],
       illustration: true,
     },
+    {
+      src: '/reference/zoll-aed3-battery-label.jpg',
+      focus: { x: 0.22, y: 0.56, w: 0.3, h: 0.18 },
+      caption: 'The battery’s white label: the date after “(15)”, above INSTALL BY.',
+      captionHi: 'बैटरी का सफ़ेद लेबल: INSTALL BY के ऊपर, “(15)” के बाद की तारीख।',
+      kind: 'neutral',
+      models: ['Zoll AED 3'],
+    },
+    // The label faces into the unit once the battery is fitted, so these
+    // show it lifted out — as the instruction asks.
+    {
+      src: '/reference/powerheart-g3-battery-label.jpg',
+      focus: { x: 0.27, y: 0.48, w: 0.26, h: 0.11 },
+      caption: 'The battery, lifted out: the date beside the factory symbol is when it was made.',
+      captionHi: 'बाहर निकाली गई बैटरी: फ़ैक्टरी वाले निशान के पास की तारीख, बैटरी बनने की तारीख है।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G3'],
+    },
+    {
+      src: '/reference/powerheart-g5-battery-label.jpg',
+      focus: { x: 0.21, y: 0.42, w: 0.26, h: 0.15 },
+      caption: 'The battery, lifted out: the date beside the factory symbol is when it was made.',
+      captionHi: 'बाहर निकाली गई बैटरी: फ़ैक्टरी वाले निशान के पास की तारीख, बैटरी बनने की तारीख है।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G5'],
+    },
   ],
 
   battery_attached: [
@@ -196,6 +258,22 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'बैटरी खाना खाली है। इसे ठीक करना होगा।',
       kind: 'bad',
       models: ['Zoll AED Plus'],
+    },
+    {
+      src: AED3_BACK,
+      focus: { x: 0.33, y: 0.43, w: 0.36, h: 0.38 },
+      caption: 'Battery clicked into the back, flush with the case.',
+      captionHi: 'बैटरी पीछे क्लिक होकर लगी है, केस के बराबर।',
+      kind: 'good',
+      models: ['Zoll AED 3'],
+    },
+    {
+      src: G5_BACK,
+      focus: { x: 0.38, y: 0.5, w: 0.24, h: 0.42 },
+      caption: 'Battery pressed into the back until it clicks, flush with the case.',
+      captionHi: 'बैटरी पीछे क्लिक होने तक दबाकर लगी है, केस के बराबर।',
+      kind: 'good',
+      models: ['Zoll Powerheart G5'],
     },
   ],
 
@@ -239,6 +317,14 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'ऊपर दाईं ओर, सॉकेट में लगी पैड्स की केबल।',
       kind: 'good',
       models: ['Zoll AED 3'],
+    },
+    {
+      src: '/reference/powerheart-g5-lid-open.jpg',
+      focus: { x: 0.3, y: 0.61, w: 0.12, h: 0.13 },
+      caption: 'Lid open: the pads cable’s grey connector plugged into its socket.',
+      captionHi: 'ढक्कन खुला: पैड्स की केबल का ग्रे कनेक्टर अपने सॉकेट में लगा है।',
+      kind: 'good',
+      models: ['Zoll Powerheart G5'],
     },
   ],
 
@@ -291,7 +377,8 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
 
   // Each unit handles children differently: the FRx takes a key, the HS1 a
   // separate pads cartridge, the AED Plus a separate pack of pads, the AED 3
-  // a Child button that turns its CPR Uni-padz into child pads.
+  // a Child button that turns its CPR Uni-padz into child pads, and the
+  // Powerheart units a separate pediatric pads pack.
   child_key_pad: [
     {
       src: '/reference/philips-frx-child-key.jpg',
@@ -324,6 +411,20 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'Child बटन: CPR Uni-padz के साथ, 8 साल या 25 किलो से कम के बच्चे के लिए इसे दबाया जाता है।',
       kind: 'neutral',
       models: ['Zoll AED 3'],
+    },
+    {
+      src: '/reference/powerheart-g3-child-pads.jpg',
+      caption: 'The Child/Infant electrode pads pack (REF 9730).',
+      captionHi: 'चाइल्ड/इन्फ़ैंट इलेक्ट्रोड पैड्स का पैकेट (REF 9730)।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G3'],
+    },
+    {
+      src: '/reference/powerheart-g5-child-pads.jpg',
+      caption: 'The pediatric pads pack, kept beside the AED, not plugged in.',
+      captionHi: 'बच्चों के पैड्स का पैकेट, AED के पास रखा, लगाया हुआ नहीं।',
+      kind: 'neutral',
+      models: ['Zoll Powerheart G5'],
     },
   ],
 

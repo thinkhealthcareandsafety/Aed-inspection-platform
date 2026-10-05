@@ -244,9 +244,9 @@ export const en = {
           'Photograph the “Replace batteries on or before” label, just below the status window on the handle.',
         'Zoll AED 3': 'Photograph the white label on the battery at the back, showing the install-by date.',
         'Zoll Powerheart G3':
-          'Turn the AED over and photograph the label on the battery in the bottom. It shows the date the battery was made.',
+          'Lift the battery out of the bottom of the AED and photograph its label: it shows the date the battery was made. Then press it back in until it clicks.',
         'Zoll Powerheart G5':
-          'Turn the AED over and photograph the label on the battery in the bottom. It shows the date the battery was made.',
+          'Lift the battery out of the bottom of the AED and photograph its label: it shows the date the battery was made. Then press it back in until it clicks.',
       },
     },
     battery_attached: {
