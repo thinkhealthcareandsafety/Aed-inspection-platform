@@ -267,6 +267,17 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'good',
       models: ['Zoll AED 3'],
     },
+    // No photo of a fitted G3 battery was found: a generated picture, drawn
+    // from real photos of the unit and its battery, and labelled as such.
+    {
+      src: '/reference/powerheart-g3-battery-fitted.jpg',
+      focus: { x: 0.29, y: 0.53, w: 0.58, h: 0.22 },
+      caption: 'Battery pushed fully into its slot at the bottom end, flush with the case.',
+      captionHi: 'बैटरी नीचे वाले सिरे पर अपने खाने में पूरी अंदर तक लगी है, केस के बराबर।',
+      kind: 'neutral', // shows as "Illustration", not as a photo of a real unit
+      models: ['Zoll Powerheart G3'],
+      illustration: true,
+    },
     {
       src: G5_BACK,
       focus: { x: 0.38, y: 0.5, w: 0.24, h: 0.42 },
@@ -317,6 +328,15 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'ऊपर दाईं ओर, सॉकेट में लगी पैड्स की केबल।',
       kind: 'good',
       models: ['Zoll AED 3'],
+    },
+    {
+      src: '/reference/powerheart-g3-lid-open.jpg',
+      focus: { x: 0.665, y: 0.54, w: 0.09, h: 0.13 },
+      caption: 'Lid open: the pads cable’s plug pushed fully into its socket.',
+      captionHi: 'ढक्कन खुला: पैड्स की केबल का प्लग अपने सॉकेट में पूरा लगा है।',
+      kind: 'neutral', // shows as "Illustration", not as a photo of a real unit
+      models: ['Zoll Powerheart G3'],
+      illustration: true,
     },
     {
       src: '/reference/powerheart-g5-lid-open.jpg',
