@@ -252,7 +252,11 @@ export const api = {
   // Public, unauthenticated walk-up inspection flow (inspector.aedsmartx.com landing page).
   public: {
     createInspection: (data: { name: string; email: string; phone: string; aedModel: string }) =>
-      apiClient.post<{ inspection: import('@/types').Inspection }>('/public/inspections', data),
+      apiClient.post<{ inspection: import('@/types').Inspection }>('/public/inspections', {
+        ...data,
+        // So the report states times in the inspector's own zone.
+        timeZone: deviceTimeZone(),
+      }),
 
     get: (id: string, opts?: { skipErrorToast?: boolean }) =>
       apiClient.get<{ inspection: import('@/types').Inspection }>(`/public/inspections/${id}`, {
@@ -332,3 +336,12 @@ export const api = {
     },
   },
 };
+
+/** The device's IANA time zone, or undefined where the browser can't say. */
+function deviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}

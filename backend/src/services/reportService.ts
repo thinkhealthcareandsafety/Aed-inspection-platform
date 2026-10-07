@@ -119,12 +119,21 @@ function font(doc: PDFKit.PDFDocument, face: Face, size: number, color: string):
 }
 
 // ── Dates ──────────────────────────────────────────────────────────────────
-// Times are shown in the customers' own zone (the server runs on UTC), and
-// say which zone they are in.
-function zoneLabel(date: Date): string {
+// Times are shown in the inspector's own zone, recorded from their device
+// when the inspection began (the server runs on UTC), and say which zone they
+// are in. An inspection from before that was recorded uses the default zone.
+function zoneOf(ctx: Ctx): string {
+  const zone = ctx.inspection.timeZone;
+  return typeof zone === 'string' && zone ? zone : config.REPORT_TIMEZONE;
+}
+
+function zoneLabel(date: Date, timeZone: string): string {
   try {
+    // India's zone reads "IST" only in en-IN; everywhere else en-US gives
+    // the name people use ("CDT", "EST"), or a plain offset.
+    const locale = timeZone === 'Asia/Kolkata' || timeZone === 'Asia/Calcutta' ? 'en-IN' : 'en-US';
     return (
-      new Intl.DateTimeFormat('en-IN', { timeZone: config.REPORT_TIMEZONE, timeZoneName: 'short' })
+      new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: 'short' })
         .formatToParts(date)
         .find((p) => p.type === 'timeZoneName')?.value ?? ''
     );
@@ -133,7 +142,7 @@ function zoneLabel(date: Date): string {
   }
 }
 
-function formatDateTime(value: unknown): string {
+function formatDateTime(value: unknown, timeZone: string): string {
   if (!value) return 'Not recorded';
   const date = new Date(value as string);
   if (Number.isNaN(date.getTime())) return String(value);
@@ -143,25 +152,29 @@ function formatDateTime(value: unknown): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: config.REPORT_TIMEZONE,
+    timeZone,
   });
-  const zone = zoneLabel(date);
+  const zone = zoneLabel(date, timeZone);
   return zone ? `${text} ${zone}` : text;
 }
 
-function formatDay(date: Date): string {
+function formatDay(date: Date, timeZone: string): string {
   return date.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-    timeZone: config.REPORT_TIMEZONE,
+    timeZone,
   });
 }
 
-/** Stored as "+919876543210"; printed the way it's read aloud. */
+/** Stored as "+919876543210" or "+13125550123"; printed the way it's read
+ *  aloud there: "+91 98765 43210", "+1 312 555 0123". */
 function formatPhone(raw: string): string {
-  const india = /^\+91(\d{5})(\d{5})$/.exec(raw.replace(/\s/g, ''));
-  return india ? `+91 ${india[1]} ${india[2]}` : raw;
+  const compact = raw.replace(/\s/g, '');
+  const india = /^\+91(\d{5})(\d{5})$/.exec(compact);
+  if (india) return `+91 ${india[1]} ${india[2]}`;
+  const nanp = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(compact);
+  return nanp ? `+1 ${nanp[1]} ${nanp[2]} ${nanp[3]}` : raw;
 }
 
 function formatDuration(seconds?: number): string | undefined {
@@ -502,7 +515,7 @@ function drawVerdict(doc: PDFKit.PDFDocument, ctx: Ctx): void {
     characterSpacing: 0.8,
     lineBreak: false,
   });
-  font(doc, 'semibold', 9.5, COLOR.ink).text(formatDateTime(ctx.inspection.startedAt), PAGE.margin, top + 34, {
+  font(doc, 'semibold', 9.5, COLOR.ink).text(formatDateTime(ctx.inspection.startedAt, zoneOf(ctx)), PAGE.margin, top + 34, {
     width: CONTENT_WIDTH - 20,
     align: 'right',
     lineBreak: false,
@@ -590,7 +603,7 @@ function nextSteps(ctx: Ctx): { steps: Step[]; supply: boolean } {
   }
 
   const next = new Date(ctx.asOf.getTime() + NEXT_CHECK_DAYS * 86_400_000);
-  steps.push({ tone: 'muted', text: `Next routine check due by ${formatDay(next)}.` });
+  steps.push({ tone: 'muted', text: `Next routine check due by ${formatDay(next, zoneOf(ctx))}.` });
   return { steps, supply };
 }
 
@@ -966,8 +979,8 @@ function drawPageFurniture(doc: PDFKit.PDFDocument, ctx: Ctx): void {
     );
     font(doc, 'regular', 6.5, COLOR.inkLight).text(
       ctx.sample
-        ? `Sample report: a fictional inspection, for illustration only  ·  Generated ${formatDateTime(ctx.generatedAt)}`
-        : `Inspection ID ${ctx.inspection.inspectionId}  ·  Generated ${formatDateTime(ctx.generatedAt)}`,
+        ? `Sample report: a fictional inspection, for illustration only  ·  Generated ${formatDateTime(ctx.generatedAt, zoneOf(ctx))}`
+        : `Inspection ID ${ctx.inspection.inspectionId}  ·  Generated ${formatDateTime(ctx.generatedAt, zoneOf(ctx))}`,
       PAGE.margin,
       footerY + 19,
       { lineBreak: false },

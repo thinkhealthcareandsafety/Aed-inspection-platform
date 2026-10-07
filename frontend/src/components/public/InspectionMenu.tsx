@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight, Languages, Repeat, RotateCcw, Smartphone, X } 
 import { cn } from '@/lib/utils';
 import { track } from '@/lib/track';
 import { useI18n, type Lang } from '@/i18n';
+import { useBackToClose } from '@/lib/use-back-to-close';
 
 export type MenuView = 'menu' | 'phone';
 
@@ -42,6 +43,7 @@ export default function InspectionMenu({
   onStartOver,
   handoffUrl,
 }: Props) {
+  useBackToClose(onClose);
   return (
     <RadixDialog.Root open onOpenChange={(open) => !open && onClose()}>
       <RadixDialog.Portal>
@@ -146,7 +148,7 @@ function LanguageRow() {
                 track('language_changed', { outcome: o.id });
               }}
               className={cn(
-                'h-9 rounded-[10px] px-3 text-callout font-medium transition-colors',
+                'h-11 rounded-[10px] px-3 text-callout font-medium transition-colors',
                 selected ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -181,7 +183,7 @@ function MenuView({
         <RadixDialog.Title className="text-headline text-foreground">{m.menu.title}</RadixDialog.Title>
         <RadixDialog.Close
           aria-label={m.common.close}
-          className="-mr-1 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="tap-target -mr-1 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <X className="h-5 w-5" strokeWidth={2} />
         </RadixDialog.Close>
@@ -256,7 +258,7 @@ function PhoneView({ url, onBack }: { url: string; onBack: () => void }) {
           type="button"
           onClick={onBack}
           aria-label={m.menu.backToOptions}
-          className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="tap-target -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={2} />
         </button>

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { AED_MODEL_OPTIONS } from '@/lib/aed-models';
 import { DEVICE_PHOTO } from '@/lib/device-photos';
 import { useI18n } from '@/i18n';
+import { useBackToClose } from '@/lib/use-back-to-close';
 
 interface Props {
   modelId: string;
@@ -31,6 +32,7 @@ export function DevicePreview({ modelId, onModelChange, onChoose, onClose }: Pro
   // beat after this component, and the scroll has to wait for it.
   const [row, setRow] = useState<HTMLDivElement | null>(null);
   const opened = useRef(false);
+  useBackToClose(onClose);
   useEffect(() => {
     const button = row?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if (!row || !button) return;
@@ -61,7 +63,7 @@ export function DevicePreview({ modelId, onModelChange, onChoose, onClose }: Pro
                 </div>
                 <RadixDialog.Close
                   aria-label={m.common.close}
-                  className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  className="tap-target -mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   <X className="h-5 w-5" strokeWidth={2} />
                 </RadixDialog.Close>

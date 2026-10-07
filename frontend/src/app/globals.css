@@ -189,6 +189,22 @@
     transform: scale(0.98);
   }
 
+  /* A control can look compact and still take a fingertip: an invisible
+     layer grows its hit area to at least 44px each way (Apple's minimum)
+     without moving anything around it. */
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
   /* The one card that is the task right now — lifted a step above the
      grouped lists around it, so the eye lands on it first. */
   .surface-card {
@@ -389,5 +405,25 @@ html:lang(hi) .leading-none {
   .voice-bar {
     animation: none;
     height: 10px;
+  }
+}
+
+/* iOS Safari zooms the whole page into any field set below 16px the moment
+   it is tapped, and leaves it zoomed: the form jumps sideways mid-entry. On
+   touch screens every field is 16px; a mouse keeps the type scale. Outside
+   the layers and !important so it outranks the text-* utilities. */
+@media (pointer: coarse) {
+  :is(input, select, textarea):not([type='checkbox'], [type='radio'], [type='range']) {
+    font-size: 16px !important;
+  }
+}
+
+/* A phone on its side is under 500px tall: the bars that pin to the top and
+   bottom would leave the task itself a sliver, so there they scroll with the
+   page instead. */
+@media (max-height: 500px) {
+  .pin-when-tall {
+    position: static !important;
+    box-shadow: none !important;
   }
 }

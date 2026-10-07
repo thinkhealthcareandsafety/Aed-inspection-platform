@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n';
  *  the inspection in this one is never lost. */
 export function BrandFooter() {
   const { m } = useI18n();
-  const link = 'font-medium text-muted-foreground hover:text-foreground transition-colors';
+  const link = 'tap-target font-medium text-muted-foreground hover:text-foreground transition-colors';
   return (
     <footer className="px-5 py-6 text-center text-[11.5px] leading-relaxed text-muted-foreground/70">
       <p>

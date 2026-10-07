@@ -78,7 +78,7 @@ export function WelcomeStep({ name, email, onChoose, onEditDetails }: Props) {
         <button
           type="button"
           onClick={onEditDetails}
-          className="-my-2 -mr-2 h-10 shrink-0 rounded-lg px-2 text-footnote font-semibold text-primary hover:text-primary/80 transition-colors"
+          className="tap-target -my-2 -mr-2 h-10 shrink-0 rounded-lg px-2 text-footnote font-semibold text-primary hover:text-primary/80 transition-colors"
         >
           {t.edit}
         </button>

@@ -111,7 +111,7 @@ export function ListenButton({ text, itemId, className }: { text: string; itemId
       aria-pressed={playing}
       title={playing ? m.check.stopListening : m.check.listen}
       className={cn(
-        'pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+        'pressable tap-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
         playing ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary hover:bg-primary/15',
         className,
       )}

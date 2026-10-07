@@ -128,6 +128,15 @@ export function InspectionComplete({
 
   const required = rows.filter((r) => r.item.required);
   const failedCount = required.filter((r) => r.entry?.status === 'fail').length;
+  /** What failed, with the AI's note on how to put it right: a verdict of
+   *  "not ready" is only useful with the reason and the fix beside it. */
+  const toFix = rows
+    .filter((r) => r.entry?.status === 'fail')
+    .map(({ item, entry }) => ({
+      id: item.id,
+      title: itemCopy(m, item).title,
+      note: (lang === 'hi' && entry?.aiData?.notes_hi?.trim()) || entry?.notes,
+    }));
 
   /** Pads or a battery that are expired or inside the replacement window. */
   const needs = useMemo(() => {
@@ -242,8 +251,30 @@ export function InspectionComplete({
         </h1>
         <p className="text-body text-muted-foreground mt-2">{subtitle}</p>
         <p className="mt-1.5 text-footnote text-muted-foreground">
-          {quick ? m.quick.result.scope : `${m.score.label} ${score}/${MAX_SCORE} · ${m.score.needed(READY_THRESHOLD)}`}
+          {quick
+            ? m.quick.result.scope
+            : `${m.score.label} ${score}/${MAX_SCORE} · ${
+                // A high score with a failed safety check still fails, and
+                // "80 needed to pass" beside a 95 would say the opposite.
+                inspection.inspectionResult === 'FAIL' && !belowThreshold
+                  ? m.score.everyCheck
+                  : m.score.needed(READY_THRESHOLD)
+              }`}
         </p>
+
+        {!quick && inspection.inspectionResult === 'FAIL' && toFix.length > 0 && (
+          <div className="mt-5 rounded-2xl bg-background/60 px-4 py-3.5 text-left ring-1 ring-inset ring-destructive/15">
+            <p className="text-caption font-semibold uppercase tracking-[0.06em] text-destructive">{t.toFix}</p>
+            <ul className="mt-2 space-y-2.5">
+              {toFix.map((f) => (
+                <li key={f.id}>
+                  <p className="text-callout font-semibold text-foreground">{f.title}</p>
+                  {f.note && <p className="mt-0.5 text-footnote text-muted-foreground">{f.note}</p>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-6 pt-4 border-t border-foreground/10 text-left">
           <p className="text-footnote text-foreground flex items-center gap-1.5">
@@ -423,7 +454,7 @@ export function InspectionComplete({
                   type="button"
                   disabled={requesting}
                   onClick={() => void requestQuote(['accessories'])}
-                  className="pressable mt-3 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-secondary text-callout font-medium text-foreground hover:bg-secondary/75 transition-colors disabled:opacity-60"
+                  className="pressable mt-3 inline-flex items-center gap-1.5 h-11 px-3.5 rounded-xl bg-secondary text-callout font-medium text-foreground hover:bg-secondary/75 transition-colors disabled:opacity-60"
                 >
                   {requesting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

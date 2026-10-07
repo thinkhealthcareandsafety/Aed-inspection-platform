@@ -43,7 +43,19 @@ const createSchema = z.object({
   aedModel: z.string().refine(isPublicAedModel, {
     message: `AED model must be one of: ${PUBLIC_AED_MODELS.join(', ')}`,
   }),
+  // Only a zone the runtime knows is kept; anything else is dropped rather
+  // than refusing the inspection, and the report uses its default zone.
+  timeZone: z.string().max(64).refine(isTimeZone).optional().catch(undefined),
 });
+
+function isTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** How the inspector finished: after the quick check, or every check. */
 const completeSchema = z
@@ -88,6 +100,7 @@ router.post('/inspections', async (req: Request, res: Response, next: NextFuncti
       guestEmail: body.email,
       guestPhone: body.phone,
       aedModel: body.aedModel,
+      timeZone: body.timeZone,
       startedAt: new Date(),
       inspectionStatus: 'in_progress',
       inspectionResult: 'INCOMPLETE',

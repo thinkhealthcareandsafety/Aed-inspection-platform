@@ -4,6 +4,7 @@ import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { ReferenceCloseup, ReferenceFigure, closeupZoom } from './ReferenceFigure';
 import { captionOf, type ReferenceExample } from '@/lib/reference-examples';
 import { useI18n } from '@/i18n';
+import { useBackToClose } from '@/lib/use-back-to-close';
 
 /**
  * The enlarged example: the marked part filling the frame, then the whole
@@ -20,6 +21,7 @@ export default function ReferenceLightbox({
 }) {
   const { lang, m } = useI18n();
   const caption = captionOf(example, lang);
+  useBackToClose(onClose);
   const closeup = example.focus && closeupZoom(example.focus) >= 1.3 ? example.focus : undefined;
 
   return (

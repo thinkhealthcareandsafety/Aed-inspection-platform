@@ -72,6 +72,64 @@ export const COUNTRIES: Country[] = [
 
 export const DEFAULT_COUNTRY_ISO2 = 'IN';
 
+// The device's own time zone says where the person is far more reliably than
+// its language: most phones in India are set to en-US, but none to New York
+// time. Only zones that belong to one listed country are named; a US default
+// in Caracas would be as wrong as an Indian one in Chicago.
+const ZONE_COUNTRY: [RegExp, string][] = [
+  [/^Asia\/(Kolkata|Calcutta)$/, 'IN'],
+  [
+    /^(America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Juneau|Sitka|Nome|Adak|Yakutat|Metlakatla|Boise|Detroit|Menominee|Indiana\/.+|Kentucky\/.+|North_Dakota\/.+)|Pacific\/Honolulu|US\/.+)$/,
+    'US',
+  ],
+  [/^America\/(Toronto|Montreal|Vancouver|Edmonton|Winnipeg|Regina|Halifax|Moncton|St_Johns|Whitehorse|Yellowknife|Iqaluit)$/, 'CA'],
+  [/^America\/(Mexico_City|Monterrey|Cancun|Merida|Tijuana|Hermosillo|Chihuahua|Mazatlan|Matamoros|Bahia_Banderas)$/, 'MX'],
+  [/^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Manaus|Belem|Maceio|Cuiaba|Campo_Grande)$/, 'BR'],
+  [/^America\/Argentina\/.+$/, 'AR'],
+  [/^America\/Santiago$/, 'CL'],
+  [/^America\/Bogota$/, 'CO'],
+  [/^America\/Lima$/, 'PE'],
+  [/^Europe\/London$/, 'GB'],
+  [/^Europe\/Dublin$/, 'IE'],
+  [/^Australia\/.+$/, 'AU'],
+  [/^Pacific\/Auckland$/, 'NZ'],
+];
+
+/** Zones that each belong to one listed country. */
+const ZONE_EXACT: Record<string, string> = {
+  'Europe/Berlin': 'DE', 'Europe/Paris': 'FR', 'Europe/Madrid': 'ES', 'Europe/Rome': 'IT',
+  'Europe/Amsterdam': 'NL', 'Europe/Brussels': 'BE', 'Europe/Zurich': 'CH', 'Europe/Vienna': 'AT',
+  'Europe/Lisbon': 'PT', 'Europe/Stockholm': 'SE', 'Europe/Oslo': 'NO', 'Europe/Copenhagen': 'DK',
+  'Europe/Helsinki': 'FI', 'Europe/Warsaw': 'PL', 'Europe/Athens': 'GR', 'Europe/Istanbul': 'TR',
+  'Europe/Moscow': 'RU', 'Europe/Kyiv': 'UA', 'Europe/Kiev': 'UA', 'Asia/Shanghai': 'CN',
+  'Asia/Tokyo': 'JP', 'Asia/Seoul': 'KR', 'Asia/Singapore': 'SG', 'Asia/Kuala_Lumpur': 'MY',
+  'Asia/Jakarta': 'ID', 'Asia/Manila': 'PH', 'Asia/Bangkok': 'TH', 'Asia/Ho_Chi_Minh': 'VN',
+  'Asia/Saigon': 'VN', 'Asia/Karachi': 'PK', 'Asia/Dhaka': 'BD', 'Asia/Dubai': 'AE',
+  'Asia/Riyadh': 'SA', 'Asia/Jerusalem': 'IL', 'Asia/Tel_Aviv': 'IL', 'Asia/Qatar': 'QA',
+  'Asia/Kuwait': 'KW', 'Africa/Johannesburg': 'ZA', 'Africa/Lagos': 'NG', 'Africa/Nairobi': 'KE',
+  'Africa/Cairo': 'EG',
+};
+
+/** The country to preselect for a new number: from the device's time zone,
+ *  else the region in its language ("en-GB"), else India. Browser-only. */
+export function detectCountryIso2(): string {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+    if (ZONE_EXACT[zone]) return ZONE_EXACT[zone];
+    const byZone = ZONE_COUNTRY.find(([pattern]) => pattern.test(zone));
+    if (byZone) return byZone[1];
+    // "en-US" is most browsers' language wherever they are, so it says
+    // nothing about where; any other region ("en-GB", "de-AT") does.
+    for (const tag of navigator.languages ?? [navigator.language]) {
+      const region = tag.split('-')[1]?.toUpperCase();
+      if (region && region !== 'US' && COUNTRIES.some((c) => c.iso2 === region)) return region;
+    }
+  } catch {
+    // An old browser without Intl time zones keeps the default.
+  }
+  return DEFAULT_COUNTRY_ISO2;
+}
+
 export function findCountry(iso2: string): Country {
   return COUNTRIES.find((c) => c.iso2 === iso2) ?? COUNTRIES[0];
 }

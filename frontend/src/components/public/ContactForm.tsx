@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2, ShieldCheck, Sparkles, Clock, FileCheck2, IndianRupee } from 'lucide-react';
+import { ArrowRight, Loader2, ShieldCheck, Sparkles, Clock, FileCheck2, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from './PhoneInput';
 import { isValidNationalNumber, parsePhoneValue } from '@/lib/countries';
@@ -41,7 +41,9 @@ function contactSchema(errors: Messages['contact']['errors']) {
 
 export type ContactFormData = z.infer<ReturnType<typeof contactSchema>>;
 
-const FACT_ICONS = [IndianRupee, Clock, FileCheck2];
+// "Free" is shown with a gift, not a currency sign: the form serves inspectors
+// in more than one country.
+const FACT_ICONS = [Gift, Clock, FileCheck2];
 
 interface Props {
   defaultValues?: Partial<ContactFormData>;
@@ -166,7 +168,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
               id="name"
               autoComplete="name"
               placeholder={t.namePlaceholder}
-              className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+              className="-my-1.5 w-full bg-transparent py-1.5 text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
             />
           </div>
 
@@ -180,7 +182,7 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
               type="email"
               autoComplete="email"
               placeholder={t.emailPlaceholder}
-              className="w-full bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
+              className="-my-1.5 w-full bg-transparent py-1.5 text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none"
             />
             {emailFix && (
               <button
@@ -194,12 +196,19 @@ export function ContactForm({ defaultValues, onSubmit }: Props) {
           </div>
 
           <div className="surface-row px-4 pt-2.5 pb-3">
-            <label className="block text-caption text-muted-foreground mb-0.5">{t.phone}</label>
+            <label htmlFor="phone" className="block text-caption text-muted-foreground mb-0.5">
+              {t.phone}
+            </label>
             <Controller
               name="phone"
               control={control}
               render={({ field }) => (
-                <PhoneInput value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} />
+                <PhoneInput
+                  id="phone"
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
               )}
             />
           </div>

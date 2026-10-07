@@ -6,6 +6,7 @@ import { ArrowRight, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { SAMPLE_PAGES, SAMPLE_PDF } from '@/lib/sample-report';
+import { useBackToClose } from '@/lib/use-back-to-close';
 
 const PAGE_RATIO = '1241 / 1754';
 
@@ -45,6 +46,7 @@ export default function SampleReport({ onClose, onStart }: { onClose: () => void
   const { m } = useI18n();
   const t = m.sample;
   const starting = useRef(false);
+  useBackToClose(onClose);
 
   return (
     <RadixDialog.Root open onOpenChange={(open) => !open && onClose()}>
@@ -73,7 +75,7 @@ export default function SampleReport({ onClose, onStart }: { onClose: () => void
                 </div>
                 <RadixDialog.Close
                   aria-label={m.common.close}
-                  className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  className="tap-target -mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   <X className="h-5 w-5" strokeWidth={2} />
                 </RadixDialog.Close>

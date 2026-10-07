@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 import {
   COUNTRIES,
   countryName,
+  detectCountryIso2,
+  findCountry,
   flagEmoji,
   isValidNationalNumber,
   parsePhoneValue,
@@ -14,6 +16,8 @@ import {
 import { useI18n } from '@/i18n';
 
 interface Props {
+  /** The number field's id, so its label can focus it. */
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
@@ -22,7 +26,7 @@ interface Props {
   disabled?: boolean;
 }
 
-export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) {
+export function PhoneInput({ id, value, onChange, onBlur, error, disabled }: Props) {
   const { lang, m } = useI18n();
   const initial = useRef(parsePhoneValue(value)).current;
   const [country, setCountry] = useState<Country>(initial.country);
@@ -31,6 +35,16 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
   const [search, setSearch] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // A new number starts on the person's own country — +1 in Chicago, +91 in
+  // Pune — chosen after mount, so the server's and the browser's first render
+  // agree. A number already entered keeps its own country.
+  const startedEmpty = !initial.nationalDigits;
+  useEffect(() => {
+    if (!startedEmpty) return;
+    const detected = findCountry(detectCountryIso2());
+    setCountry((current) => (current.iso2 === detected.iso2 ? current : detected));
+  }, [startedEmpty]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -88,7 +102,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
           type="button"
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 shrink-0 -ml-0.5 px-1 py-0.5 rounded-md text-body hover:bg-secondary transition-colors disabled:opacity-60"
+          className="tap-target flex items-center gap-1 shrink-0 -ml-0.5 px-1 py-0.5 rounded-md text-body hover:bg-secondary transition-colors disabled:opacity-60"
           aria-label={m.phone.selectCountry}
         >
           <span className="text-[15px] leading-none">{flagEmoji(country.iso2)}</span>
@@ -99,6 +113,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
         <span className="w-px h-4 bg-border shrink-0" aria-hidden />
 
         <input
+          id={id}
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
@@ -107,7 +122,7 @@ export function PhoneInput({ value, onChange, onBlur, error, disabled }: Props) 
           onChange={(e) => handleDigitsChange(e.target.value)}
           onBlur={onBlur}
           placeholder={country.example ?? '0'.repeat(country.minLength)}
-          className="flex-1 min-w-0 bg-transparent text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none disabled:opacity-60"
+          className="-my-1.5 flex-1 min-w-0 bg-transparent py-1.5 text-body text-foreground placeholder:text-muted-foreground/45 focus:outline-none disabled:opacity-60"
         />
       </div>
 

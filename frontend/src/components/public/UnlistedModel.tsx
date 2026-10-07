@@ -125,7 +125,7 @@ export function UnlistedModel({ contact, disabled }: { contact: Contact; disable
                       aria-checked={selected}
                       onClick={() => setBrand(b)}
                       className={cn(
-                        'pressable h-10 rounded-xl px-3.5 text-callout font-medium transition-colors',
+                        'pressable h-11 rounded-xl px-3.5 text-callout font-medium transition-colors',
                         selected
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-secondary text-foreground hover:bg-secondary/75',

@@ -14,7 +14,7 @@ jest.mock('../../services/reportService', () => ({
 
 jest.mock('../../models/Inspection', () => ({
   ...jest.requireActual('../../models/Inspection'),
-  Inspection: { findOne: jest.fn() },
+  Inspection: { findOne: jest.fn(), create: jest.fn() },
 }));
 
 jest.mock('../../models/ModelRequest', () => ({
@@ -29,6 +29,7 @@ import { sendInspectionReportEmail, sendModelRequestEmail, sendReplacementReques
 import { logger } from '../../utils/logger';
 
 const findOne = Inspection.findOne as jest.Mock;
+const createInspection = Inspection.create as jest.Mock;
 const notifySales = sendReplacementRequestEmail as jest.Mock;
 const findRequest = ModelRequest.findOne as jest.Mock;
 const createRequest = ModelRequest.create as jest.Mock;
@@ -70,6 +71,50 @@ beforeEach(() => {
   findRequest.mockReset();
   createRequest.mockReset();
   notifyModelRequest.mockClear();
+});
+
+describe('POST /public/inspections', () => {
+  const body = {
+    name: 'Jordan Lee',
+    email: 'jordan@acme.com',
+    phone: '+13125550123',
+    aedModel: 'Defibtech Lifeline VIEW',
+  };
+
+  beforeEach(() => {
+    createInspection.mockReset();
+    createInspection.mockImplementation(async (doc) => doc);
+  });
+
+  it('starts an inspection of a Defibtech unit in the inspector’s own time zone', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/public/inspections')
+      .send({ ...body, timeZone: 'America/Chicago' });
+
+    expect(res.status).toBe(201);
+    expect(createInspection.mock.calls[0][0]).toMatchObject({
+      aedModel: 'Defibtech Lifeline VIEW',
+      timeZone: 'America/Chicago',
+    });
+  });
+
+  it('drops a time zone it doesn’t know rather than refusing the inspection', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/public/inspections')
+      .send({ ...body, timeZone: 'Mars/Olympus_Mons' });
+
+    expect(res.status).toBe(201);
+    expect(createInspection.mock.calls[0][0].timeZone).toBeUndefined();
+  });
+
+  it('still refuses a model the app does not inspect', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/public/inspections')
+      .send({ ...body, aedModel: 'Defibtech Lifeline PRO' });
+
+    expect(res.status).toBe(400);
+    expect(createInspection).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /public/model-requests', () => {

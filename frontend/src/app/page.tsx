@@ -13,7 +13,7 @@ import { ScoreCounter } from '@/components/inspection/ScoreCounter';
 import { CHECKLIST_SECTIONS, QUICK_CHECK_IDS, REQUIRED_ITEM_IDS } from '@/lib/checklist-config';
 import { deviceAge } from '@/lib/device-age';
 import { QuickCheckpoint } from '@/components/public/QuickCheckpoint';
-import { modelDisplayName } from '@/lib/aed-models';
+import { modelDisplayName, modelNameParts } from '@/lib/aed-models';
 import { readingOf } from '@/lib/readings';
 import { preloadReferenceImages } from '@/lib/reference-examples';
 import { ActiveCheck, CheckRow } from '@/components/inspection/ActiveCheck';
@@ -580,17 +580,22 @@ export default function PublicInspectionPage() {
 
   const expiredKinds = expired.map((i) => (i.id === 'pads_expiry' ? ('pads' as const) : ('battery' as const)));
   const expiredSentence = expiredKinds.length ? m.inspection.ready.expired(expiredKinds) : '';
+  const headerModel = modelNameParts(inspection?.aedModel);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {inspecting && inspection ? (
         // One bar for the whole job: which AED, how far along, and — from the
         // colour of each segment — which checks passed and which didn't.
-        <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border/70">
+        <header className="pin-when-tall sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border/70">
           <div className="max-w-md w-full mx-auto px-4 py-3">
             <div className="flex items-center gap-2.5">
+              {/* On the narrowest phones the brand gives way, so the model —
+                  the part that tells a Lifeline VIEW from a Lifeline ECG —
+                  is never the part cut off. */}
               <span className="text-headline text-foreground truncate min-w-0 flex-1">
-                {modelDisplayName(inspection.aedModel)}
+                {headerModel.brand && <span className="max-[374px]:hidden">{headerModel.brand} </span>}
+                {headerModel.name}
               </span>
               {/* The score, live: each check that passes adds its marks here
                   as it happens. How far along the job is, the rail shows. */}
@@ -608,7 +613,7 @@ export default function PublicInspectionPage() {
                   onPointerEnter={() => void loadInspectionMenu()}
                   aria-label={m.inspection.options}
                   aria-haspopup="dialog"
-                  className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  className="tap-target -mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   <MoreHorizontal className="h-5 w-5" strokeWidth={2} />
                 </button>
@@ -798,7 +803,7 @@ export default function PublicInspectionPage() {
                         key={item.id}
                         type="button"
                         onClick={() => openCheck(item.id)}
-                        className="pressable h-10 px-3.5 rounded-xl bg-secondary hover:bg-secondary/75 text-callout font-medium text-foreground transition-colors"
+                        className="pressable h-11 px-3.5 rounded-xl bg-secondary hover:bg-secondary/75 text-callout font-medium text-foreground transition-colors"
                       >
                         {m.inspection.ready.retake(m.items[item.id]?.title ?? item.title)}
                       </button>

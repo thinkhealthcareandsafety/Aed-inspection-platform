@@ -428,7 +428,7 @@ export function ActiveCheck({
       ) : (
         <div
           className={cn(
-            'sticky bottom-0 z-10 bg-card px-5 pt-4 pb-5 rounded-b-3xl',
+            'pin-when-tall sticky bottom-0 z-10 bg-card px-5 pt-4 pb-5 rounded-b-3xl',
             stuck &&
               'rounded-none pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-1px_0_hsl(var(--border)),0_-14px_28px_-18px_rgb(0_0_0/0.35)]',
           )}
@@ -461,7 +461,7 @@ export function ActiveCheck({
             <button
               type="button"
               onClick={onContinueOnPhone}
-              className="mx-auto mt-2 flex h-10 items-center gap-1.5 px-3 text-callout text-muted-foreground transition-colors hover:text-foreground"
+              className="mx-auto mt-2 flex h-11 items-center gap-1.5 px-3 text-callout text-muted-foreground transition-colors hover:text-foreground"
             >
               <Smartphone className="h-4 w-4" strokeWidth={2} />
               {m.check.onComputer} <span className="font-semibold text-primary">{m.check.continueOnPhone}</span>

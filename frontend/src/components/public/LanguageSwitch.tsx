@@ -21,7 +21,7 @@ export function LanguageSwitch({ className }: { className?: string }) {
       }}
       aria-label={m.switchTo}
       className={cn(
-        'pressable inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-callout font-medium',
+        'pressable tap-target inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-callout font-medium',
         'text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
         className,
       )}
