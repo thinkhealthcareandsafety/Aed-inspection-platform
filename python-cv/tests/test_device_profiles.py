@@ -16,6 +16,10 @@ import pytest
 from app.services import gemini_checklist_service as svc
 from app.services.checklist_items import CHECKLIST_ITEMS, get_item
 from app.services.device_profiles import (
+    DEFIBTECH_LIFELINE,
+    DEFIBTECH_LIFELINE_AUTO,
+    DEFIBTECH_LIFELINE_ECG,
+    DEFIBTECH_LIFELINE_VIEW,
     GENERIC,
     PHILIPS_FRX,
     PHILIPS_HS1,
@@ -29,7 +33,18 @@ from app.services.device_profiles import (
 from app.utils.date_parser import parse_all_expiry_dates, parse_gs1_dates
 from app.utils.validators import normalise_serial
 
-SUPPORTED = (PHILIPS_FRX, PHILIPS_HS1, ZOLL_AED_PLUS, ZOLL_AED_3, POWERHEART_G3, POWERHEART_G5)
+SUPPORTED = (
+    PHILIPS_FRX,
+    PHILIPS_HS1,
+    ZOLL_AED_PLUS,
+    ZOLL_AED_3,
+    POWERHEART_G3,
+    POWERHEART_G5,
+    DEFIBTECH_LIFELINE,
+    DEFIBTECH_LIFELINE_AUTO,
+    DEFIBTECH_LIFELINE_VIEW,
+    DEFIBTECH_LIFELINE_ECG,
+)
 DEVICE_SPECIFIC_ITEMS = (
     "serial_number",
     "pads_expiry",
@@ -65,6 +80,10 @@ def test_profiles_are_keyed_by_the_model_ids_the_app_stores():
         "Zoll AED 3",
         "Zoll Powerheart G3",
         "Zoll Powerheart G5",
+        "Defibtech Lifeline",
+        "Defibtech Lifeline AUTO",
+        "Defibtech Lifeline VIEW",
+        "Defibtech Lifeline ECG",
     }
     assert get_profile("Zoll AED Plus") is ZOLL_AED_PLUS
     assert get_profile(" Philips HS1 ") is PHILIPS_HS1

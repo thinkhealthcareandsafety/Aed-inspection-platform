@@ -13,4 +13,18 @@ export const DEVICE_PHOTO: Record<string, { tile: string; large: string }> = {
   'Zoll AED 3': { tile: '/devices/zoll-aed3.webp', large: '/devices/zoll-aed3-lg.webp' },
   'Zoll Powerheart G3': { tile: '/devices/powerheart-g3.webp', large: '/devices/powerheart-g3-lg.webp' },
   'Zoll Powerheart G5': { tile: '/devices/powerheart-g5.webp', large: '/devices/powerheart-g5-lg.webp' },
+  // Defibtech's own product shots, via its dealers (aed.us, medshop.com.au).
+  'Defibtech Lifeline': { tile: '/devices/defibtech-lifeline.webp', large: '/devices/defibtech-lifeline-lg.webp' },
+  'Defibtech Lifeline AUTO': {
+    tile: '/devices/defibtech-lifeline-auto.webp',
+    large: '/devices/defibtech-lifeline-auto-lg.webp',
+  },
+  'Defibtech Lifeline VIEW': {
+    tile: '/devices/defibtech-lifeline-view.webp',
+    large: '/devices/defibtech-lifeline-view-lg.webp',
+  },
+  'Defibtech Lifeline ECG': {
+    tile: '/devices/defibtech-lifeline-ecg.webp',
+    large: '/devices/defibtech-lifeline-ecg-lg.webp',
+  },
 };

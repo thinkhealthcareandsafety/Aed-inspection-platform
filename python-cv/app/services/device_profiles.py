@@ -12,6 +12,14 @@ Every fact here comes from the manufacturer's own documentation:
   - Powerheart AED G3 Plus Operator and Service Manual (70-00914-01 F) and
     G3 9300A/9300E manual (70-00966-01 F)
   - Powerheart G5 User's Guide (70-02104-02 D)
+  - Defibtech DDU-100 Series User Manual (DAC-A580-EN-DF), covering the
+    Lifeline (DDU-100) and Lifeline AUTO (DDU-120), and the DDU-120 User
+    Manual (DAC-530E-EN-BH)
+  - Defibtech DDU-2000 Series User Manual (DAC-U2510EN-BF rev H, the FDA
+    P160032 filing), DDU-2300 User Manual (DAC-2513EN-BC) and Operating
+    Guide (DAC-A2530EN-BK), covering the Lifeline VIEW and Lifeline ECG
+  - Defibtech's product registration page, for where each serial is and its
+    form (9 digits; DDU-120 starts 3-9, DDU-2xxx starts 4)
 
 The prompts used to describe every unit as a Philips. That failed healthy
 ZOLLs — whose ready signal is a steady green tick in a window, judged
@@ -62,6 +70,12 @@ class DeviceProfile:
     #: on it, else from manufacture — never later than the truth, since a
     #: battery can't be installed before it is made.
     battery_life_months: Optional[int] = None
+    #: The serial's exact form, when the maker publishes it (Defibtech: 9
+    #: digits, with a model-specific first digit). A reading that doesn't
+    #: fit is not this unit's serial — a battery serial, a REF, a misread —
+    #: and gets serial_retake's message, which says where the real one is.
+    serial_pattern: Optional[str] = None
+    serial_retake: str = "implausible_serial"
 
 
 PHILIPS_FRX = DeviceProfile(
@@ -574,6 +588,328 @@ POWERHEART_G5 = DeviceProfile(
 )
 
 
+# The four Defibtech units share most of their parts, so their notes are
+# built from these. The Lifeline and Lifeline AUTO (DDU-100 series) have no
+# screen and take their battery pack in the SIDE; the VIEW and ECG (DDU-2000
+# series) have a colour screen and take it in the BACK. All four store their
+# pads pre-connected in a holder on the back, and all four show readiness
+# by FLASHING a small green Active Status Indicator.
+
+_LIFELINE_SERIAL = (
+    "Defibtech puts the serial number on a label on the BACK of the AED, "
+    "behind the pads: the sealed pads package has to be slid out of its "
+    "holder on the back to see it (it stays plugged in). The serial is 9 "
+    "digits, beside 'SN' or the serial-number symbol. The REF/model number "
+    "({model}), a LOT number and the battery pack's own label are not the "
+    "AED's serial."
+)
+
+_LIFELINE_PADS = (
+    "The {name} uses Defibtech DDP-100 adult pads (DDP-200P for children), "
+    "supplied in a sealed pouch with the connector and part of the cable "
+    "outside it, and stored in the pad holder on the back of the AED with "
+    "the pictures facing out. The expiry date is on the BACK of the pouch "
+    "(the side facing into the holder): a small white label with 'REF "
+    "DDP-100', the LOT, the date beside the hourglass (use-by) symbol, "
+    "year-month-day, and a QR code with GS1 lines where '(17)YYMMDD' repeats "
+    "the expiry. The pouch is slid out of the holder to read it, still "
+    "sealed and plugged in. The yellow adult pouch is printed 'ADULT "
+    "ELECTRODE PADS'. Defibtech pads last 2.5 years from manufacture, so a "
+    "date beside the factory symbol is the manufacture date, never the "
+    "expiry."
+)
+
+_LIFELINE_BATTERY = (
+    "The {name} runs on a yellow Defibtech lithium battery pack (DBP-1400, "
+    "5-year standby, or DBP-2800, 7-year) that slides into the opening in "
+    "the SIDE of the unit, label facing up. Fitted, only its end shows, so "
+    "the label is read with the pack out: the battery eject button beside "
+    "the opening pushes it part-way out. The pack's expiration date is on "
+    "its label, in a white box beside the hourglass (use-by) symbol, above "
+    "a barcode; a date beside the factory symbol is the manufacture date. "
+    "The separate 'SN' box below it is the battery's serial number, not a "
+    "date. Inside the pack, "
+    "under a small cover, is a separate 9V lithium battery that powers the "
+    "status light: any date printed on that 9V battery is NOT the pack's "
+    "expiry — never report it."
+)
+
+_LIFELINE_BATTERY_ATTACHED = (
+    "The battery pack slides into the opening in the SIDE of the {name}, "
+    "next to the orange battery eject button, until its latch clicks. "
+    "Correctly fitted, the end of the pack is flush with the side of the "
+    "case. An empty opening (a rectangular slot you can see into, with the "
+    "orange eject button beside it), a pack sticking out, or a crooked pack "
+    "is a fail."
+)
+
+_LIFELINE_PADS_CONNECTED = (
+    "Defibtech designs the {name} to be stored with the pads pre-connected: "
+    "the pads cable's connector plugs into the pads connector port at the "
+    "TOP-LEFT corner of the front, at the end of the carry handle, and the "
+    "sealed pads package sits in the holder on the back with its cable "
+    "pressed into the groove. Pass only if the connector is visibly seated "
+    "in the port with its cable leading away. An empty port, or a loose or "
+    "half-inserted connector, is a fail — the AED would say 'Plug in pads "
+    "connector'."
+)
+
+_LIFELINE_READINESS = (
+    "The {name}'s ready signal is its Active Status Indicator (ASI): a "
+    "small light at the TOP-RIGHT corner of the unit, at the right-hand end "
+    "of the carry handle. Never judge the green On/Off button (it is lit "
+    "only while the unit is switched on), the three rescue lights on the "
+    "front (check pads, do not touch patient, analyzing) or the {shock}. In "
+    "standby a healthy {name} FLASHES the ASI GREEN about once every five "
+    "seconds, so most frames show it dark. Only a frame where the ASI "
+    "itself is visibly lit green shows it is ready; never assume it flashed "
+    "between frames. Flashing RED, usually with a periodic beep, means it "
+    "needs attention: status='fault'. An ASI that never lights means the "
+    "battery pack, or the 9V battery inside it that powers the light, is "
+    "flat or missing — the AED needs attention. Steady green means it is "
+    "switched on. If the corner can't be seen, status='unclear'."
+)
+
+_LIFELINE_CHILD = (
+    "The {name} has no child key or child button. Its child option is a "
+    "separate sealed pack of DDP-200P child/infant pads, for children "
+    "under 8 years or 55 lb (25 kg); Defibtech marks them with a BLUE "
+    "connector and a light-blue package printed 'CHILD/INFANT (<8 YEARS) "
+    "ELECTRODE PADS'. Pass if a sealed child/infant pads pack is present."
+)
+
+DEFIBTECH_LIFELINE = DeviceProfile(
+    id="Defibtech Lifeline",
+    name="Defibtech Lifeline AED (DDU-100, semi-automatic)",
+    brand="Defibtech",
+    blinking_ready=True,
+    readiness_retake="readiness_no_asi_lifeline",
+    serial_pattern=r"\d{9}",
+    serial_retake="serial_defibtech_back",
+    appearance=(
+        "A yellow Defibtech Lifeline AED with dark grey rubber sides and a "
+        "dark carry handle across the top, printed 'LIFELINE AED'. It has NO "
+        "screen. Front: a green On/Off button, three small lights labelled "
+        "'check pads', 'do not touch patient' and 'analyzing', a red "
+        "triangular SHOCK button and a speaker grille. The pads connector "
+        "plugs in at the top-left corner, the small Active Status Indicator "
+        "is at the top-right corner, the battery pack slides into the side, "
+        "and the sealed pads package sits in a holder on the back."
+    ),
+    guidance={
+        "serial_number": _LIFELINE_SERIAL.format(model="DDU-100"),
+        "pads_expiry": _LIFELINE_PADS.format(name="Lifeline"),
+        "battery_expiry": _LIFELINE_BATTERY.format(name="Lifeline"),
+        "battery_attached": _LIFELINE_BATTERY_ATTACHED.format(name="Lifeline"),
+        "pads_connected": _LIFELINE_PADS_CONNECTED.format(name="Lifeline"),
+        "readiness_indicator": _LIFELINE_READINESS.format(name="Lifeline", shock="red SHOCK button"),
+        "child_key_pad": _LIFELINE_CHILD.format(name="Lifeline"),
+    },
+)
+
+
+DEFIBTECH_LIFELINE_AUTO = DeviceProfile(
+    id="Defibtech Lifeline AUTO",
+    name="Defibtech Lifeline AUTO AED (DDU-120, fully automatic)",
+    brand="Defibtech",
+    blinking_ready=True,
+    readiness_retake="readiness_no_asi_lifeline",
+    # Defibtech: 9 digits, the first 3-9.
+    serial_pattern=r"[3-9]\d{8}",
+    serial_retake="serial_defibtech_back",
+    appearance=(
+        "A yellow Defibtech Lifeline AUTO with dark grey rubber sides and a "
+        "dark carry handle across the top, printed 'Lifeline AUTO'. It has "
+        "NO screen and NO shock button: where a shock button would be there "
+        "is a yellow 'auto' symbol with a lightning bolt — the SHOCK "
+        "Required indicator, because it shocks by itself. Front: a green "
+        "On/Off button and three small lights labelled 'check pads', 'do "
+        "not touch patient' and 'analyzing'. The pads connector plugs in at "
+        "the top-left corner, the small Active Status Indicator is at the "
+        "top-right corner, the battery pack slides into the side, and the "
+        "sealed pads package sits in a holder on the back."
+    ),
+    guidance={
+        "serial_number": _LIFELINE_SERIAL.format(model="DDU-120"),
+        "pads_expiry": _LIFELINE_PADS.format(name="Lifeline AUTO"),
+        "battery_expiry": (
+            _LIFELINE_BATTERY.format(name="Lifeline AUTO")
+            + " Newer packs also have their own small green light on the "
+            "label side, blinking while the pack is good; it is not a date "
+            "and not the AED's status light."
+        ),
+        "battery_attached": _LIFELINE_BATTERY_ATTACHED.format(name="Lifeline AUTO"),
+        "pads_connected": _LIFELINE_PADS_CONNECTED.format(name="Lifeline AUTO"),
+        "readiness_indicator": _LIFELINE_READINESS.format(
+            name="Lifeline AUTO", shock="yellow 'auto' SHOCK Required symbol"
+        ),
+        "child_key_pad": _LIFELINE_CHILD.format(name="Lifeline AUTO"),
+    },
+)
+
+
+# The VIEW and ECG show unit status, battery expiry, pads expiry and the
+# AED's serial on one screen, with the AED off, at the press of a button.
+# Once fitted, the battery's label faces into the unit and the pads' date is
+# on the back of their package, so the screen is the way to read both
+# without taking anything out.
+_STATUS_SCREEN = (
+    "With the AED OFF, pressing the CENTRE one of the three round softkey "
+    "buttons beside the screen shows the AED Status Screen for a short "
+    "time. It lists, one per row: 'AED status' (OK, or the problem), "
+    "'Battery status' with 'Expires MM/YYYY', 'Pads status' with Adult or "
+    "Child and 'Expires MM/YYYY', 'AED S/N', 'Battery S/N' and 'Software "
+    "version'. The AED reads these itself from the fitted battery and the "
+    "connected pads, so a photo of this screen is as good as the label."
+)
+
+_VIEW_SERIAL = (
+    "The serial number is 9 digits starting with 4. Either: the AED Status "
+    "Screen's 'AED S/N' row — " + _STATUS_SCREEN + " Report only the 'AED "
+    "S/N' row; the 'Battery S/N' row is the battery's serial and must never "
+    "be reported as the AED's. Or: the small white label at the top of the "
+    "BACK of the AED, above the battery, marked 'SN' with a barcode; the "
+    "label beside it marked 'REF' carries the model number ({model}…), "
+    "which is not the serial. The battery pack's own 'SN' label is also 9 "
+    "digits starting with 4 — it is NOT the AED's serial."
+)
+
+_VIEW_PADS = (
+    "The {name} uses Defibtech DDP-2001 adult pads (DDP-2002 for children), "
+    "sealed in a package stored pre-connected in the pad storage area on the "
+    "back of the AED, pictures facing out. The expiry date is printed on the "
+    "BACK of the package (the side facing into the AED), on a small white "
+    "label with 'REF DDP-2001', the LOT and the date beside the hourglass "
+    "(use-by) symbol, year-month-day; GS1 text under its QR code may repeat "
+    "it after '(17)' as YYMMDD. It is also shown on the AED Status "
+    "Screen — " + _STATUS_SCREEN + " For this item read the 'Pads status' "
+    "row's 'Expires' date, never the battery's, and copy the whole row into "
+    "expiry_raw_text (for example 'Pads status Adult Expires 06/2028'). "
+    "Pads last 2.5 years from manufacture: a date beside the factory symbol "
+    "on the package is the manufacture date."
+)
+
+_VIEW_BATTERY = (
+    "The {name} runs on a yellow Defibtech DBP-2003 lithium battery pack "
+    "(DBP-2013 for aviation; 4-year standby) that is pushed down into the "
+    "opening on the BACK of the AED. Fitted, its label faces into the unit. "
+    "Its expiration date is on that label, in a white box beside the "
+    "hourglass (use-by) symbol under a barcode (for example '2021-12-31' or "
+    "'2015/03'); the barcode text may repeat it after '(17)' as YYMMDD. The "
+    "white box marked 'SN' beside it is the battery's serial number, not a "
+    "date; a date beside the factory symbol is the manufacture date. The "
+    "same expiry is shown on the AED Status Screen — "
+    + _STATUS_SCREEN + " For this item read the 'Battery status' row's "
+    "'Expires' date, never the pads', and copy the whole row into "
+    "expiry_raw_text (for example 'Battery status Expires 01/2029'). A "
+    "black pack is Defibtech's optional rechargeable one: say so in notes."
+)
+
+_VIEW_BATTERY_ATTACHED = (
+    "The battery pack is pushed down into the opening at the top of the "
+    "BACK of the {name}, above the pad storage area, until the latch "
+    "clicks. Correctly fitted, its surface is flush with the back of the "
+    "AED. An empty opening, a pack sitting raised or tilted, or a gap is a "
+    "fail. A photo of the AED Status Screen alone does not show the pack "
+    "seated: judge only the back of the unit."
+)
+
+_VIEW_PADS_CONNECTED = (
+    "Defibtech designs the {name} to be stored with the pads pre-connected: "
+    "the pads cable's connector plugs into the pads connector socket at the "
+    "TOP-LEFT corner of the front, beside the carry handle, and the sealed "
+    "pads package sits in the pad storage area on the back with its cable "
+    "pressed into the groove. Pass only if the connector is visibly seated "
+    "in the socket with its cable leading away. An empty socket, or a loose "
+    "or half-inserted connector, is a fail."
+)
+
+_VIEW_READINESS = (
+    "The {name}'s ready signal is its Active Status Indicator (ASI): a "
+    "small light immediately to the RIGHT of the green On/Off button, above "
+    "the screen. Never judge the On/Off button, the screen, the softkey "
+    "buttons or the red SHOCK button. In standby (AED off, screen dark) a "
+    "healthy {name} FLASHES the ASI GREEN, a single short flash repeated "
+    "every few seconds, so most frames show it dark. Only a frame where the ASI "
+    "itself is visibly lit green shows it is ready; never assume it flashed "
+    "between frames. RED — a double flash, usually with two beeps, or "
+    "solid red — means it needs service: status='fault'. An ASI that never "
+    "lights means the battery pack is flat or missing — it needs attention. "
+    "Solid green means the AED is switched on. If the light can't be seen, "
+    "status='unclear'."
+)
+
+_VIEW_CHILD = (
+    "The {name} has no child key. Its child option is Defibtech DDP-2002 "
+    "Child/Infant pads, for children under 8 years or 55 lb (25 kg), in a "
+    "separate sealed light-blue package printed 'CHILD/INFANT ELECTRODE "
+    "PADS', with a BLUE connector; the AED Status Screen's 'Pads status' row "
+    "says Adult or Child for the pads that are connected. Pass if a sealed "
+    "DDP-2002 child/infant pads package is present."
+)
+
+DEFIBTECH_LIFELINE_VIEW = DeviceProfile(
+    id="Defibtech Lifeline VIEW",
+    name="Defibtech Lifeline VIEW AED (DDU-2300)",
+    brand="Defibtech",
+    blinking_ready=True,
+    readiness_retake="readiness_no_asi_view",
+    serial_pattern=r"4\d{8}",
+    serial_retake="serial_defibtech_view",
+    appearance=(
+        "A yellow Defibtech Lifeline VIEW with dark grey rubber sides and a "
+        "black carry handle across the top, printed 'Lifeline VIEW'. In the "
+        "centre of the front is a colour video screen, with three round "
+        "softkey buttons to its right. Above the screen: the green On/Off "
+        "button, with the small Active Status Indicator light just to its "
+        "right. Below it: a red triangular SHOCK button and the speaker. The "
+        "pads connector plugs in at the top-left corner. On the back: the "
+        "battery pack opening at the top and the pad storage area below it."
+    ),
+    guidance={
+        "serial_number": _VIEW_SERIAL.format(model="DDU-2300"),
+        "pads_expiry": _VIEW_PADS.format(name="Lifeline VIEW"),
+        "battery_expiry": _VIEW_BATTERY.format(name="Lifeline VIEW"),
+        "battery_attached": _VIEW_BATTERY_ATTACHED.format(name="Lifeline VIEW"),
+        "pads_connected": _VIEW_PADS_CONNECTED.format(name="Lifeline VIEW"),
+        "readiness_indicator": _VIEW_READINESS.format(name="Lifeline VIEW"),
+        "child_key_pad": _VIEW_CHILD.format(name="Lifeline VIEW"),
+    },
+)
+
+
+DEFIBTECH_LIFELINE_ECG = DeviceProfile(
+    id="Defibtech Lifeline ECG",
+    name="Defibtech Lifeline ECG AED (DDU-2450)",
+    brand="Defibtech",
+    blinking_ready=True,
+    readiness_retake="readiness_no_asi_view",
+    serial_pattern=r"4\d{8}",
+    serial_retake="serial_defibtech_view",
+    appearance=(
+        "A yellow Defibtech Lifeline ECG, built like the Lifeline VIEW and "
+        "printed 'Lifeline ECG': dark grey rubber sides, a black carry "
+        "handle, and a colour screen in the centre of the front (it can "
+        "show a heart-rhythm trace, which is normal on this model) with "
+        "three round softkey buttons to its right. Above the screen: the "
+        "green On/Off button, with the small Active Status Indicator light "
+        "just to its right. Below it: a red triangular SHOCK button and the "
+        "speaker. The pads connector plugs in at the top-left corner. On the "
+        "back: the battery pack opening at the top and the pad storage area "
+        "below it."
+    ),
+    guidance={
+        "serial_number": _VIEW_SERIAL.format(model="DDU-2450"),
+        "pads_expiry": _VIEW_PADS.format(name="Lifeline ECG"),
+        "battery_expiry": _VIEW_BATTERY.format(name="Lifeline ECG"),
+        "battery_attached": _VIEW_BATTERY_ATTACHED.format(name="Lifeline ECG"),
+        "pads_connected": _VIEW_PADS_CONNECTED.format(name="Lifeline ECG"),
+        "readiness_indicator": _VIEW_READINESS.format(name="Lifeline ECG"),
+        "child_key_pad": _VIEW_CHILD.format(name="Lifeline ECG"),
+    },
+)
+
+
 GENERIC = DeviceProfile(
     id="generic",
     name="an automated external defibrillator (AED) whose make and model were not given",
@@ -607,7 +943,18 @@ GENERIC = DeviceProfile(
 
 PROFILES: Dict[str, DeviceProfile] = {
     profile.id: profile
-    for profile in (PHILIPS_FRX, PHILIPS_HS1, ZOLL_AED_PLUS, ZOLL_AED_3, POWERHEART_G3, POWERHEART_G5)
+    for profile in (
+        PHILIPS_FRX,
+        PHILIPS_HS1,
+        ZOLL_AED_PLUS,
+        ZOLL_AED_3,
+        POWERHEART_G3,
+        POWERHEART_G5,
+        DEFIBTECH_LIFELINE,
+        DEFIBTECH_LIFELINE_AUTO,
+        DEFIBTECH_LIFELINE_VIEW,
+        DEFIBTECH_LIFELINE_ECG,
+    )
 }
 
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import re
 import time
 from datetime import date, datetime, timezone
 from typing import List, Optional
@@ -265,6 +266,37 @@ _OVERRIDE_NOTES = {
         "stays red, the AED needs attention.",
         "हमें Rescue Ready इंडिकेटर हरा नहीं दिखा। ढक्कन बंद रखकर, हैंडल के पास वाले गोल इंडिकेटर का पास से, "
         "फ़ोन स्थिर रखकर, करीब 10 सेकंड का वीडियो बनाएँ। अगर यह लाल ही रहे, तो AED को जाँच की ज़रूरत है।",
+    ),
+    "readiness_no_asi_lifeline": (
+        "We couldn't see the status light flash green. Film the small light at the top-right "
+        "corner, at the end of the handle (not the On/Off button), up close and steady, for at "
+        "least 10 seconds — it flashes about every 5 seconds. Red, or no flash at all, means the "
+        "AED needs attention.",
+        "हमें स्टेटस लाइट हरी जलती नहीं दिखी। ऊपर दाएँ कोने में, हैंडल के सिरे पर लगी छोटी लाइट (On/Off बटन नहीं) "
+        "का पास से, फ़ोन स्थिर रखकर, कम से कम 10 सेकंड का वीडियो बनाएँ — यह करीब हर 5 सेकंड में जलती है। लाल "
+        "लाइट, या बिल्कुल न जलना, मतलब AED को जाँच की ज़रूरत है।",
+    ),
+    "readiness_no_asi_view": (
+        "We couldn't see the status light flash green. Film the small light just right of the "
+        "On/Off button (not the button or the screen), up close and steady, for at least 10 "
+        "seconds. Red, or no flash at all, means the AED needs attention.",
+        "हमें स्टेटस लाइट हरी जलती नहीं दिखी। On/Off बटन के ठीक दाईं ओर की छोटी लाइट (बटन या स्क्रीन नहीं) का "
+        "पास से, फ़ोन स्थिर रखकर, कम से कम 10 सेकंड का वीडियो बनाएँ। लाल लाइट, या बिल्कुल न जलना, मतलब AED "
+        "को जाँच की ज़रूरत है।",
+    ),
+    "serial_defibtech_back": (
+        "That isn't this AED's serial number — a Defibtech serial is 9 digits. Slide the pads "
+        "package out of its holder on the back (keep it plugged in), photograph the label behind "
+        "it, then slide the pads back.",
+        "यह इस AED का सीरियल नंबर नहीं है — Defibtech का सीरियल नंबर 9 अंकों का होता है। पीछे के होल्डर से पैड्स "
+        "का पैकेट बाहर खिसकाएँ (प्लग लगा रहने दें), उसके पीछे के लेबल की फ़ोटो लें, फिर पैड्स वापस रख दें।",
+    ),
+    "serial_defibtech_view": (
+        "That isn't this AED's serial number — it is 9 digits starting with 4. With the AED off, "
+        "press the middle button beside the screen and photograph the “AED S/N” line (not "
+        "“Battery S/N”).",
+        "यह इस AED का सीरियल नंबर नहीं है — यह 4 से शुरू होने वाला 9 अंकों का नंबर होता है। AED बंद रखकर "
+        "स्क्रीन के पास वाला बीच का बटन दबाएँ और “AED S/N” वाली लाइन की फ़ोटो लें (“Battery S/N” नहीं)।",
     ),
     "battery_made_unread": (
         "We couldn't read the date on the battery. This battery shows only the date it was made, "
@@ -869,6 +901,23 @@ def _apply_deterministic_checks(
                     **_override_notes("implausible_serial", language),
                 }
             )
+        # A maker that publishes its serial's form (Defibtech: 9 digits) lets
+        # a misread, or the battery's serial read off the status screen,
+        # be caught here rather than stored as the AED's.
+        if profile is not None and profile.serial_pattern:
+            compact = re.sub(r"[\s\-]", "", result.serial_number)
+            if not re.fullmatch(profile.serial_pattern, compact):
+                overruled("serial_wrong_format")
+                logger.warning("checklist.serial_wrong_format", profile=profile.id, value=result.serial_number)
+                return result.model_copy(
+                    update={
+                        "passed": False,
+                        "serial_number": None,
+                        **_override_notes(profile.serial_retake, language),
+                    }
+                )
+            if compact != result.serial_number:
+                result = result.model_copy(update={"serial_number": compact})
 
     if item.id == "battery_expiry" and profile is not None and profile.battery_life_months:
         return _date_battery_by_age(result, profile, today=today, language=language, overruled=overruled)

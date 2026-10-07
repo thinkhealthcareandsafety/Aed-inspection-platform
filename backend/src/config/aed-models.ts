@@ -9,6 +9,10 @@ export const PUBLIC_AED_MODELS = [
   'Zoll AED 3',
   'Zoll Powerheart G3',
   'Zoll Powerheart G5',
+  'Defibtech Lifeline',
+  'Defibtech Lifeline AUTO',
+  'Defibtech Lifeline VIEW',
+  'Defibtech Lifeline ECG',
 ] as const;
 
 export type PublicAedModel = (typeof PUBLIC_AED_MODELS)[number];

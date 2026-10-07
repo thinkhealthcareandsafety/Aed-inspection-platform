@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <!-- The Lifeline VIEW / ECG "AED Status Screen", laid out as Defibtech's
+       user manual (DAC-U2510EN rev H, sections 3.4 and 6.5) shows it: with
+       the AED off, pressing the CENTRE softkey shows unit status, battery
+       and pads expiry, and the AED and battery serial numbers. Values are
+       placeholders, not a real unit's. -->
+  <rect width="1200" height="900" fill="#ffffff"/>
+  <!-- the front of the unit around the screen -->
+  <path d="M170 40 H1030 Q1090 40 1090 100 V860 H110 V100 Q110 40 170 40 Z" fill="#2f2f2f"/>
+  <path d="M215 40 H985 Q1040 40 1040 95 V860 H160 V95 Q160 40 215 40 Z" fill="#f6b51c"/>
+  <!-- On/Off button with the Active Status Indicator to its right -->
+  <circle cx="560" cy="150" r="52" fill="#e9a613"/>
+  <circle cx="560" cy="150" r="40" fill="#14806b"/>
+  <path d="M560 128 V150" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M545 137 A22 22 0 1 0 575 137" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <rect x="628" y="132" width="12" height="36" rx="6" fill="#7bd14a"/>
+  <!-- screen -->
+  <rect x="270" y="235" width="560" height="430" rx="14" fill="#3a3a3a"/>
+  <rect x="290" y="255" width="520" height="390" rx="4" fill="#fbfbf8"/>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#1d1d1d">
+    <text x="312" y="304">AED status</text>
+    <text x="572" y="304" font-weight="bold">OK</text>
+    <text x="312" y="357">Battery status</text>
+    <text x="572" y="357">Expires 01/2029</text>
+    <text x="312" y="410">Pads status</text>
+    <text x="572" y="410">Adult</text>
+    <text x="572" y="445">Expires 06/2028</text>
+    <text x="312" y="498">AED S/N</text>
+    <text x="572" y="498">4XXXXXXXX</text>
+    <text x="312" y="551">Battery S/N</text>
+    <text x="572" y="551">XXXXXXXXX</text>
+    <text x="312" y="604">Software version</text>
+    <text x="572" y="604">V x.x</text>
+  </g>
+  <line x1="300" y1="322" x2="800" y2="322" stroke="#d9d9d4" stroke-width="2"/>
+  <line x1="300" y1="375" x2="800" y2="375" stroke="#d9d9d4" stroke-width="2"/>
+  <line x1="300" y1="463" x2="800" y2="463" stroke="#d9d9d4" stroke-width="2"/>
+  <line x1="300" y1="516" x2="800" y2="516" stroke="#d9d9d4" stroke-width="2"/>
+  <line x1="300" y1="569" x2="800" y2="569" stroke="#d9d9d4" stroke-width="2"/>
+  <!-- three softkeys: top, CENTRE, bottom -->
+  <circle cx="905" cy="345" r="36" fill="#2b2b2b"/>
+  <circle cx="905" cy="450" r="36" fill="#2b2b2b"/>
+  <circle cx="905" cy="555" r="36" fill="#2b2b2b"/>
+  <!-- SHOCK button -->
+  <path d="M550 720 L610 720 Q622 720 616 731 L586 783 Q580 793 574 783 L544 731 Q538 720 550 720 Z" transform="rotate(180 580 752)" fill="#d8322b"/>
+</svg>

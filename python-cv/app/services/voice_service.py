@@ -43,13 +43,13 @@ TIMEOUT_SECONDS = 45
 # What a voice can't read off the screen: symbols, codes, slashes.
 SAY = {
     "en": [
-        ("“SN”", "S N"), ("⌛", "hourglass"), ("✓", "tick"), ("✗", "cross"),
+        ("“SN”", "S N"), ("S/N", "S N"), ("⌛", "hourglass"), ("✓", "tick"), ("✗", "cross"),
         ("Pedi-padz II", "Peedee Pads two"), ("CPR Uni-padz", "C P R Uni Pads"), (" II", " two"),
         ("Child key / child pads", "Child key, or child pads"),
         ("infant/child", "infant or child"), ("On/Off", "On-Off"), ("—", ","),
     ],
     "hi": [
-        ("“SN”", "S N"), ("⌛", "रेत-घड़ी"), ("✓", "सही का निशान"), ("✗", "क्रॉस का निशान"),
+        ("“SN”", "S N"), ("S/N", "S N"), ("⌛", "रेत-घड़ी"), ("✓", "सही का निशान"), ("✗", "क्रॉस का निशान"),
         ("Pedi-padz II", "Peedee Pads टू"), ("CPR Uni-padz", "C P R Uni Pads"), (" II", " टू"),
         ("चाइल्ड Key / चाइल्ड पैड्स", "चाइल्ड Key या चाइल्ड पैड्स"),
         ("इन्फ़ैंट/चाइल्ड", "इन्फ़ैंट या चाइल्ड"), ("On/Off", "On-Off"), ("—", ","),

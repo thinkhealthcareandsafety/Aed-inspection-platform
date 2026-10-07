@@ -9,6 +9,8 @@
  *   November 2014. The AED 3 follows ZOLL's rule after its "A" — "AX19D…".
  * - Powerheart G3 / G5: the serial carries no date; the manufacture date is
  *   printed beside the factory symbol on the same label, and is read there.
+ * - Defibtech Lifeline / AUTO / VIEW / ECG: a 9-digit serial with no date in
+ *   it, so the age comes from the label's date of manufacture, if shown.
  *
  * Anything that doesn't match its model's pattern exactly gives no age at
  * all: telling someone their AED is ten years old when it isn't would be

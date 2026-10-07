@@ -108,6 +108,10 @@ export const en = {
       'Zoll AED 3': 'Lime green and upright, with a colour screen on the front',
       'Zoll Powerheart G3': 'Navy and yellow, with a clear lid over the pads',
       'Zoll Powerheart G5': 'Orange and upright, with a round Rescue Ready light by the handle',
+      'Defibtech Lifeline': 'Yellow, no screen, with a red Shock button',
+      'Defibtech Lifeline AUTO': 'Yellow, no screen, and no Shock button: an “auto” symbol instead',
+      'Defibtech Lifeline VIEW': 'Yellow, with a colour video screen; “Lifeline VIEW” on the front',
+      'Defibtech Lifeline ECG': 'Like the VIEW, with “Lifeline ECG” on the front; can show a heart trace',
     } as Record<string, string>,
   },
 
@@ -244,6 +248,14 @@ export const en = {
           'Turn the AED over and photograph the serial number label on the underside, close enough to read.',
         'Zoll Powerheart G5':
           'Photograph the “SN” serial number on the label on the back of the AED, close enough to read.',
+        'Defibtech Lifeline':
+          'Slide the pads package out of its holder on the back (leave it plugged in) and photograph the 9-digit serial label behind it. Then slide the pads back.',
+        'Defibtech Lifeline AUTO':
+          'Slide the pads package out of its holder on the back (leave it plugged in) and photograph the 9-digit serial label behind it. Then slide the pads back.',
+        'Defibtech Lifeline VIEW':
+          'With the AED off, press the middle button beside the screen and photograph the “AED S/N” line, or the “SN” label at the top of the back.',
+        'Defibtech Lifeline ECG':
+          'With the AED off, press the middle button beside the screen and photograph the “AED S/N” line, or the “SN” label at the top of the back.',
       },
     },
     pads_expiry: {
@@ -257,6 +269,14 @@ export const en = {
         'Zoll Powerheart G3': 'Photograph the pads’ expiry date through the clear lid — no need to open it.',
         'Zoll Powerheart G5':
           'Photograph the small expiry window on the front of the lid, close enough to read the date.',
+        'Defibtech Lifeline':
+          'Slide the pads package out of its holder on the back (leave it plugged in) and photograph the white label on its back, with the date beside the ⌛. Then slide it back.',
+        'Defibtech Lifeline AUTO':
+          'Slide the pads package out of its holder on the back (leave it plugged in) and photograph the white label on its back, with the date beside the ⌛. Then slide it back.',
+        'Defibtech Lifeline VIEW':
+          'With the AED off, press the middle button beside the screen and photograph the “Pads status” line, with its expiry date.',
+        'Defibtech Lifeline ECG':
+          'With the AED off, press the middle button beside the screen and photograph the “Pads status” line, with its expiry date.',
       },
     },
     battery_expiry: {
@@ -272,6 +292,14 @@ export const en = {
           'Lift the battery out of the bottom of the AED and photograph its label: it shows the date the battery was made. Then press it back in until it clicks.',
         'Zoll Powerheart G5':
           'Lift the battery out of the bottom of the AED and photograph its label: it shows the date the battery was made. Then press it back in until it clicks.',
+        'Defibtech Lifeline':
+          'Press the orange eject button on the side, pull the battery out and photograph the date beside the ⌛ on its label. Then slide it back in until it clicks.',
+        'Defibtech Lifeline AUTO':
+          'Press the orange eject button on the side, pull the battery out and photograph the date beside the ⌛ on its label. Then slide it back in until it clicks.',
+        'Defibtech Lifeline VIEW':
+          'With the AED off, press the middle button beside the screen and photograph the “Battery status” line, with its expiry date.',
+        'Defibtech Lifeline ECG':
+          'With the AED off, press the middle button beside the screen and photograph the “Battery status” line, with its expiry date.',
       },
     },
     battery_attached: {
@@ -285,6 +313,14 @@ export const en = {
         'Zoll AED 3': 'Photograph the back of the AED, showing the battery clicked in flush with the case.',
         'Zoll Powerheart G3': 'Turn the AED over and photograph the battery in the bottom, pushed fully in and flush.',
         'Zoll Powerheart G5': 'Turn the AED over and photograph the battery in the bottom, pushed fully in and flush.',
+        'Defibtech Lifeline':
+          'Photograph the side of the AED, showing the battery pushed fully in and flush, beside the orange eject button.',
+        'Defibtech Lifeline AUTO':
+          'Photograph the side of the AED, showing the battery pushed fully in and flush, beside the orange eject button.',
+        'Defibtech Lifeline VIEW':
+          'Turn the AED over and photograph the battery at the top of the back, pushed fully in and flush.',
+        'Defibtech Lifeline ECG':
+          'Turn the AED over and photograph the battery at the top of the back, pushed fully in and flush.',
       },
     },
     pads_connected: {
@@ -299,6 +335,14 @@ export const en = {
           'Open the lid and photograph the pads connector plugged into its socket. The AED switches on and talks — that’s normal. Close the lid after.',
         'Zoll Powerheart G5':
           'Open the lid and photograph the pads connector plugged into its socket. The AED switches on and talks — that’s normal. Close the lid after.',
+        'Defibtech Lifeline':
+          'Photograph the pads connector plugged into its socket at the top-left corner, by the handle.',
+        'Defibtech Lifeline AUTO':
+          'Photograph the pads connector plugged into its socket at the top-left corner, by the handle.',
+        'Defibtech Lifeline VIEW':
+          'Photograph the pads connector plugged into its socket at the top-left corner, by the handle.',
+        'Defibtech Lifeline ECG':
+          'Photograph the pads connector plugged into its socket at the top-left corner, by the handle.',
       },
     },
     readiness_indicator: {
@@ -317,6 +361,14 @@ export const en = {
           'With the lid closed, film the round Rescue Ready light beside the handle for about 10 seconds. Green means ready; red needs attention.',
         'Zoll Powerheart G5':
           'With the lid closed, film the round Rescue Ready light beside the handle for about 10 seconds. Green means ready; red needs attention.',
+        'Defibtech Lifeline':
+          'Film the small light at the top-right corner, by the handle, for at least 10 seconds. It flashes green about every 5 seconds; red needs attention.',
+        'Defibtech Lifeline AUTO':
+          'Film the small light at the top-right corner, by the handle, for at least 10 seconds. It flashes green about every 5 seconds; red needs attention.',
+        'Defibtech Lifeline VIEW':
+          'Film the small light just right of the On/Off button for at least 10 seconds. It flashes green when ready; red needs attention.',
+        'Defibtech Lifeline ECG':
+          'Film the small light just right of the On/Off button for at least 10 seconds. It flashes green when ready; red needs attention.',
       },
     },
     child_key_pad: {
@@ -331,6 +383,11 @@ export const en = {
         'Zoll Powerheart G3': 'Photograph the spare child (pediatric) pads pack, if you have one.',
         'Zoll Powerheart G5':
           'Photograph the spare child (paediatric) pads pack — kept beside the AED, not plugged in.',
+        'Defibtech Lifeline': 'Photograph the spare child/infant pads pack, with its blue connector, if you have one.',
+        'Defibtech Lifeline AUTO':
+          'Photograph the spare child/infant pads pack, with its blue connector, if you have one.',
+        'Defibtech Lifeline VIEW': 'Photograph the spare child/infant pads package (DDP-2002), if you have one.',
+        'Defibtech Lifeline ECG': 'Photograph the spare child/infant pads package (DDP-2002), if you have one.',
       },
     },
     aed_cabinet: { title: 'AED cabinet', description: 'Photograph the cabinet or case the AED is kept in.' },
@@ -459,6 +516,7 @@ export const en = {
     label: 'Readiness score',
     earned: (marks: number) => `+${marks}`,
     needed: (n: number) => `${n} needed to pass`,
+    everyCheck: 'every safety check has to pass',
     failsTitle: 'Fails readiness',
     below: (model: string, n: number) => `Your ${model} scored below ${n}: it fails readiness.`,
   },
@@ -501,6 +559,7 @@ export const en = {
       body: (phone?: string) => (phone ? `We'll be in touch on ${phone}.` : "We'll be in touch shortly."),
     },
     whatWeChecked: 'What we checked',
+    toFix: 'To fix',
     status: { pass: 'Passed', fail: 'Failed', skipped: 'Skipped', error: 'Not done', pending: 'Not done' } as Record<
       string,
       string

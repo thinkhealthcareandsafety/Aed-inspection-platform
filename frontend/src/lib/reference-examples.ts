@@ -63,6 +63,21 @@ const G5_FRONT = '/reference/powerheart-g5-front.jpg';
 // model (actionfirstaid.ca/aed-guide), cropped to the part each check needs.
 const AED3_BACK = '/reference/zoll-aed3-back.jpg';
 const G5_BACK = '/reference/powerheart-g5-back.jpg';
+// Defibtech's own product shots, via its dealers, re-framed to 4:3.
+const LIFELINES = ['Defibtech Lifeline', 'Defibtech Lifeline AUTO'];
+const LIFELINE_SCREENED = ['Defibtech Lifeline VIEW', 'Defibtech Lifeline ECG'];
+const LIFELINE_FRONT = '/reference/defibtech-lifeline-front.jpg';
+const LIFELINE_AUTO_FRONT = '/reference/defibtech-lifeline-auto-front.jpg';
+const LIFELINE_VIEW_FRONT = '/reference/defibtech-lifeline-view-front.jpg';
+const LIFELINE_ECG_FRONT = '/reference/defibtech-lifeline-ecg-front.jpg';
+// The VIEW / ECG status screen, drawn from Defibtech's manual: with the AED
+// off, the middle button beside the screen shows the serial and the battery
+// and pads dates, which on the unit itself face inwards.
+const LIFELINE_STATUS = '/reference/defibtech-view-status-screen.svg';
+// Dealer photos of real units and packs (aed.us, aedbrands.com, aedland.com,
+// firstaiddistributions.com.au), re-framed to 4:3.
+const LIFELINE_BACK = '/reference/defibtech-lifeline-back.jpg';
+const VIEW_BACK = '/reference/defibtech-view-back.jpg';
 
 export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExample[]>> = {
   serial_number: [
@@ -113,6 +128,31 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'पीछे लगे लेबल पर “SN” के पास वाला नंबर।',
       kind: 'neutral',
       models: ['Zoll Powerheart G5'],
+    },
+    {
+      src: LIFELINE_STATUS,
+      focus: { x: 0.25, y: 0.518, w: 0.417, h: 0.053 },
+      caption: 'On the status screen (AED off, middle button pressed): the “AED S/N” line, not “Battery S/N”.',
+      captionHi: 'स्टेटस स्क्रीन पर (AED बंद, बीच का बटन दबाकर): “AED S/N” वाली लाइन, “Battery S/N” नहीं।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
+      illustration: true,
+    },
+    {
+      src: LIFELINE_BACK,
+      focus: { x: 0.36, y: 0.25, w: 0.31, h: 0.2 },
+      caption: 'The serial label is on the back, behind the pads package: slide the package out to see it. Lifeline shown.',
+      captionHi: 'सीरियल लेबल पीछे, पैड्स पैकेट के पीछे है: उसे देखने के लिए पैकेट बाहर खिसकाएँ। तस्वीर में Lifeline है।',
+      kind: 'neutral',
+      models: LIFELINES,
+    },
+    {
+      src: VIEW_BACK,
+      focus: { x: 0.47, y: 0.185, w: 0.105, h: 0.06 },
+      caption: 'Or the “SN” label at the top of the back, not the “REF” label beside it. VIEW shown.',
+      captionHi: 'या पीछे सबसे ऊपर लगा “SN” लेबल, उसके पास वाला “REF” लेबल नहीं। तस्वीर में VIEW है।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
     },
   ],
 
@@ -167,6 +207,31 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'ढक्कन पर एक्सपायरी विंडो: पैड्स की तारीख यहाँ दिखती है।',
       kind: 'neutral',
       models: ['Zoll Powerheart G5'],
+    },
+    {
+      src: LIFELINE_STATUS,
+      focus: { x: 0.25, y: 0.42, w: 0.417, h: 0.091 },
+      caption: 'The “Pads status” line on the status screen: the date the connected pads expire.',
+      captionHi: 'स्टेटस स्क्रीन पर “Pads status” वाली लाइन: लगे हुए पैड्स की एक्सपायरी डेट।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
+      illustration: true,
+    },
+    {
+      src: '/reference/defibtech-lifeline-pads-label.jpg',
+      focus: { x: 0.4, y: 0.31, w: 0.25, h: 0.23 },
+      caption: 'On the back of the pads package: the white label, with the date beside the ⌛.',
+      captionHi: 'पैड्स पैकेट के पीछे: सफ़ेद लेबल, जिसमें ⌛ के पास तारीख है।',
+      kind: 'neutral',
+      models: LIFELINES,
+    },
+    {
+      src: '/reference/defibtech-view-pads-label.jpg',
+      focus: { x: 0.68, y: 0.11, w: 0.29, h: 0.3 },
+      caption: 'Or on the back of the pads package: the white label, with the date beside the ⌛.',
+      captionHi: 'या पैड्स पैकेट के पीछे: सफ़ेद लेबल, जिसमें ⌛ के पास तारीख है।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
     },
   ],
 
@@ -223,6 +288,31 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'बाहर निकाली गई बैटरी: फ़ैक्टरी वाले निशान के पास की तारीख, बैटरी बनने की तारीख है।',
       kind: 'neutral',
       models: ['Zoll Powerheart G5'],
+    },
+    {
+      src: LIFELINE_STATUS,
+      focus: { x: 0.25, y: 0.361, w: 0.417, h: 0.052 },
+      caption: 'The “Battery status” line on the status screen: the date the fitted battery expires.',
+      captionHi: 'स्टेटस स्क्रीन पर “Battery status” वाली लाइन: लगी हुई बैटरी की एक्सपायरी डेट।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
+      illustration: true,
+    },
+    {
+      src: '/reference/defibtech-lifeline-battery-label.jpg',
+      focus: { x: 0.58, y: 0.3, w: 0.3, h: 0.14 },
+      caption: 'The date is printed in the white box beside the ⌛ (blank on this display pack), not the “SN” number below it.',
+      captionHi: 'तारीख ⌛ के पास वाले सफ़ेद खाने में छपी होती है (इस डिस्प्ले पैक पर खाली), नीचे वाला “SN” नंबर नहीं।',
+      kind: 'neutral',
+      models: LIFELINES,
+    },
+    {
+      src: '/reference/defibtech-view-battery-label.jpg',
+      focus: { x: 0.535, y: 0.385, w: 0.28, h: 0.1 },
+      caption: 'Or on the battery itself: the date beside the ⌛, not the “SN” number.',
+      captionHi: 'या बैटरी पर ही: ⌛ के पास की तारीख, “SN” नंबर नहीं।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
     },
   ],
 
@@ -312,6 +402,40 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       kind: 'bad',
       models: ['Zoll Powerheart G5'],
     },
+    {
+      src: '/reference/defibtech-lifeline-battery-fitted.jpg',
+      focus: { x: 0.33, y: 0.47, w: 0.21, h: 0.14 },
+      caption: 'The battery pushed fully into the side, flush with the case, beside the orange eject button. Lifeline shown.',
+      captionHi: 'साइड में पूरी अंदर लगी बैटरी, केस के बराबर, नारंगी eject बटन के पास। तस्वीर में Lifeline है।',
+      kind: 'good',
+      models: LIFELINES,
+      illustration: true,
+    },
+    {
+      src: '/reference/defibtech-lifeline-battery-missing.jpg',
+      focus: { x: 0.333, y: 0.5, w: 0.2, h: 0.14 },
+      caption: 'The battery opening in the side is empty, no battery fitted. This needs fixing. Lifeline shown.',
+      captionHi: 'साइड का बैटरी खाना खाली है, बैटरी लगी ही नहीं। इसे ठीक करना होगा। तस्वीर में Lifeline है।',
+      kind: 'bad',
+      models: LIFELINES,
+    },
+    {
+      src: VIEW_BACK,
+      focus: { x: 0.29, y: 0.25, w: 0.4, h: 0.085 },
+      caption: 'The battery at the top of the back, pushed in flush with the case. VIEW shown.',
+      captionHi: 'पीछे सबसे ऊपर लगी बैटरी, केस के बराबर पूरी अंदर बैठी। तस्वीर में VIEW है।',
+      kind: 'good',
+      models: LIFELINE_SCREENED,
+    },
+    {
+      src: '/reference/defibtech-view-battery-missing.jpg',
+      focus: { x: 0.33, y: 0.36, w: 0.33, h: 0.2 },
+      caption: 'The battery opening on the back is empty, no battery fitted. This needs fixing. VIEW shown.',
+      captionHi: 'पीछे का बैटरी खाना खाली है, बैटरी लगी ही नहीं। इसे ठीक करना होगा। तस्वीर में VIEW है।',
+      kind: 'bad',
+      models: LIFELINE_SCREENED,
+      illustration: true,
+    },
   ],
 
   pads_connected: [
@@ -399,6 +523,47 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       models: ['Zoll Powerheart G5'],
       illustration: true,
     },
+    {
+      src: LIFELINE_FRONT,
+      focus: { x: 0.279, y: 0.036, w: 0.058, h: 0.089 },
+      caption: 'The pads socket at the top-left corner, by the handle: the connector pushed fully in.',
+      captionHi: 'हैंडल के पास, ऊपर बाएँ कोने का पैड्स सॉकेट: कनेक्टर पूरा अंदर लगा हो।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline'],
+    },
+    {
+      src: LIFELINE_AUTO_FRONT,
+      focus: { x: 0.279, y: 0.036, w: 0.058, h: 0.089 },
+      caption: 'The pads socket at the top-left corner, by the handle: the connector pushed fully in.',
+      captionHi: 'हैंडल के पास, ऊपर बाएँ कोने का पैड्स सॉकेट: कनेक्टर पूरा अंदर लगा हो।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline AUTO'],
+    },
+    {
+      src: LIFELINE_VIEW_FRONT,
+      focus: { x: 0.262, y: 0.028, w: 0.058, h: 0.111 },
+      caption: 'The pads socket at the top-left corner, by the handle: the connector pushed fully in.',
+      captionHi: 'हैंडल के पास, ऊपर बाएँ कोने का पैड्स सॉकेट: कनेक्टर पूरा अंदर लगा हो।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline VIEW'],
+    },
+    {
+      src: LIFELINE_ECG_FRONT,
+      focus: { x: 0.288, y: 0.028, w: 0.058, h: 0.12 },
+      caption: 'The pads socket at the top-left corner, by the handle: the connector pushed fully in.',
+      captionHi: 'हैंडल के पास, ऊपर बाएँ कोने का पैड्स सॉकेट: कनेक्टर पूरा अंदर लगा हो।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline ECG'],
+    },
+    {
+      src: '/reference/defibtech-lifeline-pads-unplugged.jpg',
+      focus: { x: 0.3, y: 0.11, w: 0.07, h: 0.09 },
+      caption: 'The pads socket at the top-left corner is empty, no connector plugged in. This needs fixing. Lifeline shown.',
+      captionHi: 'ऊपर बाएँ कोने का पैड्स सॉकेट खाली है, कोई कनेक्टर नहीं लगा। इसे ठीक करना होगा। तस्वीर में Lifeline है।',
+      kind: 'bad',
+      models: [...LIFELINES, ...LIFELINE_SCREENED],
+      illustration: true,
+    },
   ],
 
   // True of either Philips HeartStart: the small status light sits just
@@ -445,6 +610,38 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'हैंडल के पास की गोल Rescue Ready लाइट: हरी मतलब तैयार, लाल मतलब जाँच ज़रूरी।',
       kind: 'neutral',
       models: ['Zoll Powerheart G5'],
+    },
+    {
+      src: LIFELINE_FRONT,
+      focus: { x: 0.686, y: 0.041, w: 0.042, h: 0.056 },
+      caption: 'The small status light at the top-right corner, by the handle: it flashes green when ready.',
+      captionHi: 'हैंडल के पास, ऊपर दाएँ कोने की छोटी स्टेटस लाइट: तैयार होने पर हरी जलती है।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline'],
+    },
+    {
+      src: LIFELINE_AUTO_FRONT,
+      focus: { x: 0.686, y: 0.041, w: 0.042, h: 0.056 },
+      caption: 'The small status light at the top-right corner, by the handle: it flashes green when ready.',
+      captionHi: 'हैंडल के पास, ऊपर दाएँ कोने की छोटी स्टेटस लाइट: तैयार होने पर हरी जलती है।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline AUTO'],
+    },
+    {
+      src: LIFELINE_VIEW_FRONT,
+      focus: { x: 0.53, y: 0.237, w: 0.037, h: 0.067 },
+      caption: 'The small status light just right of the power button, not the button: it flashes green when ready.',
+      captionHi: 'पावर बटन के ठीक दाईं ओर की छोटी स्टेटस लाइट, बटन नहीं: तैयार होने पर हरी जलती है।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline VIEW'],
+    },
+    {
+      src: LIFELINE_ECG_FRONT,
+      focus: { x: 0.525, y: 0.25, w: 0.037, h: 0.067 },
+      caption: 'The small status light just right of the power button, not the button: it flashes green when ready.',
+      captionHi: 'पावर बटन के ठीक दाईं ओर की छोटी स्टेटस लाइट, बटन नहीं: तैयार होने पर हरी जलती है।',
+      kind: 'neutral',
+      models: ['Defibtech Lifeline ECG'],
     },
   ],
 
@@ -498,6 +695,20 @@ export const REFERENCE_EXAMPLES: Partial<Record<ChecklistItemId, ReferenceExampl
       captionHi: 'बच्चों के पैड्स का पैकेट, AED के पास रखा, लगाया हुआ नहीं।',
       kind: 'neutral',
       models: ['Zoll Powerheart G5'],
+    },
+    {
+      src: '/reference/defibtech-lifeline-child-pads.jpg',
+      caption: 'The child/infant pads pack (DDP-200P): light blue, with a blue connector.',
+      captionHi: 'बच्चों के पैड्स का पैकेट (DDP-200P): हल्का नीला, नीले कनेक्टर के साथ।',
+      kind: 'neutral',
+      models: LIFELINES,
+    },
+    {
+      src: '/reference/defibtech-view-child-pads.jpg',
+      caption: 'The child/infant pads pack (DDP-2002): light blue, with a blue connector.',
+      captionHi: 'बच्चों के पैड्स का पैकेट (DDP-2002): हल्का नीला, नीले कनेक्टर के साथ।',
+      kind: 'neutral',
+      models: LIFELINE_SCREENED,
     },
   ],
 

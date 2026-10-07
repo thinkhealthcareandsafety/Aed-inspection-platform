@@ -68,6 +68,10 @@ const MODEL_NAMES: Record<string, string> = {
   'Zoll AED 3': 'ZOLL AED 3',
   'Zoll Powerheart G3': 'Cardiac Science (ZOLL) Powerheart G3',
   'Zoll Powerheart G5': 'Cardiac Science (ZOLL) Powerheart G5',
+  'Defibtech Lifeline': 'Defibtech Lifeline AED (semi-automatic)',
+  'Defibtech Lifeline AUTO': 'Defibtech Lifeline AUTO AED (fully automatic)',
+  'Defibtech Lifeline VIEW': 'Defibtech Lifeline VIEW AED',
+  'Defibtech Lifeline ECG': 'Defibtech Lifeline ECG AED',
 };
 
 /** How often a routine visual check is suggested after this one. */
