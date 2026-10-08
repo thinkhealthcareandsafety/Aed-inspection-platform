@@ -128,7 +128,7 @@ IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
 THINKING_LEVEL: Optional[str] = None
 #: Bumped by hand when the shared prompt template's wording changes; the
 #: per-item and per-device wording is hashed in automatically.
-PROMPT_REVISION = "2026-10-08c"  # readiness notes name only this unit's own indicator
+PROMPT_REVISION = "2026-10-08d"  # readiness notes name only this unit's own indicator
 
 
 class ChecklistVerdict(BaseModel):
@@ -476,6 +476,35 @@ def _reference_photo(profile: DeviceProfile) -> Optional[bytes]:
     return _reference_cache[name]
 
 
+# Readiness frames are not all equal. At full detail each costs ~1,100
+# tokens, and 24 of them were ~29,000 a clip — half of a whole inspection.
+# Only the frames that decide it need detail: those where the scan saw the
+# light switch on (to confirm it is the indicator, and green), or, with no
+# blink found, a few spread through the clip (to see the light is in view,
+# and whether it shows red). The rest show the light's state over time and
+# are sent at low detail (~280).
+_HIGH = types.PartMediaResolutionLevel.MEDIA_RESOLUTION_HIGH
+_LOW = types.PartMediaResolutionLevel.MEDIA_RESOLUTION_LOW
+#: Frames sent at full detail when the scan found no blink.
+DETAILED_WITHOUT_FLASH = 4
+
+
+def _detailed_frames(count: int, flash_positions: set) -> set:
+    if flash_positions:
+        return set(flash_positions)
+    if count <= DETAILED_WITHOUT_FLASH:
+        return set(range(1, count + 1))
+    step = count / DETAILED_WITHOUT_FLASH
+    return {int(step * i + step / 2) + 1 for i in range(DETAILED_WITHOUT_FLASH)}
+
+
+def _image_part(data: bytes, level) -> types.Part:
+    return types.Part(
+        inline_data=types.Blob(data=data, mime_type="image/jpeg"),
+        media_resolution=types.PartMediaResolution(level=level),
+    )
+
+
 _client: Optional[genai.Client] = None
 
 
@@ -682,12 +711,13 @@ async def analyze_checklist_item(
                 "readiness indicator circled in red. Use it only to know where "
                 "the indicator is on this unit."
             )))
-            contents.append(types.Part.from_bytes(data=reference, mime_type="image/jpeg"))
+            contents.append(_image_part(reference, _LOW))
         flashes = set(video.flash_positions)
+        detailed = _detailed_frames(len(video.frames), flashes)
         for number, (frame, at) in enumerate(zip(video.frames, video.times), start=1):
             mark = " · scan: a small green light switched on here" if number in flashes else ""
             contents.append(types.Part(text=f"Frame {number} — {at:.1f} s{mark}"))
-            contents.append(types.Part.from_bytes(data=frame, mime_type="image/jpeg"))
+            contents.append(_image_part(frame, _HIGH if number in detailed else _LOW))
         contents.append(
             _build_prompt(
                 item, profile, frame_count=len(video.frames), language=lang, duration=video.duration,
@@ -711,7 +741,19 @@ async def analyze_checklist_item(
 
     async def _call_once(model: str):
         _spend_call()
-        return await client.aio.models.generate_content(model=model, contents=contents, config=config)
+        try:
+            return await client.aio.models.generate_content(model=model, contents=contents, config=config)
+        except errors.ClientError as exc:
+            # A model that refuses per-image detail levels still gets the
+            # frames, at its default detail, rather than failing the check.
+            if exc.code != 400 or not any(getattr(p, "media_resolution", None) for p in contents if isinstance(p, types.Part)):
+                raise
+            logger.warning("checklist.media_resolution_refused", model=model, error=str(exc)[:200])
+            plain = [
+                p.model_copy(update={"media_resolution": None}) if isinstance(p, types.Part) else p for p in contents
+            ]
+            _spend_call()
+            return await client.aio.models.generate_content(model=model, contents=plain, config=config)
 
     hedge = HEDGE_DELAY_SECONDS if item.media_type == "video" else IMAGE_HEDGE_DELAY_SECONDS
     # Set when a lane's model fails, to start the next model straight away

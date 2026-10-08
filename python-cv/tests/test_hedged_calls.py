@@ -210,3 +210,23 @@ async def test_the_daily_call_ceiling_stops_spending(monkeypatch):
         with pytest.raises(svc.DailyLimitReached):
             await svc.analyze_checklist_item("aed_cabinet", b"fake-jpeg-bytes", "image/jpeg")
     assert svc.ai_calls_today() == {"used": 1, "limit": 1}
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_refuses_per_frame_detail_still_answers(monkeypatch):
+    calls = []
+
+    async def generate(model, contents, config):
+        calls.append(contents)
+        if any(getattr(p, "media_resolution", None) for p in contents if isinstance(p, svc.types.Part)):
+            raise errors.ClientError(400, {"error": {"code": 400, "message": "media_resolution not supported", "status": "INVALID_ARGUMENT"}})
+        return _answer("ok")
+
+    client = AsyncMock()
+    client.aio.models.generate_content = generate
+    monkeypatch.setattr(svc, "_get_client", lambda: client)
+    video = svc.readiness_frames.ReadinessFrames(frames=[b"x"] * 6, times=[i * 0.5 for i in range(6)], flash_count=1, flash_positions=[3])
+    monkeypatch.setattr(svc.readiness_frames, "prepare", lambda b: video)
+    result = await svc.analyze_checklist_item("readiness_indicator", b"clip", "video/mp4")
+    assert result.status == "ready"
+    assert len(calls) == 2

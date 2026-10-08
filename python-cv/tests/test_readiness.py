@@ -340,3 +340,11 @@ def test_a_red_light_fault_keeps_the_models_words():
     verdict = _verdict(status="fault", passed=False, ready_frames=[], notes="The indicator flashes red: service needed.")
     checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=1.0))
     assert checked.status == "fault" and "red" in checked.notes
+
+
+@pytest.mark.unit
+def test_only_the_deciding_frames_are_sent_in_full_detail():
+    assert svc._detailed_frames(24, {10, 19}) == {10, 19}
+    spread = svc._detailed_frames(24, set())
+    assert len(spread) == svc.DETAILED_WITHOUT_FLASH and all(1 <= n <= 24 for n in spread)
+    assert svc._detailed_frames(3, set()) == {1, 2, 3}
