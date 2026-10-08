@@ -460,6 +460,23 @@ def _brand_notes(seen: str, profile: DeviceProfile, language: Optional[str]) -> 
     return {"notes": english, "notes_hi": hindi}
 
 
+_REFERENCE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "reference")
+_reference_cache: dict = {}
+
+
+def _reference_photo(profile: DeviceProfile) -> Optional[bytes]:
+    """This unit's photo with its readiness indicator circled (app/data/
+    reference, built from the app's own reference photos), or None."""
+    name = f"readiness-{profile.id.lower().replace(' ', '-')}.jpg"
+    if name not in _reference_cache:
+        try:
+            with open(os.path.join(_REFERENCE_DIR, name), "rb") as fh:
+                _reference_cache[name] = fh.read()
+        except OSError:
+            _reference_cache[name] = None
+    return _reference_cache[name]
+
+
 _client: Optional[genai.Client] = None
 
 
@@ -477,6 +494,7 @@ def _build_prompt(
     language: Optional[str] = None,
     duration: Optional[float] = None,
     guided: bool = False,
+    scan_flashes: Optional[int] = None,
 ) -> str:
     clip = f"a {duration:.0f}-second video clip" if duration else "a short video clip"
     sequence_note = (
@@ -500,6 +518,23 @@ def _build_prompt(
             "of the picture, and the inspector was told to keep this unit's "
             "indicator inside it: look for the indicator at or near the centre "
             "of the frames.\n\n"
+        )
+    if scan_flashes is not None:
+        # The scan of every frame is reliable about a small light switching
+        # on and off; the model is reliable about WHICH light that is.
+        sequence_note += (
+            (
+                "An automatic scan of every frame of the clip marked the frames "
+                "where a small green light switched on and off again (\"scan: a "
+                "small green light switched on here\"). Check in those frames "
+                "whether that light is this unit's readiness indicator (see the "
+                "reference photo); if it is, list those frames in ready_frames.\n\n"
+            )
+            if scan_flashes
+            else (
+                "An automatic scan of every frame of the clip found no small "
+                "light switching on anywhere in it.\n\n"
+            )
         )
     guidance = profile.guidance.get(item.id)
     device_notes = f"Device notes for this item ({profile.name}):\n{guidance}\n\n" if guidance else ""
@@ -638,12 +673,26 @@ async def analyze_checklist_item(
             duration=video.duration,
         )
         contents = []
+        reference = _reference_photo(profile)
+        if reference:
+            # Where to look, as a person would be shown: this unit's own photo
+            # with its light circled. A small dark lens was otherwise "not in
+            # view" to the model in a clip that showed it plainly.
+            contents.append(types.Part(text=(
+                f"REFERENCE — not from this inspection: a {profile.name} with its "
+                "readiness indicator circled in red. Use it only to know where "
+                "the indicator is on this unit."
+            )))
+            contents.append(types.Part.from_bytes(data=reference, mime_type="image/jpeg"))
+        flashes = set(video.flash_positions)
         for number, (frame, at) in enumerate(zip(video.frames, video.times), start=1):
-            contents.append(types.Part(text=f"Frame {number} — {at:.1f} s"))
+            mark = " · scan: a small green light switched on here" if number in flashes else ""
+            contents.append(types.Part(text=f"Frame {number} — {at:.1f} s{mark}"))
             contents.append(types.Part.from_bytes(data=frame, mime_type="image/jpeg"))
         contents.append(
             _build_prompt(
-                item, profile, frame_count=len(video.frames), language=lang, duration=video.duration, guided=guided
+                item, profile, frame_count=len(video.frames), language=lang, duration=video.duration,
+                guided=guided, scan_flashes=len(flashes),
             )
         )
         models = list(GEMINI_VIDEO_MODELS)
@@ -863,6 +912,13 @@ def _check_readiness(
         cited = [n for n in (result.ready_frames or []) if n >= 0]
         if video is not None:
             cited = [n for n in cited if 1 <= n <= len(video.frames)]
+        # The model says ready but named no frame, and the scan found the
+        # light blinking: the scan's frames are the evidence. Seen live: a
+        # Lifeline blinking plainly in two frames was sent for a retake.
+        if not cited and video is not None and video.flash_positions:
+            cited = list(video.flash_positions)
+            if overrides is not None:
+                overrides.append("readiness_scan_evidence")
         if not cited:
             reason = "no evidence"
         elif profile is not None and profile.blinking_ready and video is not None and video.flash_count == 0:
@@ -875,8 +931,7 @@ def _check_readiness(
     # is a dead battery, not a capture to retake — it used to come back
     # "unclear" for ever.
     if (
-        status in ("ready", "unclear")
-        and (reason == "no flash in video" or (status == "unclear" and result.indicator_in_view is True))
+        (status == "ready" or (status == "unclear" and result.indicator_in_view is True))
         and profile is not None
         and profile.blinking_ready
         and video is not None

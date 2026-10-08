@@ -292,3 +292,37 @@ def test_the_prompt_asks_whether_the_light_is_in_view_and_says_where_to_look_in_
     assert "indicator_in_view" in prompt and "WHETHER OR NOT" in prompt
     assert "circle drawn at the centre" in prompt
     assert "circle drawn" not in svc._build_prompt(ITEM, get_profile("Defibtech Lifeline"), frame_count=24)
+
+
+@pytest.mark.unit
+def test_a_ready_verdict_with_no_frames_named_passes_on_the_scans_blinks():
+    # Seen live: a Lifeline blinking plainly in frames 10 and 19, the model
+    # said ready but named no frame, and it was sent for a retake.
+    video = _scanned(seconds=14, steady=1.0, flashes=2)
+    video.flash_positions = [10, 19]
+    checked = _check(_verdict(ready_frames=[]), get_profile("Defibtech Lifeline"), video)
+    assert checked.passed is True and checked.status == "ready"
+
+
+@pytest.mark.unit
+def test_a_ready_claim_with_no_blink_anywhere_in_a_good_clip_is_not_ready():
+    checked = _check(_verdict(ready_frames=[]), get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=1.0))
+    assert checked.status == "fault"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "model", ["Philips HS1", "Zoll AED Plus", "Zoll AED 3", "Zoll Powerheart G3", "Zoll Powerheart G5",
+              "Defibtech Lifeline", "Defibtech Lifeline AUTO", "Defibtech Lifeline VIEW", "Defibtech Lifeline ECG"],
+)
+def test_each_unit_has_a_reference_photo_showing_where_its_light_is(model):
+    photo = svc._reference_photo(get_profile(model))
+    assert photo and photo[:2] == b"\xff\xd8"
+
+
+@pytest.mark.unit
+def test_the_prompt_points_the_model_at_the_scans_blinks():
+    prompt = svc._build_prompt(ITEM, get_profile("Defibtech Lifeline"), frame_count=24, duration=12, scan_flashes=2)
+    assert "scan: a small green light switched on here" in prompt
+    none = svc._build_prompt(ITEM, get_profile("Defibtech Lifeline"), frame_count=24, duration=12, scan_flashes=0)
+    assert "found no small light switching on" in none
