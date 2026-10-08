@@ -179,7 +179,7 @@ router.post(
         inspection,
         String(req.params.itemId),
         req.file,
-        { lang },
+        { lang, guided: req.body?.capture === 'guided' },
       );
       res.json({ item: entry, inspectionResult });
     } catch (err) {

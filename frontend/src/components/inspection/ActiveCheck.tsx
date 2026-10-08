@@ -231,10 +231,10 @@ export function ActiveCheck({
   function handleRecorded(file: File, blinks: number) {
     setCameraOpen(false);
     setPhoneBlinks(blinks);
-    void processFile(file);
+    void processFile(file, true);
   }
 
-  async function processFile(file: File) {
+  async function processFile(file: File, guided = false) {
     const upload = uploadFn ?? api.checklist.upload;
     setBusy(true);
     setFresh(false);
@@ -275,7 +275,7 @@ export function ActiveCheck({
 
       let res;
       try {
-        res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
+        res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress, guided);
       } catch (err) {
         const { retryable } = apiErrorOf(err);
         if (!retryable) throw err;
@@ -284,7 +284,7 @@ export function ActiveCheck({
         setRetrying(false);
         setUploadFraction(0);
         setPhase('uploading');
-        res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress);
+        res = await upload(inspectionId, item.id, prepared, prepared.name, trackedProgress, guided);
       }
 
       const verdict = res.data.item;

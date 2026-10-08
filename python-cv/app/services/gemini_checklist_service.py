@@ -128,7 +128,7 @@ IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
 THINKING_LEVEL: Optional[str] = None
 #: Bumped by hand when the shared prompt template's wording changes; the
 #: per-item and per-device wording is hashed in automatically.
-PROMPT_REVISION = "2026-10-05"  # the serial label's manufacture date, for the AED's age
+PROMPT_REVISION = "2026-10-08"  # indicator_in_view: a dark light that is in view
 
 
 class ChecklistVerdict(BaseModel):
@@ -155,6 +155,11 @@ class ChecklistVerdict(BaseModel):
     # the seconds) in which the model can see the ready signal. A "ready"
     # with none is not accepted — see _check_readiness.
     ready_frames: Optional[List[int]] = None
+    # readiness_indicator only: the place where this unit's indicator sits is
+    # clearly in frame, close and in focus — lit or not. An unlit light gives
+    # the model nothing to point at, so it used to call a dead unit
+    # "unclear"; this asks the one thing it can always answer.
+    indicator_in_view: Optional[bool] = None
     # The brand of AED the model can see. A photo of a different maker's
     # unit can't pass a check for this one — see _different_brand.
     brand_seen: Optional[str] = None
@@ -471,6 +476,7 @@ def _build_prompt(
     frame_count: Optional[int] = None,
     language: Optional[str] = None,
     duration: Optional[float] = None,
+    guided: bool = False,
 ) -> str:
     clip = f"a {duration:.0f}-second video clip" if duration else "a short video clip"
     sequence_note = (
@@ -486,6 +492,15 @@ def _build_prompt(
         if frame_count
         else ""
     )
+    if guided:
+        # The in-app camera draws a circle at the centre and tells the
+        # inspector to keep the indicator in it: say where to look.
+        sequence_note += (
+            "This clip was filmed in the app with a circle drawn at the centre "
+            "of the picture, and the inspector was told to keep this unit's "
+            "indicator inside it: look for the indicator at or near the centre "
+            "of the frames.\n\n"
+        )
     guidance = profile.guidance.get(item.id)
     device_notes = f"Device notes for this item ({profile.name}):\n{guidance}\n\n" if guidance else ""
     language_rule = (
@@ -596,6 +611,7 @@ async def analyze_checklist_item(
     *,
     aed_model: Optional[str] = None,
     language: Optional[str] = None,
+    guided: bool = False,
 ) -> ChecklistAnalysisResult:
     """Analyse one uploaded photo/video against its checklist item prompt,
     for the given AED model (profile) and inspector language."""
@@ -626,7 +642,9 @@ async def analyze_checklist_item(
             contents.append(types.Part(text=f"Frame {number} — {at:.1f} s"))
             contents.append(types.Part.from_bytes(data=frame, mime_type="image/jpeg"))
         contents.append(
-            _build_prompt(item, profile, frame_count=len(video.frames), language=lang, duration=video.duration)
+            _build_prompt(
+                item, profile, frame_count=len(video.frames), language=lang, duration=video.duration, guided=guided
+            )
         )
         models = list(GEMINI_VIDEO_MODELS)
     else:
@@ -849,28 +867,40 @@ def _check_readiness(
             reason = "no evidence"
         elif profile is not None and profile.blinking_ready and video is not None and video.flash_count == 0:
             reason = "no flash in video"
-            # The model found the light (it named frames showing it) and the
-            # clip was long and steady enough to hold two blinks, yet not one
-            # frame had a flash: the light is not blinking. That is a unit
-            # that is not ready, not a capture to retake — a dead battery
-            # used to come back "unclear" for ever.
-            if video.duration >= NEVER_BLINKED_SECONDS and video.steady_share >= NEVER_BLINKED_STEADY:
-                if overrides is not None:
-                    overrides.append("readiness_never_blinked")
-                logger.info(
-                    "checklist.readiness_never_blinked",
-                    profile=profile.id,
-                    duration=video.duration,
-                    steady=video.steady_share,
-                )
-                return result.model_copy(
-                    update={
-                        "status": "fault",
-                        "passed": False,
-                        "confidence": min(result.confidence, 0.8),
-                        **_never_blinked_notes(profile, video.duration, language),
-                    }
-                )
+
+    # A light that never blinked, filmed well, is a unit that is not ready.
+    # The model either found the light (named frames showing it) or says
+    # the place where it sits was clearly in view; the clip was long and
+    # steady enough to hold two blinks; and not one frame had a flash. That
+    # is a dead battery, not a capture to retake — it used to come back
+    # "unclear" for ever.
+    if (
+        status in ("ready", "unclear")
+        and (reason == "no flash in video" or (status == "unclear" and result.indicator_in_view is True))
+        and profile is not None
+        and profile.blinking_ready
+        and video is not None
+        and video.flash_count == 0
+        and video.duration >= NEVER_BLINKED_SECONDS
+        and video.steady_share >= NEVER_BLINKED_STEADY
+    ):
+        if overrides is not None:
+            overrides.append("readiness_never_blinked")
+        logger.info(
+            "checklist.readiness_never_blinked",
+            profile=profile.id,
+            model_status=status,
+            duration=video.duration,
+            steady=video.steady_share,
+        )
+        return result.model_copy(
+            update={
+                "status": "fault",
+                "passed": False,
+                "confidence": min(result.confidence, 0.8),
+                **_never_blinked_notes(profile, video.duration, language),
+            }
+        )
 
     if reason:
         if overrides is not None:

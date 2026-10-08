@@ -168,7 +168,7 @@ export function isFeedbackLanguage(value: unknown): value is FeedbackLanguage {
 async function callCvService(
   itemId: string,
   file: Express.Multer.File,
-  context: { aedModel?: string; lang?: FeedbackLanguage },
+  context: { aedModel?: string; lang?: FeedbackLanguage; guided?: boolean },
 ): Promise<AnalysisResponse> {
   const form = new FormData();
   const type = file.mimetype || 'application/octet-stream';
@@ -179,6 +179,8 @@ async function callCvService(
   // not another brand's — a ZOLL used to be judged as if it were a Philips.
   if (context.aedModel) form.append('aed_model', context.aedModel);
   if (context.lang) form.append('lang', context.lang);
+  // Filmed with the in-app camera: the light was kept in the centre circle.
+  if (context.guided) form.append('capture', 'guided');
 
   let res: Response;
   try {
@@ -244,7 +246,7 @@ export async function analyzeChecklistItem(
   inspection: IInspection,
   itemId: string,
   file: Express.Multer.File,
-  options: { lang?: FeedbackLanguage } = {},
+  options: { lang?: FeedbackLanguage; guided?: boolean } = {},
 ): Promise<{ entry: IChecklistItemResult; inspectionResult: string }> {
   const item = getChecklistItem(itemId);
   if (!item) throw createError(`Unknown checklist item '${itemId}'`, 400, 'BAD_ITEM');
@@ -275,7 +277,7 @@ export async function analyzeChecklistItem(
   try {
     [mediaUrl, analysis] = await Promise.all([
       persistUpload(inspection.inspectionId, item.id, file),
-      callCvService(item.id, file, { aedModel: inspection.aedModel, lang: options.lang }),
+      callCvService(item.id, file, { aedModel: inspection.aedModel, lang: options.lang, guided: options.guided }),
     ]);
   } catch (err) {
     entry.status = 'error';

@@ -71,6 +71,9 @@ async def analyze_item(
     aed_model: Optional[str] = Form(None),
     # The inspector's language; 'hi' adds Hindi feedback alongside English.
     lang: Optional[str] = Form(None),
+    # 'guided' when the clip was filmed with the in-app camera (light kept in
+    # the circle at the centre).
+    capture: Optional[str] = Form(None),
 ):
     item = get_item(item_id)
     if item is None:
@@ -104,7 +107,7 @@ async def analyze_item(
 
     try:
         result = await gemini_checklist_service.analyze_checklist_item(
-            item_id, contents, content_type, aed_model=aed_model, language=lang
+            item_id, contents, content_type, aed_model=aed_model, language=lang, guided=capture == "guided"
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -257,3 +257,38 @@ def test_not_ready_is_said_in_hindi_too():
 def test_the_scan_reports_how_steady_the_clip_was(tmp_path):
     steady = readiness_frames.prepare(_clip(tmp_path, "steady.mp4", drift=0.5))
     assert steady is not None and steady.steady_share >= 0.8
+
+
+@pytest.mark.unit
+def test_an_unlit_light_the_model_located_is_not_ready():
+    # Seen live: the light was off, so the model found nothing to point at
+    # and said "unclear" — but it could see where the light sits.
+    verdict = _verdict(status="unclear", passed=False, ready_frames=[])
+    verdict.indicator_in_view = True
+    checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=0.95))
+    assert checked.status == "fault" and checked.notes.startswith("Not ready")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("in_view", [False, None])
+def test_an_unclear_clip_where_the_light_was_not_in_view_stays_a_retake(in_view):
+    verdict = _verdict(status="unclear", passed=False, ready_frames=[])
+    verdict.indicator_in_view = in_view
+    checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=0.95))
+    assert checked.status == "unclear"
+
+
+@pytest.mark.unit
+def test_an_in_view_light_that_blinked_is_never_failed():
+    verdict = _verdict(status="unclear", passed=False, ready_frames=[])
+    verdict.indicator_in_view = True
+    checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=0.95, flashes=2))
+    assert checked.status == "unclear"
+
+
+@pytest.mark.unit
+def test_the_prompt_asks_whether_the_light_is_in_view_and_says_where_to_look_in_app():
+    prompt = svc._build_prompt(ITEM, get_profile("Defibtech Lifeline"), frame_count=24, duration=12, guided=True)
+    assert "indicator_in_view" in prompt and "WHETHER OR NOT" in prompt
+    assert "circle drawn at the centre" in prompt
+    assert "circle drawn" not in svc._build_prompt(ITEM, get_profile("Defibtech Lifeline"), frame_count=24)

@@ -31,7 +31,9 @@ router.post(
     try {
       if (!req.file) throw createError('No file uploaded', 400, 'NO_FILE');
       const inspection = await loadInspection(req.params.id);
-      const { entry, inspectionResult } = await analyzeChecklistItem(inspection, String(req.params.itemId), req.file);
+      const { entry, inspectionResult } = await analyzeChecklistItem(inspection, String(req.params.itemId), req.file, {
+        guided: req.body?.capture === 'guided',
+      });
       res.json({ item: entry, inspectionResult });
     } catch (err) {
       next(err);

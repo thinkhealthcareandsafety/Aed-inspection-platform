@@ -192,8 +192,11 @@ export const api = {
       file: File | Blob,
       filename: string,
       onProgress?: (fraction: number) => void,
+      guided?: boolean,
     ) => {
       const form = new FormData();
+      // Fields before the file, so the server has them when the file lands.
+      if (guided) form.append('capture', 'guided');
       form.append('file', file, filename);
       return apiClient.post<{
         item: import('@/types').ChecklistItemResult;
@@ -275,11 +278,14 @@ export const api = {
         file: File | Blob,
         filename: string,
         onProgress?: (fraction: number) => void,
+        /** Filmed with the in-app camera, the light kept in its centre circle. */
+        guided?: boolean,
       ) => {
         const form = new FormData();
         // The AI writes its feedback in Hindi too when the inspector is
         // reading Hindi. Sent before the file so it's parsed first.
         if (getLang() === 'hi') form.append('lang', 'hi');
+        if (guided) form.append('capture', 'guided');
         form.append('file', file, filename);
         return apiClient.post<{
           item: import('@/types').ChecklistItemResult;
