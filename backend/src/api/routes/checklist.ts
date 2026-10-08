@@ -1,17 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import multer from 'multer';
 import { Inspection } from '../../models/Inspection';
 import { CHECKLIST_ITEMS } from '../../config/checklist-items';
 import { createError } from '../middleware/error-handler';
-import { config } from '../../config/env';
+import { singleMediaUpload } from '../middleware/upload';
 import { analyzeChecklistItem, skipChecklistItem, completeInspection } from '../../services/checklistService';
 
 const router = Router();
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: config.MAX_FILE_SIZE_MB * 1024 * 1024 },
-});
 
 async function loadInspection(inspectionId: string | string[]) {
   const inspection = await Inspection.findOne({ inspectionId: String(inspectionId) });
@@ -32,7 +26,7 @@ router.get('/:id/checklist', async (req: Request, res: Response, next: NextFunct
 // POST /api/v1/inspections/:id/checklist/:itemId — upload photo/video, analyze, persist
 router.post(
   '/:id/checklist/:itemId',
-  upload.single('file'),
+  singleMediaUpload('file'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.file) throw createError('No file uploaded', 400, 'NO_FILE');

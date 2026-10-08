@@ -490,7 +490,8 @@ def _build_prompt(
         f"DEVICE: {profile.name}. {profile.appearance} Set brand_seen to "
         "the maker's name as printed on the AED itself — not the brand of "
         "batteries or other parts inside it — or null if no AED is visible "
-        "or you can't read its maker. If the image clearly shows a different "
+        "or you can't read its maker. Only a name you can actually read in "
+        "the media counts: never copy it from this DEVICE line. If the image clearly shows a different "
         "device, say so in notes.\n\n"
         f"{sequence_note}"
         f"Checklist item: {item.title}\n"
@@ -585,7 +586,9 @@ async def analyze_checklist_item(
 
     client = _get_client()
 
-    video = readiness_frames.prepare(media_bytes) if item.media_type == "video" else None
+    # Decoding every frame is CPU work: off the event loop, so one clip being
+    # scanned doesn't stall every other inspector's request on this worker.
+    video = await asyncio.to_thread(readiness_frames.prepare, media_bytes) if item.media_type == "video" else None
 
     if video:
         logger.info(

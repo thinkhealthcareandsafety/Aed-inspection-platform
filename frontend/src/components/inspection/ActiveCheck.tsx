@@ -27,6 +27,8 @@ import { spokenInstruction } from '@/lib/voice-key';
 import { ListenButton } from './ListenButton';
 import { api, apiErrorOf, BASE_URL, type ApiErrorKey } from '@/lib/api';
 import { compressImage } from '@/lib/compress-image';
+import { compressVideo } from '@/lib/compress-video';
+import { guidedCameraSupported } from '@/lib/camera-recorder';
 import { describeExpiry, urgencyOf } from '@/lib/expiry';
 import { readingOf, type Reading } from '@/lib/readings';
 import { URGENCY } from '@/lib/urgency';
@@ -34,6 +36,7 @@ import { EASE_OUT, springSnappy } from '@/lib/motion';
 import { ChecklistIcon } from '@/components/icons';
 import { ReferenceStrip } from './ReferenceStrip';
 import { AnalysisProgress, type AnalysisPhase } from './AnalysisProgress';
+import { GuidedCamera } from './GuidedCamera';
 import { StatusDot } from './StatusDot';
 import { itemCopy, useI18n, type Messages } from '@/i18n';
 import type { ChecklistItemMeta } from '@/lib/checklist-config';
@@ -174,6 +177,11 @@ export function ActiveCheck({
    *  someone who has started interacting is in control now. */
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [sentinelRef, stuck] = useStuckToBottom();
+  /** The in-app camera is up (readiness clip only). */
+  const [cameraOpen, setCameraOpen] = useState(false);
+  /** Blinks the phone itself saw on the clip being analysed — said while the
+   *  AI confirms, so the person knows at once the light was caught. */
+  const [phoneBlinks, setPhoneBlinks] = useState(0);
 
   // Only THIS tab's own in-flight upload makes the card busy. A status of
   // 'analyzing' read back from the server can be stale — a tab closed
@@ -198,14 +206,35 @@ export function ActiveCheck({
     // Disarm first: the camera app can take longer than the countdown, and
     // advancing underneath it would unmount the input the photo returns to.
     setAutoAdvance(false);
+    // A video is filmed in the app, which can show where the light is and
+    // stop once it has blinked; the camera app is the fallback.
+    if (isVideo && guidedCameraSupported()) {
+      setCameraOpen(true);
+      return;
+    }
     inputRef.current?.click();
   }
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function openCameraApp() {
+    setCameraOpen(false);
+    inputRef.current?.click();
+  }
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    setPhoneBlinks(0);
+    void processFile(file);
+  }
 
+  function handleRecorded(file: File, blinks: number) {
+    setCameraOpen(false);
+    setPhoneBlinks(blinks);
+    void processFile(file);
+  }
+
+  async function processFile(file: File) {
     const upload = uploadFn ?? api.checklist.upload;
     setBusy(true);
     setFresh(false);
@@ -240,7 +269,8 @@ export function ActiveCheck({
     }, 2500);
 
     try {
-      const prepared = await compressImage(file);
+      // A photo is re-encoded small; a large clip from the camera app too.
+      const prepared = file.type.startsWith('video/') ? await compressVideo(file) : await compressImage(file);
       setPhase('uploading');
 
       let res;
@@ -387,7 +417,9 @@ export function ActiveCheck({
             phase={phase}
             uploadFraction={uploadFraction}
             previewUrl={previewUrl}
-            statusNote={retrying ? m.check.busyRetrying : undefined}
+            statusNote={
+              retrying ? m.check.busyRetrying : phoneBlinks > 0 ? m.camera.seenOnPhone(phoneBlinks) : undefined
+            }
           />
         )}
 
@@ -410,6 +442,15 @@ export function ActiveCheck({
           />
         )}
       </div>
+
+      {cameraOpen && (
+        <GuidedCamera
+          aedModel={aedModel}
+          onCapture={handleRecorded}
+          onClose={() => setCameraOpen(false)}
+          onUseCameraApp={openCameraApp}
+        />
+      )}
 
       <input
         ref={inputRef}

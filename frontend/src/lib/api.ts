@@ -53,7 +53,10 @@ function errorKey(err: AxiosError, payload: { message?: string; code?: string; r
   if (!err.response) return err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' ? 'timeout' : 'network';
   if (payload.code === 'TOO_MANY_ATTEMPTS') return 'tooManyAttempts';
   if (err.response.status === 429) return 'tooMany';
+  if (payload.code === 'FILE_TOO_LARGE' || err.response.status === 413) return 'fileTooLarge';
   switch (payload.code) {
+    case 'VIDEO_UNREADABLE':
+      return 'videoUnreadable';
     case 'CV_SERVICE_ERROR':
       return payload.retryable ? 'busy' : 'unreadable';
     case 'CV_SERVICE_UNREACHABLE':
@@ -116,10 +119,12 @@ apiClient.interceptors.response.use(
  * limit cannot break a request that is working; it only delays the report of
  * one that has genuinely died.
  */
-function uploadTimeoutMs(bytes: number): number {
-  const ANALYSIS_MS = 60_000;
+function uploadTimeoutMs(bytes: number, video = false): number {
+  // A large video from the camera app is converted on the server before it
+  // is analysed (up to ~2 min for 4K on a small server).
+  const ANALYSIS_MS = video ? 150_000 : 60_000;
   const SLOW_UPLOAD_BYTES_PER_MS = 128; // ≈ 1 Mbps
-  const MAX_MS = 5 * 60_000;
+  const MAX_MS = (video ? 10 : 5) * 60_000;
   return Math.min(MAX_MS, ANALYSIS_MS + Math.ceil(bytes / SLOW_UPLOAD_BYTES_PER_MS));
 }
 
@@ -195,7 +200,7 @@ export const api = {
         inspectionResult: import('@/types').InspectionResult;
       }>(`/inspections/${inspectionId}/checklist/${itemId}`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: uploadTimeoutMs(file.size),
+        timeout: uploadTimeoutMs(file.size, file.type.startsWith('video/')),
         onUploadProgress: toFraction(onProgress),
       });
     },
@@ -281,7 +286,7 @@ export const api = {
           inspectionResult: import('@/types').InspectionResult;
         }>(`/public/inspections/${inspectionId}/checklist/${itemId}`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: uploadTimeoutMs(file.size),
+          timeout: uploadTimeoutMs(file.size, file.type.startsWith('video/')),
           onUploadProgress: toFraction(onProgress),
         });
       },

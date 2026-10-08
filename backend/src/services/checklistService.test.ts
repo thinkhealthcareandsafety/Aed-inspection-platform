@@ -63,6 +63,31 @@ describe('analyzeChecklistItem → AI service', () => {
   });
 });
 
+describe('analyzeChecklistItem → what a refused video is called', () => {
+  function videoInspection() {
+    return {
+      inspectionId: 'insp-2',
+      aedModel: 'Defibtech Lifeline VIEW',
+      inspectionStatus: 'in_progress',
+      inspectionResult: 'INCOMPLETE',
+      checklist: [{ itemId: 'readiness_indicator', section: 1, required: true, status: 'pending' }],
+      save: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Parameters<typeof analyzeChecklistItem>[0];
+  }
+  const clip = { buffer: Buffer.from('fake-mp4'), mimetype: 'video/mp4', originalname: 'clip.mp4' } as Express.Multer.File;
+
+  it.each([
+    [413, 'File too large', 'FILE_TOO_LARGE'],
+    [422, "We couldn't read this video. Please record it again in the app.", 'VIDEO_UNREADABLE'],
+  ])('says a %i from the AI service as %s, not as a bad photo', async (status, detail, code) => {
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ detail }), { status }));
+    await expect(analyzeChecklistItem(videoInspection(), 'readiness_indicator', clip)).rejects.toMatchObject({
+      code,
+      retryable: false,
+    });
+  });
+});
+
 describe('isFeedbackLanguage', () => {
   it('accepts only the languages the AI can write feedback in', () => {
     expect(isFeedbackLanguage('hi')).toBe(true);

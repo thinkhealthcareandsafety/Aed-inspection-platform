@@ -13,7 +13,9 @@ const envSchema = z.object({
     .default('http://localhost:3000')
     .transform((val) => val.split(',').map((o) => o.trim())),
   UPLOAD_DIR: z.string().default('/tmp/aed_uploads'),
-  MAX_FILE_SIZE_MB: z.coerce.number().default(50),
+  // A phone's own camera makes up to ~150 MB for a 20 s 4K clip; uploads go
+  // to disk (api/middleware/upload) and the AI service shrinks them.
+  MAX_FILE_SIZE_MB: z.coerce.number().default(250),
   BCRYPT_ROUNDS: z.coerce.number().default(12),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(500),

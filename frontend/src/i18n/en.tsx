@@ -209,6 +209,33 @@ export const en = {
     },
   },
 
+  /** The in-app camera for the readiness clip (GuidedCamera). */
+  camera: {
+    close: 'Close camera',
+    starting: 'Starting the camera…',
+    whereIsLight: 'Where the light is',
+    aimBlink: 'Put the small status light inside the circle',
+    aimSteady: 'Put the status indicator inside the circle',
+    dark: 'Too dark — turn on a light, or move closer',
+    glare: 'Glare on the light — tilt the phone a little',
+    shaky: 'Hold the phone still',
+    searching: 'Watching for the light to blink…',
+    lightOn: 'Light on ✓',
+    found: 'Light found ✓ — keep it in the circle',
+    record: 'Start recording',
+    stop: 'Stop',
+    recording: (s: number) => `Recording · ${s}s`,
+    blinksCaught: (n: number, need: number) => `${n} of ${need} blinks caught`,
+    autoStop: 'It stops by itself once the light has blinked twice',
+    holdFor: (n: number) => `Hold steady for ${n} seconds — it stops by itself`,
+    noBlinkYet: 'No blink seen yet — the small light, not the button, goes in the circle',
+    useCameraApp: 'Use the camera app instead',
+    blocked:
+      'Camera access is blocked. Allow the camera for this site in your browser settings, or use the camera app instead.',
+    unavailable: 'The camera couldn’t start in this browser. Use the camera app instead.',
+    seenOnPhone: (n: number) => `Your phone saw the light blink ${n}× — the AI is confirming`,
+  },
+
   analysis: {
     preparing: (video: boolean) => `Preparing your ${video ? 'video' : 'photo'}`,
     uploading: (video: boolean, percent: number) => `Uploading your ${video ? 'video' : 'photo'}… ${percent}%`,
@@ -588,6 +615,8 @@ export const en = {
     network: 'Couldn’t connect. Check your signal and try again.',
     timeout: 'That took too long. Please try again.',
     unreadable: 'The AI couldn’t check this photo. Please try a clearer capture.',
+    fileTooLarge: 'This video is too large. Please record a shorter one, about 10 seconds.',
+    videoUnreadable: 'We couldn’t read this video. Please record it again with the app’s camera.',
     generic: 'Something went wrong. Please try again.',
   },
 };

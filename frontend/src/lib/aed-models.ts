@@ -12,6 +12,11 @@ export interface AedModelOption {
    *  about five seconds after its lid is touched, so it gets ten too; a
    *  Defibtech status light flashes about every five, so ten catches two. */
   readinessSeconds: number;
+  /** How the unit shows it is ready: a light that BLINKS (Philips, Defibtech)
+   *  — the in-app camera counts the blinks and stops once it has two — or a
+   *  STEADY symbol or light (ZOLL), filmed for readinessSeconds. Matches
+   *  blinking_ready in python-cv device_profiles.py. */
+  readinessSignal: 'blink' | 'steady';
 }
 
 // Keep in sync with backend/src/config/aed-models.ts
@@ -23,6 +28,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Blue-grey, often kept in a red carry case',
     readinessSeconds: 10,
+    readinessSignal: 'blink',
   },
   {
     id: 'Philips HS1',
@@ -31,6 +37,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Deeper blue and upright, with a carry strap',
     readinessSeconds: 10,
+    readinessSignal: 'blink',
   },
   {
     id: 'Zoll AED Plus',
@@ -40,6 +47,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Bright green, handle moulded into the top',
     readinessSeconds: 5,
+    readinessSignal: 'steady',
   },
   {
     id: 'Zoll AED 3',
@@ -48,6 +56,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Lime green and upright, with a colour screen on the front',
     readinessSeconds: 5,
+    readinessSignal: 'steady',
   },
   {
     id: 'Zoll Powerheart G3',
@@ -57,6 +66,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Navy and yellow, with a clear lid over the pads',
     readinessSeconds: 10,
+    readinessSignal: 'steady',
   },
   {
     id: 'Zoll Powerheart G5',
@@ -65,6 +75,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Orange and upright, with a round Rescue Ready light by the handle',
     readinessSeconds: 10,
+    readinessSignal: 'steady',
   },
   // Defibtech's four, from the DDU-100 and DDU-2000 series manuals. All are
   // yellow with grey sides, so the hint is what tells them apart.
@@ -75,6 +86,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Yellow, no screen, with a red Shock button',
     readinessSeconds: 10,
+    readinessSignal: 'blink',
   },
   {
     id: 'Defibtech Lifeline AUTO',
@@ -83,6 +95,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Yellow, no screen, and no Shock button: an “auto” symbol instead',
     readinessSeconds: 10,
+    readinessSignal: 'blink',
   },
   {
     id: 'Defibtech Lifeline VIEW',
@@ -91,6 +104,7 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Yellow, with a colour video screen; “Lifeline VIEW” on the front',
     readinessSeconds: 10,
+    readinessSignal: 'blink',
   },
   {
     id: 'Defibtech Lifeline ECG',
@@ -99,8 +113,14 @@ export const AED_MODEL_OPTIONS: AedModelOption[] = [
     available: true,
     hint: 'Like the VIEW, with “Lifeline ECG” on the front; can show a heart trace',
     readinessSeconds: 10,
+    readinessSignal: 'blink',
   },
 ];
+
+/** How the unit shows ready; an unknown unit is filmed for a fixed time. */
+export function readinessSignal(id?: string): 'blink' | 'steady' {
+  return AED_MODEL_OPTIONS.find((m) => m.id === id)?.readinessSignal ?? 'steady';
+}
 
 /** Seconds to film the readiness indicator for; ten for an unknown unit. */
 export function readinessSeconds(id?: string): number {

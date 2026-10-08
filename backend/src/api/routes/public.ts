@@ -5,12 +5,12 @@
  * PDF report to the inspector and to config.REPORT_BCC_EMAIL.
  */
 import { Router, Request, Response, NextFunction } from 'express';
-import multer from 'multer';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { Inspection, REPLACEMENT_ITEMS } from '../../models/Inspection';
 import { ModelRequest } from '../../models/ModelRequest';
 import { createError } from '../middleware/error-handler';
+import { singleMediaUpload } from '../middleware/upload';
 import { config } from '../../config/env';
 import { readinessScore } from '../../config/scoring';
 import { logger } from '../../utils/logger';
@@ -30,11 +30,6 @@ import {
 } from '../../services/emailService';
 
 const router = Router();
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: config.MAX_FILE_SIZE_MB * 1024 * 1024 },
-});
 
 const createSchema = z.object({
   name: z.string().trim().min(2, 'Name is required').max(120),
@@ -172,7 +167,7 @@ router.get('/inspections/:id', async (req: Request, res: Response, next: NextFun
 // POST /api/v1/public/inspections/:id/checklist/:itemId
 router.post(
   '/inspections/:id/checklist/:itemId',
-  upload.single('file'),
+  singleMediaUpload('file'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.file) throw createError('No file uploaded', 400, 'NO_FILE');

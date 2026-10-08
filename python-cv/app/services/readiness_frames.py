@@ -51,6 +51,16 @@ NEIGHBOURHOOD = 5
 #: brighter than the brightest, greenest thing usually nearby.
 GREENER_BY = 20
 BRIGHTER_BY = 15
+#: ...or, failing the brighter test, at least this much greener. A Defibtech
+#: is bright yellow: its casing is already near 255 in the red channel, so
+#: a green light beside it can never be "brighter" than its surroundings,
+#: and every flash on a yellow unit went unseen (and a ready unit was sent
+#: back for a retake). Yellow has no greenness at all, though, so a light
+#: coming on there is a jump of 60-100 in greenness — far past this. It must
+#: still be no dimmer than its surroundings, which a dull green button edge
+#: sliding onto the casing always is.
+STRONGLY_GREENER_BY = 40
+NO_DIMMER_BY = 8
 #: And a lit Ready light is vivid in itself — strongly green and bright,
 #: not just a shade greener than before — which dull plastic or a patch of
 #: wall never is.
@@ -107,11 +117,13 @@ def _green_and_bright(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def _lit(green: np.ndarray, bright: np.ndarray, near_green: np.ndarray, near_bright: np.ndarray) -> np.ndarray:
     """Pixels vividly green and bright, and more so than anything usually
     around them."""
+    greener = green.astype(np.int16) - near_green
+    brighter = bright.astype(np.int16) - near_bright
     return (
         (green >= MIN_GREEN)
         & (bright >= MIN_BRIGHT)
-        & ((green.astype(np.int16) - near_green) > GREENER_BY)
-        & ((bright.astype(np.int16) - near_bright) > BRIGHTER_BY)
+        & (greener > GREENER_BY)
+        & ((brighter > BRIGHTER_BY) | ((greener > STRONGLY_GREENER_BY) & (brighter >= -NO_DIMMER_BY)))
     )
 
 
@@ -192,11 +204,12 @@ def prepare(video_bytes: bytes) -> Optional[ReadinessFrames]:
         if not cap.isOpened():
             return None
         total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-        if total <= 0:
-            cap.release()
-            return None
-        stride = max(1, -(-total // MAX_SCANNED))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if not fps or fps <= 0 or fps > 240:
+            fps = 30.0
+        # A header with no frame count (a browser's WebM) is read frame by
+        # frame up to the scan limit rather than given up on.
+        stride = max(1, -(-total // MAX_SCANNED)) if total > 0 else 1
 
         prev_gray = window = None
         size = None
@@ -211,7 +224,7 @@ def prepare(video_bytes: bytes) -> Optional[ReadinessFrames]:
         jpegs: List[bytes] = []
         indices: List[int] = []
         index = 0
-        while True:
+        while total > 0 or len(jpegs) < MAX_SCANNED:
             ok, frame = cap.read()
             if not ok:
                 break

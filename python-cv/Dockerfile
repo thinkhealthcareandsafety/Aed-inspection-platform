@@ -3,7 +3,8 @@ FROM python:3.12-slim
 LABEL maintainer="AED Inspection Platform"
 LABEL description="AI/CV microservice â€” Gemini vision, inspection state machine"
 
-# System deps for OpenCV (frame quality checks) + curl (healthcheck)
+# System deps for OpenCV (frame quality checks), ffmpeg (every phone's video
+# converted to one small standard clip — see video_normalize.py) + curl (healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \

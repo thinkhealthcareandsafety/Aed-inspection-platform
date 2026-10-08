@@ -6,6 +6,7 @@
 import path from 'path';
 import { READY_THRESHOLD, SAFETY_CRITICAL, readinessScore } from '../config/scoring';
 import fs from 'fs/promises';
+import { openAsBlob } from 'fs';
 import { randomUUID } from 'crypto';
 import { IInspection, IChecklistItemResult } from '../models/Inspection';
 import { getChecklistItem, QUICK_CHECK_IDS, REQUIRED_ITEM_IDS, type InspectionScope } from '../config/checklist-items';
@@ -150,7 +151,9 @@ async function persistUpload(inspectionId: string, itemId: string, file: Express
   const mime = (file.mimetype || '').toLowerCase();
   const ext = EXTENSION_FOR_MIME[mime] ?? (mime.startsWith('video/') ? '.mp4' : '.jpg');
   const filename = `${itemId}_${randomUUID()}${ext}`;
-  await fs.writeFile(path.join(dir, filename), file.buffer);
+  // Uploads arrive on disk (api/middleware/upload); a buffer only in tests.
+  if (file.path) await fs.copyFile(file.path, path.join(dir, filename));
+  else await fs.writeFile(path.join(dir, filename), file.buffer);
   return `/uploads/${inspectionId}/${filename}`;
 }
 
@@ -168,11 +171,10 @@ async function callCvService(
   context: { aedModel?: string; lang?: FeedbackLanguage },
 ): Promise<AnalysisResponse> {
   const form = new FormData();
-  form.append(
-    'file',
-    new Blob([file.buffer], { type: file.mimetype || 'application/octet-stream' }),
-    file.originalname || itemId,
-  );
+  const type = file.mimetype || 'application/octet-stream';
+  // Streamed from the temporary file, never read whole into memory.
+  const blob = file.path ? await openAsBlob(file.path, { type }) : new Blob([file.buffer], { type });
+  form.append('file', blob, file.originalname || itemId);
   // Which AED is in the photo, so the vision prompt describes that unit and
   // not another brand's — a ZOLL used to be judged as if it were a Philips.
   if (context.aedModel) form.append('aed_model', context.aedModel);
@@ -209,6 +211,23 @@ async function callCvService(
     // timed out after its own internal retries — a transient upstream issue,
     // not something wrong with this specific photo. Everything else (400/404
     // — unknown item, bad upload) won't be fixed by retrying the same file.
+    // Said as what they are, so the inspector knows to record again rather
+    // than being told to take "a clearer photo".
+    if (res.status === 413) {
+      throw createError(
+        'This video is too large. Please record a shorter one (about 10 seconds).',
+        413,
+        'FILE_TOO_LARGE',
+      );
+    }
+    if (res.status === 422) {
+      throw createError(
+        detail || "We couldn't read this video. Please record it again in the app.",
+        422,
+        'VIDEO_UNREADABLE',
+      );
+    }
+
     const retryable = res.status === 502 || res.status === 503 || res.status === 504;
     const message = retryable
       ? 'The AI service is busy right now. Please try again in a moment.'
