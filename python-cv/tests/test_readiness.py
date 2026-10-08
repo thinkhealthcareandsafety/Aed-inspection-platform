@@ -326,3 +326,17 @@ def test_the_prompt_points_the_model_at_the_scans_blinks():
     assert "scan: a small green light switched on here" in prompt
     none = svc._build_prompt(ITEM, get_profile("Defibtech Lifeline"), frame_count=24, duration=12, scan_flashes=0)
     assert "found no small light switching on" in none
+
+
+@pytest.mark.unit
+def test_the_models_own_fault_for_a_dark_light_is_said_as_not_ready():
+    verdict = _verdict(status="fault", passed=False, ready_frames=[], notes="Never lights up; film it again.")
+    checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=1.0))
+    assert checked.status == "fault" and checked.notes.startswith("Not ready")
+
+
+@pytest.mark.unit
+def test_a_red_light_fault_keeps_the_models_words():
+    verdict = _verdict(status="fault", passed=False, ready_frames=[], notes="The indicator flashes red: service needed.")
+    checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=14, steady=1.0))
+    assert checked.status == "fault" and "red" in checked.notes

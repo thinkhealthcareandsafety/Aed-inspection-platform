@@ -128,7 +128,7 @@ IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
 THINKING_LEVEL: Optional[str] = None
 #: Bumped by hand when the shared prompt template's wording changes; the
 #: per-item and per-device wording is hashed in automatically.
-PROMPT_REVISION = "2026-10-08"  # indicator_in_view: a dark light that is in view
+PROMPT_REVISION = "2026-10-08b"  # reference photo + scan marks for readiness
 
 
 class ChecklistVerdict(BaseModel):
@@ -931,7 +931,14 @@ def _check_readiness(
     # is a dead battery, not a capture to retake — it used to come back
     # "unclear" for ever.
     if (
-        (status == "ready" or (status == "unclear" and result.indicator_in_view is True))
+        (
+            status == "ready"
+            or (status == "unclear" and result.indicator_in_view is True)
+            # The model's own "fault" for a light that never lit: said the same
+            # clear way, not as its "film it again". A red light is its own
+            # fault, and keeps the model's words.
+            or (status == "fault" and not re.search(r"\bred\b", result.notes or "", re.I))
+        )
         and profile is not None
         and profile.blinking_ready
         and video is not None
