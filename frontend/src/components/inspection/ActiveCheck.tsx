@@ -361,8 +361,13 @@ export function ActiveCheck({
           <span className="text-caption font-semibold uppercase tracking-[0.06em] text-primary">
             {position ? m.check.position(position.index, position.total) : m.check.optionalExtra}
           </span>
+          {CHECK_POINTS[item.id] ? (
+            <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-caption font-semibold tabular-nums text-primary">
+              {m.score.worth(CHECK_POINTS[item.id])}
+            </span>
+          ) : null}
           {isVideo && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
+            <span className={cn('inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground', !CHECK_POINTS[item.id] && 'ml-auto')}>
               <Video className="w-3 h-3" strokeWidth={2.2} />
               {m.check.video}
             </span>
@@ -697,14 +702,14 @@ function Verdict({
         )}
       </span>
       {passed ? m.check.passed : m.check.needsAttention}
-      {passed && marks ? (
+      {marks ? (
         <motion.span
           initial={fresh ? { opacity: 0, x: -4 } : false}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: fresh ? 0.45 : 0, duration: 0.3 }}
           className="ml-0.5 rounded-full bg-white/25 px-1.5 text-caption font-bold tabular-nums"
         >
-          {m.score.earned(marks)}
+          {passed ? m.score.earned(marks) : m.score.missed(marks)}
         </motion.span>
       ) : null}
     </motion.span>
@@ -737,6 +742,7 @@ export function CheckRow({
   const { m } = useI18n();
   const reading = readingOf(result, m);
   const failed = result.status === 'fail' || result.status === 'error';
+  const marks = CHECK_POINTS[item.id];
   const resolved = failed || result.status === 'pass' || result.status === 'skipped';
   const detail =
     result.status === 'skipped'
@@ -793,7 +799,19 @@ export function CheckRow({
           {m.check.row.now}
         </span>
       ) : (
-        resolved && <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" strokeWidth={2} />
+        <>
+          {marks ? (
+            <span
+              className={cn(
+                'shrink-0 text-caption font-semibold tabular-nums',
+                result.status === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : failed ? 'text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {result.status === 'pass' ? m.score.earned(marks) : failed ? m.score.missed(marks) : m.score.worth(marks)}
+            </span>
+          ) : null}
+          {resolved && <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" strokeWidth={2} />}
+        </>
       )}
     </button>
   );

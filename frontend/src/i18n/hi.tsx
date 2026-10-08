@@ -531,6 +531,8 @@ export const hi: Messages = {
     aria: (score: number, max: number) => `रेडीनेस स्कोर ${max} में से ${score}`,
     label: 'रेडीनेस स्कोर',
     earned: (marks: number) => `+${marks}`,
+    worth: (marks: number) => `${marks} अंक`,
+    missed: (marks: number) => `0/${marks}`,
     needed: (n: number) => `पास होने के लिए ${n} चाहिए`,
     everyCheck: 'हर सुरक्षा जाँच का पास होना ज़रूरी है',
     failsTitle: 'रेडीनेस में फ़ेल',

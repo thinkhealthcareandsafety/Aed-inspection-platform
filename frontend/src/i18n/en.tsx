@@ -557,6 +557,9 @@ export const en = {
     aria: (score: number, max: number) => `Readiness score ${score} out of ${max}`,
     label: 'Readiness score',
     earned: (marks: number) => `+${marks}`,
+    /** What a check is worth, shown on it before and after. */
+    worth: (marks: number) => `${marks} marks`,
+    missed: (marks: number) => `0/${marks}`,
     needed: (n: number) => `${n} needed to pass`,
     everyCheck: 'every safety check has to pass',
     failsTitle: 'Fails readiness',

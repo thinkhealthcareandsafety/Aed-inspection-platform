@@ -1024,7 +1024,12 @@ def _check_readiness(
                 **_override_notes(key, language),
             }
         )
-    return result.model_copy(update={"status": status, "passed": status == "ready"})
+    update = {"status": status, "passed": status == "ready"}
+    # Seen live: a Hindi reader got the model's retake advice in English — it
+    # had left notes_hi empty. This unit's own fixed retake advice is in both.
+    if language == "hi" and status == "unclear" and not (result.notes_hi or "").strip() and profile is not None:
+        update.update(_override_notes(profile.readiness_retake, language))
+    return result.model_copy(update=update)
 
 
 def _apply_deterministic_checks(

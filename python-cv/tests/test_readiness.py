@@ -348,3 +348,10 @@ def test_only_the_deciding_frames_are_sent_in_full_detail():
     spread = svc._detailed_frames(24, set())
     assert len(spread) == svc.DETAILED_WITHOUT_FLASH and all(1 <= n <= 24 for n in spread)
     assert svc._detailed_frames(3, set()) == {1, 2, 3}
+
+
+@pytest.mark.unit
+def test_a_hindi_reader_never_gets_retake_advice_only_in_english():
+    verdict = _verdict(status="unclear", passed=False, ready_frames=[], notes="Not clearly seen; film it closer.")
+    checked = _check(verdict, get_profile("Defibtech Lifeline"), _scanned(seconds=6, steady=1.0), language="hi")
+    assert checked.notes_hi and "लाइट" in checked.notes_hi
