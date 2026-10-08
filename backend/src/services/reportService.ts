@@ -252,7 +252,7 @@ function expiryOf(raw: unknown, asOf: Date): Expiry | undefined {
 
 const STATUS_WORD: Record<string, { text: string; color: string }> = {
   ready: { text: 'Ready', color: COLOR.ok },
-  fault: { text: 'Fault', color: COLOR.bad },
+  fault: { text: 'Not ready', color: COLOR.bad },
   unclear: { text: 'Unclear', color: COLOR.warn },
 };
 
