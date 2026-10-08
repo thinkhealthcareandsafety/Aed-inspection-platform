@@ -413,7 +413,7 @@ export const hi: Messages = {
     expiry: 'एक्सपायरी डेट',
     replaceBy: 'इस तारीख तक बदलें',
     statusLight: 'स्टेटस लाइट',
-    status: { ready: 'तैयार', fault: 'खराबी', unclear: 'साफ़ नहीं' },
+    status: { ready: 'तैयार', fault: 'तैयार नहीं', unclear: 'साफ़ नहीं' },
   },
 
   expiry: {

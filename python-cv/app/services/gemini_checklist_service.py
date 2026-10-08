@@ -325,6 +325,29 @@ _OVERRIDE_NOTES = {
 }
 
 
+#: A clip this long, this steady, holds at least two blinks of any unit that
+#: blinks when ready (Philips and Defibtech: every few seconds, at most ~5).
+NEVER_BLINKED_SECONDS = 10.0
+NEVER_BLINKED_STEADY = 0.8
+
+
+def _never_blinked_notes(profile: DeviceProfile, seconds: float, language: Optional[str]) -> dict:
+    english = (
+        f"Not ready: the status light did not blink once in {seconds:.0f} seconds of steady video. "
+        f"A ready {profile.name} flashes green every few seconds, so this AED needs attention — "
+        "most often its battery is flat, missing or not seated. If the light wasn't in view, "
+        "retake it up close."
+    )
+    hindi = (
+        f"तैयार नहीं: {seconds:.0f} सेकंड के स्थिर वीडियो में स्टेटस लाइट एक बार भी नहीं झपकी। तैयार "
+        f"{profile.name} हर कुछ सेकंड में हरी झपकती है, इसलिए इस AED को जाँच की ज़रूरत है — अक्सर इसकी बैटरी "
+        "खत्म, गायब या ठीक से लगी नहीं होती। अगर लाइट वीडियो में नहीं थी, तो पास से फिर से रिकॉर्ड करें।"
+        if language == "hi"
+        else None
+    )
+    return {"notes": english, "notes_hi": hindi}
+
+
 def _override_notes(key: str, language: Optional[str]) -> dict:
     english, hindi = _OVERRIDE_NOTES[key]
     return {"notes": english, "notes_hi": hindi if language == "hi" else None}
@@ -806,11 +829,13 @@ def _check_readiness(
       accepted — that is how a unit whose light never came on used to pass.
     - A unit that proves readiness by blinking (Philips) must also have
       blinked: if the scan of every frame found no flash at all, no reading
-      of the frames by the model can pass it.
+      of the frames by the model can pass it. If the clip was long and
+      steady enough that a blink could not have been missed, the unit is
+      not ready (a fault); otherwise it is a retake.
     - passed follows status, never the other way round, so a "passed" with
       no status, or a status of fault with passed=true, can't slip through.
-    It only ever turns a pass into "unclear" — a retake, with exactly what
-    to film — and never turns a fail into a pass."""
+    It only ever turns a pass into "unclear" (a retake, with exactly what
+    to film) or "fault", and never turns a fail into a pass."""
     status = (result.status or "").strip().lower()
     if status not in ("ready", "fault", "unclear"):
         status = "ready" if result.passed else "unclear"
@@ -824,6 +849,28 @@ def _check_readiness(
             reason = "no evidence"
         elif profile is not None and profile.blinking_ready and video is not None and video.flash_count == 0:
             reason = "no flash in video"
+            # The model found the light (it named frames showing it) and the
+            # clip was long and steady enough to hold two blinks, yet not one
+            # frame had a flash: the light is not blinking. That is a unit
+            # that is not ready, not a capture to retake — a dead battery
+            # used to come back "unclear" for ever.
+            if video.duration >= NEVER_BLINKED_SECONDS and video.steady_share >= NEVER_BLINKED_STEADY:
+                if overrides is not None:
+                    overrides.append("readiness_never_blinked")
+                logger.info(
+                    "checklist.readiness_never_blinked",
+                    profile=profile.id,
+                    duration=video.duration,
+                    steady=video.steady_share,
+                )
+                return result.model_copy(
+                    update={
+                        "status": "fault",
+                        "passed": False,
+                        "confidence": min(result.confidence, 0.8),
+                        **_never_blinked_notes(profile, video.duration, language),
+                    }
+                )
 
     if reason:
         if overrides is not None:

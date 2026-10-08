@@ -433,7 +433,7 @@ export const en = {
     expiry: 'Expiry date',
     replaceBy: 'Replace by',
     statusLight: 'Status light',
-    status: { ready: 'Ready', fault: 'Fault', unclear: 'Unclear' } as Record<string, string>,
+    status: { ready: 'Ready', fault: 'Not ready', unclear: 'Unclear' } as Record<string, string>,
   },
 
   expiry: {

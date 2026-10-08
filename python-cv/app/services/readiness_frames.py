@@ -97,6 +97,9 @@ class ReadinessFrames:
     #: Separate flashes found in the whole clip.
     flash_count: int = 0
     duration: float = 0.0
+    #: Share of scanned frames the hand-steadying could line up: how steady
+    #: the clip was, and so how sure "no flash anywhere in it" can be.
+    steady_share: float = 0.0
 
 
 def _resize(frame: np.ndarray, long_edge: int) -> np.ndarray:
@@ -289,6 +292,7 @@ def prepare(video_bytes: bytes) -> Optional[ReadinessFrames]:
             flash_positions=[i + 1 for i, p in enumerate(ordered) if p in flash_set],
             flash_count=len(events),
             duration=round(index / fps, 1),
+            steady_share=round(sum(aligned_ok) / len(aligned_ok), 2) if aligned_ok else 0.0,
         )
         logger.info("readiness.frames", scanned=len(jpegs), flashes=len(events), sent=len(result.frames))
         return result

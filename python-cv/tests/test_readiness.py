@@ -197,3 +197,63 @@ def test_a_bland_surface_that_is_hard_to_steady_raises_no_false_flash(tmp_path):
 @pytest.mark.unit
 def test_an_undecodable_video_falls_back_to_the_raw_video():
     assert readiness_frames.prepare(b"not a video") is None
+
+
+
+# ── A light that never blinked, filmed well, is a unit that is not ready ────
+# Found live on 8 Oct 2026: a steady 14 s close-up of a Lifeline VIEW whose
+# light never blinked came back "unclear" — a retake, for ever — because
+# "no flash" could only ever mean "film it again". A dead battery has to
+# read as not ready.
+
+
+def _scanned(seconds: float, steady: float, flashes: int = 0) -> readiness_frames.ReadinessFrames:
+    video = _video(flashes=flashes)
+    video.duration = seconds
+    video.steady_share = steady
+    return video
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("profile", [PHILIPS_FRX, PHILIPS_HS1, get_profile("Defibtech Lifeline VIEW")])
+def test_a_long_steady_clip_with_no_blink_is_not_ready(profile):
+    checked = _check(_verdict(ready_frames=[5]), profile, _scanned(seconds=14, steady=0.95))
+    assert checked.passed is False
+    assert checked.status == "fault"
+    assert checked.notes.startswith("Not ready")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("seconds, steady", [(6, 0.95), (14, 0.5)])
+def test_a_short_or_shaky_clip_with_no_blink_is_a_retake_not_a_verdict(seconds, steady):
+    checked = _check(_verdict(ready_frames=[5]), PHILIPS_HS1, _scanned(seconds=seconds, steady=steady))
+    assert checked.status == "unclear"
+
+
+@pytest.mark.unit
+def test_a_light_the_model_could_not_find_stays_unclear_however_long_the_clip():
+    # Too far away to see (the light is a few pixels at the edge): nobody can
+    # say it is off, so it is a retake.
+    checked = _check(
+        _verdict(status="unclear", passed=False, ready_frames=[]), get_profile("Defibtech Lifeline"),
+        _scanned(seconds=20, steady=1.0),
+    )
+    assert checked.status == "unclear"
+
+
+@pytest.mark.unit
+def test_a_steady_symbol_unit_is_never_failed_for_not_blinking():
+    checked = _check(_verdict(ready_frames=[2]), ZOLL_AED_PLUS, _scanned(seconds=14, steady=1.0))
+    assert checked.passed is True
+
+
+@pytest.mark.unit
+def test_not_ready_is_said_in_hindi_too():
+    checked = _check(_verdict(ready_frames=[5]), PHILIPS_FRX, _scanned(seconds=12, steady=0.9), language="hi")
+    assert checked.notes_hi and checked.notes_hi.startswith("तैयार नहीं")
+
+
+@pytest.mark.unit
+def test_the_scan_reports_how_steady_the_clip_was(tmp_path):
+    steady = readiness_frames.prepare(_clip(tmp_path, "steady.mp4", drift=0.5))
+    assert steady is not None and steady.steady_share >= 0.8
