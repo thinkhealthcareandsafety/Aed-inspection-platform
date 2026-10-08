@@ -214,8 +214,23 @@ export const en = {
     close: 'Close camera',
     starting: 'Starting the camera…',
     whereIsLight: 'Where the light is',
-    aimBlink: 'Put the small status light inside the circle',
-    aimSteady: 'Put the status indicator inside the circle',
+    /** Where this unit's own indicator is, as the coaching names it: each
+     *  unit has its own (a Lifeline's light is by the handle, nowhere near
+     *  a button). Matches the check's instruction for the model. */
+    where: {
+      'Philips FRx': 'the small green Ready light (not the On/Off button)',
+      'Philips HS1': 'the small Ready light at the top right',
+      'Zoll AED Plus': 'the status window left of the handle',
+      'Zoll AED 3': 'the small status window right of the On/Off button',
+      'Zoll Powerheart G3': 'the round Rescue Ready light by the handle',
+      'Zoll Powerheart G5': 'the round Rescue Ready light by the handle',
+      'Defibtech Lifeline': 'the small light at the top-right corner, by the handle',
+      'Defibtech Lifeline AUTO': 'the small light at the top-right corner, by the handle',
+      'Defibtech Lifeline VIEW': 'the small light just right of the On/Off button',
+      'Defibtech Lifeline ECG': 'the small light just right of the On/Off button',
+    } as Record<string, string>,
+    whereDefault: 'the status light',
+    aim: (where: string) => `Put ${where} inside the circle`,
     dark: 'Too dark — turn on a light, or move closer',
     glare: 'Glare on the light — tilt the phone a little',
     shaky: 'Hold the phone still',
@@ -228,7 +243,7 @@ export const en = {
     blinksCaught: (n: number, need: number) => `${n} of ${need} blinks caught`,
     autoStop: 'It stops by itself once the light has blinked twice',
     holdFor: (n: number) => `Hold steady for ${n} seconds — it stops by itself`,
-    noBlinkYet: 'No blink seen yet — the small light, not the button, goes in the circle',
+    noBlinkYet: (where: string) => `No blink yet — keep ${where} in the circle`,
     useCameraApp: 'Use the camera app instead',
     blocked:
       'Camera access is blocked. Allow the camera for this site in your browser settings, or use the camera app instead.',

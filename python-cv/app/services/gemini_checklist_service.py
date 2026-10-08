@@ -128,7 +128,7 @@ IMAGE_MEDIA_RESOLUTION: Optional[types.MediaResolution] = None
 THINKING_LEVEL: Optional[str] = None
 #: Bumped by hand when the shared prompt template's wording changes; the
 #: per-item and per-device wording is hashed in automatically.
-PROMPT_REVISION = "2026-10-08b"  # reference photo + scan marks for readiness
+PROMPT_REVISION = "2026-10-08c"  # readiness notes name only this unit's own indicator
 
 
 class ChecklistVerdict(BaseModel):
@@ -274,10 +274,9 @@ _OVERRIDE_NOTES = {
     ),
     "readiness_no_asi_lifeline": (
         "We couldn't see the status light flash green. Film the small light at the top-right "
-        "corner, at the end of the handle (not the On/Off button), up close and steady, for at "
-        "least 10 seconds — it flashes about every 5 seconds. Red, or no flash at all, means the "
-        "AED needs attention.",
-        "हमें स्टेटस लाइट हरी जलती नहीं दिखी। ऊपर दाएँ कोने में, हैंडल के सिरे पर लगी छोटी लाइट (On/Off बटन नहीं) "
+        "corner, at the end of the handle, up close and steady, for at least 10 seconds — it "
+        "flashes about every 5 seconds. Red, or no flash at all, means the AED needs attention.",
+        "हमें स्टेटस लाइट हरी जलती नहीं दिखी। ऊपर दाएँ कोने में, हैंडल के सिरे पर लगी छोटी लाइट "
         "का पास से, फ़ोन स्थिर रखकर, कम से कम 10 सेकंड का वीडियो बनाएँ — यह करीब हर 5 सेकंड में जलती है। लाल "
         "लाइट, या बिल्कुल न जलना, मतलब AED को जाँच की ज़रूरत है।",
     ),

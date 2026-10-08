@@ -81,6 +81,7 @@ export function GuidedCamera({ aedModel, onCapture, onClose, onUseCameraApp }: P
   const seconds = readinessSeconds(aedModel);
   const maxMs = (signal === 'blink' ? seconds + EXTRA_BLINK_SECONDS : seconds + 1) * 1000;
   const example = getReferenceExamples('readiness_indicator', aedModel)?.find((e) => e.focus);
+  const where = (aedModel && t.where[aedModel]) || t.whereDefault;
 
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<FrameVideo>(null);
@@ -301,11 +302,11 @@ export function GuidedCamera({ aedModel, onCapture, onClose, onUseCameraApp }: P
     if (report.quality === 'shaky') return t.shaky;
     if (report.quality === 'dark') return t.dark;
     if (report.quality === 'glare') return t.glare;
-    if (signal === 'steady') return recording ? t.holdFor(seconds) : t.aimSteady;
+    if (signal === 'steady') return recording ? t.holdFor(seconds) : t.aim(where);
     if (report.lit) return t.lightOn;
-    if (recording && inClip === 0) return elapsed > 7000 ? t.noBlinkYet : t.searching;
+    if (recording && inClip === 0) return elapsed > 7000 ? t.noBlinkYet(where) : t.searching;
     if (found) return t.found;
-    return t.aimBlink;
+    return t.aim(where);
   })();
   const warn = report.quality !== 'ok' && stage !== 'starting';
   const progress = Math.min(1, elapsed / maxMs);
