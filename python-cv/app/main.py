@@ -40,7 +40,9 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup → yield → shutdown."""
-    logger.info("cv_service.startup", version=settings.APP_VERSION)
+    from app.services import video_normalize
+
+    logger.info("cv_service.startup", version=settings.APP_VERSION, video_conversion=video_normalize.available())
 
     if not settings.GEMINI_API_KEY:
         logger.warning("cv_service.gemini_api_key_missing")

@@ -1,6 +1,7 @@
 """Health check endpoints."""
 from fastapi import APIRouter, HTTPException
 from app.core.config import settings
+from app.services import video_normalize
 from app.services.gemini_checklist_service import ai_calls_today
 
 router = APIRouter()
@@ -15,6 +16,9 @@ async def health():
         "gemini_configured": bool(settings.GEMINI_API_KEY),
         # How much of today's AI-call ceiling is spent — watch this, not the bill.
         "ai_calls_today": ai_calls_today(),
+        # Every readiness video is converted with ffmpeg; without it, any
+        # clip over ~19 MB is refused.
+        "video_conversion": video_normalize.available(),
     }
 
 

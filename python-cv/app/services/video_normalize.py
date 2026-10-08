@@ -37,15 +37,15 @@ TIMEOUT_SECONDS = 150
 
 
 def _ffmpeg() -> Optional[str]:
-    found = shutil.which("ffmpeg")
-    if found:
-        return found
-    try:  # A bundled binary, where one is installed (local development).
+    """The bundled binary first (requirements: imageio-ffmpeg) — the same
+    build everywhere, with H.264, whether the service is built from its
+    Dockerfile or not. A system ffmpeg only if that is missing."""
+    try:
         import imageio_ffmpeg  # type: ignore
 
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception:  # noqa: BLE001
-        return None
+        return shutil.which("ffmpeg")
 
 
 def available() -> bool:
