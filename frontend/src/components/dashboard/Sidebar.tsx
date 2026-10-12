@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CalendarClock, BarChart3, ClipboardList, Zap, Settings, LogOut } from 'lucide-react';
+import { CalendarClock, BarChart3, ClipboardList, Settings, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springSnappy } from '@/lib/motion';
 import { useAuthStore } from '@/stores/auth-store';
@@ -19,7 +19,6 @@ const NAV_ITEMS = [
   { href: '/dashboard', icon: CalendarClock, label: 'Pipeline', exact: true },
   { href: '/dashboard/funnel', icon: BarChart3, label: 'Funnel' },
   { href: '/dashboard/inspections', icon: ClipboardList, label: 'Inspections' },
-  { href: '/inspection', icon: Zap, label: 'Inspect' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 
