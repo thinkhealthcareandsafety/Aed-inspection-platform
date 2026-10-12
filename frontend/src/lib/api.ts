@@ -259,11 +259,13 @@ export const api = {
 
   // Public, unauthenticated walk-up inspection flow (inspector.aedsmartx.com landing page).
   public: {
-    createInspection: (data: { name: string; email: string; phone: string; aedModel: string }) =>
+    createInspection: async (data: { name: string; email: string; phone: string; aedModel: string }) =>
       apiClient.post<{ inspection: import('@/types').Inspection }>('/public/inspections', {
         ...data,
         // So the report states times in the inspector's own zone.
         timeZone: deviceTimeZone(),
+        // So the dashboard shows where the lead came from.
+        location: await visitorLocation(),
       }),
 
     get: (id: string, opts?: { skipErrorToast?: boolean }) =>
@@ -349,6 +351,29 @@ export const api = {
 };
 
 /** The device's IANA time zone, or undefined where the browser can't say. */
+type VisitorLocation = {
+  city?: string;
+  region?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+let visitorLocationRequest: Promise<VisitorLocation | undefined> | undefined;
+
+/**
+ * The visitor's approximate location, looked up once per page load. Start it
+ * early (the landing page does) so it's ready by the time they submit; a slow
+ * or failed lookup gives up after a moment rather than delaying the start.
+ */
+export function visitorLocation(): Promise<VisitorLocation | undefined> {
+  visitorLocationRequest ??= fetch('/api/visitor-location', { cache: 'no-store' })
+    .then((r) => (r.ok ? (r.json() as Promise<VisitorLocation>) : undefined))
+    .catch(() => undefined);
+  const giveUp = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1500));
+  return Promise.race([visitorLocationRequest, giveUp]);
+}
+
 function deviceTimeZone(): string | undefined {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;

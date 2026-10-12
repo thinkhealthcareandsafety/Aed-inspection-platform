@@ -107,6 +107,31 @@ describe('POST /public/inspections', () => {
     expect(createInspection.mock.calls[0][0].timeZone).toBeUndefined();
   });
 
+  it('records where the visitor is, with their IP, so the dashboard shows where leads come from', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/public/inspections')
+      .send({ ...body, location: { city: 'Pune', region: 'MH', country: 'in', latitude: 18.52, longitude: 73.86 } });
+
+    expect(res.status).toBe(201);
+    expect(createInspection.mock.calls[0][0].visitor).toMatchObject({
+      city: 'Pune',
+      region: 'MH',
+      country: 'IN',
+      latitude: 18.52,
+      longitude: 73.86,
+      ip: expect.any(String),
+    });
+  });
+
+  it('starts the inspection anyway when the location is malformed, keeping just the IP', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/public/inspections')
+      .send({ ...body, location: { latitude: 'north', country: 'India' } });
+
+    expect(res.status).toBe(201);
+    expect(createInspection.mock.calls[0][0].visitor).toEqual({ ip: expect.any(String) });
+  });
+
   it('still refuses a model the app does not inspect', async () => {
     const res = await request(makeApp())
       .post('/api/v1/public/inspections')

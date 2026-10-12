@@ -41,6 +41,18 @@ const createSchema = z.object({
   // Only a zone the runtime knows is kept; anything else is dropped rather
   // than refusing the inspection, and the report uses its default zone.
   timeZone: z.string().max(64).refine(isTimeZone).optional().catch(undefined),
+  // Best-effort, from the frontend host's IP lookup. A malformed or missing
+  // location never blocks the inspection; it is just not recorded.
+  location: z
+    .object({
+      city: z.string().trim().max(100).optional(),
+      region: z.string().trim().max(100).optional(),
+      country: z.string().trim().length(2).toUpperCase().optional(),
+      latitude: z.number().min(-90).max(90).optional(),
+      longitude: z.number().min(-180).max(180).optional(),
+    })
+    .optional()
+    .catch(undefined),
 });
 
 function isTimeZone(zone: string): boolean {
@@ -96,6 +108,7 @@ router.post('/inspections', async (req: Request, res: Response, next: NextFuncti
       guestPhone: body.phone,
       aedModel: body.aedModel,
       timeZone: body.timeZone,
+      visitor: { ip: req.ip, ...body.location },
       startedAt: new Date(),
       inspectionStatus: 'in_progress',
       inspectionResult: 'INCOMPLETE',

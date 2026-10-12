@@ -6,7 +6,7 @@ import { AlertTriangle, Check, Loader2, MoreHorizontal, WifiOff } from 'lucide-r
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 
-import { api } from '@/lib/api';
+import { api, visitorLocation } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { scoreOf } from '@/lib/score';
 import { ScoreCounter } from '@/components/inspection/ScoreCounter';
@@ -134,6 +134,8 @@ export default function PublicInspectionPage() {
 
   useEffect(() => {
     track('landing_view');
+    // Looked up now so it's ready, not awaited, when they start an inspection.
+    void visitorLocation();
     return installTrackingFlush();
   }, []);
 

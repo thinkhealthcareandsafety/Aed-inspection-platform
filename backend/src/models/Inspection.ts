@@ -41,6 +41,21 @@ export interface IReplacementRequest {
   requestedAt: Date;
 }
 
+/**
+ * Where a walk-up visitor was when they started: their IP, and the city the
+ * frontend's host (Vercel) placed that IP in. Approximate — an IP locates a
+ * network, not a person — but enough to see which areas the leads come from.
+ */
+export interface IVisitorLocation {
+  ip?: string;
+  city?: string;
+  region?: string;
+  /** ISO 3166-1 alpha-2, e.g. "IN". */
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface IInspection extends Document {
   inspectionId: string;
   sessionId: string;
@@ -82,6 +97,7 @@ export interface IInspection extends Document {
   checklist: IChecklistItemResult[];
   notes?: string;
   replacementRequest?: IReplacementRequest;
+  visitor?: IVisitorLocation;
   cvSessionData?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -113,6 +129,18 @@ const ReplacementRequestSchema = new Schema<IReplacementRequest>(
   {
     items: { type: [{ type: String, enum: [...REPLACEMENT_ITEMS] }], required: true },
     requestedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+const VisitorLocationSchema = new Schema<IVisitorLocation>(
+  {
+    ip: { type: String },
+    city: { type: String },
+    region: { type: String },
+    country: { type: String },
+    latitude: { type: Number },
+    longitude: { type: Number },
   },
   { _id: false },
 );
@@ -172,6 +200,7 @@ const InspectionSchema = new Schema<IInspection>(
     notes: { type: String },
     // Single nested: stays absent until a request is actually made.
     replacementRequest: { type: ReplacementRequestSchema },
+    visitor: { type: VisitorLocationSchema },
     cvSessionData: { type: Schema.Types.Mixed },
   },
   {

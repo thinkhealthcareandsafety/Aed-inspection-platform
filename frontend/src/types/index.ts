@@ -166,6 +166,15 @@ export interface Inspection {
   notes?: string;
   /** Set once the customer asks to be quoted for replacements. */
   replacementRequest?: ReplacementRequest;
+  /** Walk-up visitor's IP and its approximate location. */
+  visitor?: {
+    ip?: string;
+    city?: string;
+    region?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
   createdAt: string;
 }
 

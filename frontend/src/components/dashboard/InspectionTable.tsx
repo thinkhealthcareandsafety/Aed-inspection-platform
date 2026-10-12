@@ -17,6 +17,50 @@ const RESULT_BADGE: Record<InspectionResult, string> = {
   INCOMPLETE: 'badge-incomplete',
 };
 
+let countryNames: Intl.DisplayNames | undefined;
+function countryName(code: string): string {
+  try {
+    countryNames ??= new Intl.DisplayNames(['en'], { type: 'region' });
+    return countryNames.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** "Pune, MH, India", linked to the map when the lookup gave coordinates,
+ *  with the IP beneath. Staff inspections and older ones have none. */
+function VisitorCell({ visitor }: { visitor: Inspection['visitor'] }) {
+  if (!visitor) return <span className="text-muted-foreground">—</span>;
+  const place = [visitor.city, visitor.region, visitor.country && countryName(visitor.country)]
+    .filter(Boolean)
+    .join(', ');
+  const hasPoint = visitor.latitude != null && visitor.longitude != null;
+  return (
+    <div className="min-w-0">
+      {place ? (
+        hasPoint ? (
+          <a
+            href={`https://www.google.com/maps?q=${visitor.latitude},${visitor.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground hover:text-primary hover:underline whitespace-nowrap"
+            title="Approximate — located from the visitor's IP address"
+          >
+            {place}
+          </a>
+        ) : (
+          <span className="text-foreground whitespace-nowrap">{place}</span>
+        )
+      ) : (
+        <span className="text-muted-foreground">Unknown</span>
+      )}
+      {visitor.ip && (
+        <div className="font-mono text-[10.5px] text-muted-foreground mt-0.5">{visitor.ip}</div>
+      )}
+    </div>
+  );
+}
+
 export function InspectionTable() {
   // One row at a time: a table of download buttons needs to know which one
   // was tapped, and to ignore a second tap on it while the PDF is fetched.
@@ -89,7 +133,7 @@ export function InspectionTable() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/30">
-              {['Date', 'AED Model', 'Serial', 'Pads Expiry', 'Result', 'Inspector', ''].map(
+              {['Date', 'AED Model', 'Serial', 'Pads Expiry', 'Result', 'Inspector', 'Location', ''].map(
                 (h) => (
                   <th
                     key={h}
@@ -105,7 +149,7 @@ export function InspectionTable() {
             {isLoading &&
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/20">
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-3 bg-muted/30 rounded animate-pulse w-16" />
                     </td>
@@ -156,6 +200,9 @@ export function InspectionTable() {
                       )}
                     </td>
                     <td className="px-4 py-3">
+                      <VisitorCell visitor={insp.visitor} />
+                    </td>
+                    <td className="px-4 py-3">
                       <button
                         onClick={() => void downloadPdf(insp.inspectionId)}
                         disabled={downloadingId === insp.inspectionId}
@@ -175,7 +222,7 @@ export function InspectionTable() {
 
             {!isLoading && inspections.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                   No inspections found.{' '}
                   <Link href="/inspection" className="text-primary hover:underline">
                     Start your first inspection →
