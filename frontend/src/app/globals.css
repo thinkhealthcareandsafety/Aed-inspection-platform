@@ -427,3 +427,83 @@ html:lang(hi) .leading-none {
     box-shadow: none !important;
   }
 }
+
+/* While a saved inspection may be restoring, the server-rendered form and
+   the landing under it stay hidden, so they don't flash up and vanish. Set
+   before first paint by RESUME_PROBE in InspectionApp, cleared once settled. */
+html[data-resuming] .landing-gate {
+  display: none !important;
+}
+
+/* Long-form reading on the guide pages: a step up from the app's body size,
+   looser leading, and the type scale's own headings. Written as descendant
+   rules so guide content can be plain h2 / p / ul. */
+@layer components {
+  .guide {
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    letter-spacing: -0.011em;
+    color: hsl(var(--foreground) / 0.86);
+  }
+  .guide > * + * {
+    margin-top: 1rem;
+  }
+  .guide h2 {
+    @apply text-title text-foreground;
+    margin-top: 2.75rem;
+    scroll-margin-top: 5rem;
+  }
+  .guide h3 {
+    @apply text-headline text-foreground;
+    margin-top: 1.75rem;
+  }
+  .guide h2 + *,
+  .guide h3 + * {
+    margin-top: 0.5rem;
+  }
+  .guide strong {
+    @apply font-semibold text-foreground;
+  }
+  .guide a:not(.not-guide) {
+    @apply font-medium text-primary underline decoration-primary/30 underline-offset-[3px] transition-colors hover:decoration-primary;
+  }
+  .guide ul,
+  .guide ol {
+    padding-left: 1.25rem;
+  }
+  .guide ul {
+    list-style: disc;
+  }
+  .guide ol {
+    list-style: decimal;
+  }
+  .guide li + li {
+    margin-top: 0.4rem;
+  }
+  .guide li::marker {
+    color: hsl(var(--muted-foreground));
+  }
+  .guide table {
+    @apply w-full text-callout;
+    border-collapse: collapse;
+  }
+  .guide th {
+    @apply text-left font-semibold text-foreground;
+  }
+  .guide th,
+  .guide td {
+    padding: 0.6rem 0.75rem 0.6rem 0;
+    border-bottom: 1px solid hsl(var(--border));
+    vertical-align: top;
+  }
+}
+
+/* The checklist prints as a clean sheet: no site chrome, no buttons. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+}
