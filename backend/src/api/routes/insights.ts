@@ -14,6 +14,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { Inspection, IInspection } from '../../models/Inspection';
 import { AnalyticsEvent, FUNNEL_STEPS } from '../../models/AnalyticsEvent';
 import { daysUntil, urgencyOf, ExpiryUrgency } from '../../utils/expiry';
+import { requireRole } from '../middleware/auth';
+import { clearFunnelEvents } from '../../services/deletionService';
 
 const router = Router();
 
@@ -325,6 +327,17 @@ router.get('/pipeline.csv', async (_req: Request, res: Response, next: NextFunct
       `attachment; filename="aed-replacement-pipeline-${new Date().toISOString().slice(0, 10)}.csv"`,
     );
     res.send([header.map(escape).join(','), ...body].join('\r\n'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/v1/insights/events — admin only: clears funnel and visitor
+// stats (for wiping test traffic). Inspections are not touched.
+router.delete('/events', requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const deleted = await clearFunnelEvents(req.user!.email);
+    res.json({ deleted });
   } catch (err) {
     next(err);
   }

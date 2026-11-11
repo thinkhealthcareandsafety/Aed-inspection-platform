@@ -3,9 +3,38 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { Inspection } from '../../models/Inspection';
 import { createError } from '../middleware/error-handler';
+import { requireRole } from '../middleware/auth';
+import { deleteInspections, isInspectionId } from '../../services/deletionService';
 import { logger } from '../../utils/logger';
 
 const router = Router();
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string()).min(1).max(100),
+});
+
+// POST /api/v1/inspections/bulk-delete — admin only, permanent
+router.post('/bulk-delete', requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { ids } = bulkDeleteSchema.parse(req.body);
+    const deleted = await deleteInspections(ids, req.user!.email);
+    res.json({ deleted });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/v1/inspections/:id — admin only, permanent
+router.delete('/:id', requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!isInspectionId(req.params.id)) throw createError('Inspection not found', 404, 'NOT_FOUND');
+    const deleted = await deleteInspections([req.params.id], req.user!.email);
+    if (!deleted) throw createError('Inspection not found', 404, 'NOT_FOUND');
+    res.json({ deleted });
+  } catch (err) {
+    next(err);
+  }
+});
 
 const createSchema = z.object({
   locationId: z.string().optional(),

@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Activity, CheckCircle2, Percent, Timer, BarChart3 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Loader2, Activity, CheckCircle2, Percent, Timer, BarChart3, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CHECKLIST_SECTIONS } from '@/lib/checklist-config';
 import {
   PageHeader,
@@ -60,15 +63,64 @@ export default function FunnelPage() {
   const totals = data?.totals;
   const hasData = (totals?.started ?? 0) > 0 || (data?.steps[0]?.sessions ?? 0) > 0;
 
+  // Admins can wipe test traffic so the numbers start clean.
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  const queryClient = useQueryClient();
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  async function resetStats() {
+    setResetting(true);
+    try {
+      await api.insights.clearFunnel();
+      toast.success('Funnel stats cleared');
+      setConfirmReset(false);
+      await queryClient.invalidateQueries({ queryKey: ['funnel'] });
+    } catch {
+      // surfaced as a toast by the api client
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="p-5 sm:p-8 max-w-5xl space-y-7">
       <PageHeader
         title="Inspection funnel"
         subtitle="How many people who open inspector.aedsmartx.com finish an inspection — and exactly where the rest give up."
         actions={
-          <SegmentedControl name="range" options={RANGES} value={days} onChange={setDays} />
+          <div className="flex flex-wrap items-center gap-2">
+            <SegmentedControl name="range" options={RANGES} value={days} onChange={setDays} />
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setConfirmReset(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-callout font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              >
+                <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.2} />
+                Reset stats
+              </button>
+            )}
+          </div>
         }
       />
+
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="Reset all funnel stats?"
+        confirmLabel="Reset stats"
+        typeToConfirm="DELETE"
+        busy={resetting}
+        onConfirm={() => void resetStats()}
+      >
+        <p>
+          This clears every visit and step recorded here, for all dates, so the funnel starts again from zero.
+          Inspections and their reports are not deleted.
+        </p>
+        <p>
+          <strong className="text-foreground">It can’t be undone.</strong>
+        </p>
+      </ConfirmDialog>
 
       {isLoading ? (
         <div className="flex justify-center py-20">

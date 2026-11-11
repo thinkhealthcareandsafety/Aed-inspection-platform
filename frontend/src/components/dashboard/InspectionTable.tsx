@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { Download, ChevronLeft, ChevronRight, Search, Filter, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Download, ChevronLeft, ChevronRight, Search, Filter, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { Inspection, InspectionResult } from '@/types';
 
 const RESULT_BADGE: Record<InspectionResult, string> = {
@@ -92,6 +95,61 @@ export function InspectionTable() {
 
   const inspections = data?.data ?? [];
   const pagination = data?.pagination;
+  const visible = inspections.filter(
+    (i) =>
+      !search ||
+      i.serialNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      i.manufacturer?.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  // Deleting is for admins only (the API refuses everyone else too), and is
+  // permanent: each delete goes through a warning first.
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [toDelete, setToDelete] = useState<Inspection[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // A selection only ever covers rows on screen.
+  useEffect(() => setSelected(new Set()), [page, resultFilter, search]);
+
+  const allSelected = visible.length > 0 && visible.every((i) => selected.has(i.inspectionId));
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(visible.map((i) => i.inspectionId)));
+  }
+
+  async function confirmDelete() {
+    if (!toDelete?.length) return;
+    setDeleting(true);
+    try {
+      const ids = toDelete.map((i) => i.inspectionId);
+      const res = ids.length === 1 ? await api.inspections.remove(ids[0]) : await api.inspections.removeMany(ids);
+      const n = res.data.deleted;
+      toast.success(n === 1 ? 'Inspection deleted' : `${n} inspections deleted`);
+      setSelected(new Set());
+      setToDelete(null);
+      // Back a page if this one is now empty.
+      if (page > 1 && ids.length >= inspections.length) setPage((p) => p - 1);
+      // Counts, the leads list and the funnel all change.
+      await queryClient.invalidateQueries();
+    } catch {
+      // surfaced as a toast by the api client
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const columns = ['Date', 'AED Model', 'Serial', 'Pads Expiry', 'Result', 'Inspector', 'Location', ''];
+  const columnCount = columns.length + (isAdmin ? 1 : 0);
+  const one = toDelete?.length === 1 ? toDelete[0] : null;
 
   return (
     <div className="glass-card overflow-hidden">
@@ -100,6 +158,17 @@ export function InspectionTable() {
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-bold">Recent Inspections</h2>
         </div>
+
+        {isAdmin && selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setToDelete(visible.filter((i) => selected.has(i.inspectionId)))}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/15 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete selected ({selected.size})
+          </button>
+        )}
 
         {/* Search (client-side filter on loaded data for now) */}
         <div className="relative">
@@ -133,7 +202,19 @@ export function InspectionTable() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/30">
-              {['Date', 'AED Model', 'Serial', 'Pads Expiry', 'Result', 'Inspector', 'Location', ''].map(
+              {isAdmin && (
+                <th className="pl-4 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    disabled={!visible.length}
+                    aria-label="Select all inspections on this page"
+                    className="h-3.5 w-3.5 rounded border-border accent-primary align-middle"
+                  />
+                </th>
+              )}
+              {columns.map(
                 (h) => (
                   <th
                     key={h}
@@ -149,7 +230,7 @@ export function InspectionTable() {
             {isLoading &&
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/20">
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: columnCount }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-3 bg-muted/30 rounded animate-pulse w-16" />
                     </td>
@@ -158,21 +239,28 @@ export function InspectionTable() {
               ))}
 
             {!isLoading &&
-              inspections
-                .filter(
-                  (i) =>
-                    !search ||
-                    i.serialNumber?.toLowerCase().includes(search.toLowerCase()) ||
-                    i.manufacturer?.toLowerCase().includes(search.toLowerCase()),
-                )
-                .map((insp: Inspection, idx: number) => (
+              visible.map((insp: Inspection, idx: number) => (
                   <motion.tr
                     key={insp._id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: idx * 0.02 }}
-                    className="border-b border-border/20 hover:bg-secondary/30 transition-colors"
+                    className={cn(
+                      'border-b border-border/20 hover:bg-secondary/30 transition-colors',
+                      selected.has(insp.inspectionId) && 'bg-destructive/5',
+                    )}
                   >
+                    {isAdmin && (
+                      <td className="pl-4 py-3 w-8">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(insp.inspectionId)}
+                          onChange={() => toggle(insp.inspectionId)}
+                          aria-label="Select this inspection"
+                          className="h-3.5 w-3.5 rounded border-border accent-primary align-middle"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {insp.startedAt
                         ? format(new Date(insp.startedAt), 'dd MMM yy HH:mm')
@@ -202,7 +290,7 @@ export function InspectionTable() {
                     <td className="px-4 py-3">
                       <VisitorCell visitor={insp.visitor} />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <button
                         onClick={() => void downloadPdf(insp.inspectionId)}
                         disabled={downloadingId === insp.inspectionId}
@@ -216,13 +304,23 @@ export function InspectionTable() {
                           <Download className="w-3.5 h-3.5" />
                         )}
                       </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => setToDelete([insp])}
+                          className="ml-1 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors inline-flex"
+                          title="Delete inspection"
+                          aria-label="Delete inspection"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </motion.tr>
                 ))}
 
             {!isLoading && inspections.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={columnCount} className="px-4 py-12 text-center text-muted-foreground">
                   No inspections found.{' '}
                   <Link href="/inspection" className="text-primary hover:underline">
                     Start your first inspection →
@@ -258,6 +356,33 @@ export function InspectionTable() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        onOpenChange={(open) => !open && setToDelete(null)}
+        title={one ? 'Delete this inspection?' : `Delete ${toDelete?.length ?? 0} inspections?`}
+        confirmLabel={one ? 'Delete inspection' : `Delete ${toDelete?.length ?? 0} inspections`}
+        typeToConfirm={one ? undefined : 'DELETE'}
+        busy={deleting}
+        onConfirm={() => void confirmDelete()}
+      >
+        {one && (
+          <p className="font-medium text-foreground">
+            {[
+              one.aedModel ?? one.manufacturer,
+              one.inspector?.name ?? one.guestName,
+              one.startedAt && format(new Date(one.startedAt), 'dd MMM yyyy, HH:mm'),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        )}
+        <p>
+          This permanently deletes {one ? 'the inspection' : 'these inspections'}: the contact details, photos,
+          results and report, and {one ? 'its' : 'their'} funnel stats.{' '}
+          <strong className="text-foreground">It can’t be undone.</strong>
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

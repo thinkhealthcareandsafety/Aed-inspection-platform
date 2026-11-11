@@ -183,6 +183,12 @@ export const api = {
 
     complete: (id: string) =>
       apiClient.post<{ inspection: import('@/types').Inspection }>(`/inspections/${id}/complete`),
+
+    /** Admin only. Permanent: the record, its photos and its funnel events. */
+    remove: (id: string) => apiClient.delete<{ deleted: number }>(`/inspections/${id}`),
+
+    /** Admin only. Permanent, up to 100 at a time. */
+    removeMany: (ids: string[]) => apiClient.post<{ deleted: number }>('/inspections/bulk-delete', { ids }),
   },
 
   checklist: {
@@ -240,6 +246,9 @@ export const api = {
   insights: {
     funnel: (days: number) =>
       apiClient.get<import('@/types/insights').FunnelResponse>('/insights/funnel', { params: { days } }),
+
+    /** Admin only. Clears every funnel and visitor event; inspections stay. */
+    clearFunnel: () => apiClient.delete<{ deleted: number }>('/insights/events'),
 
     pipeline: (params?: { urgency?: string; q?: string }) =>
       apiClient.get<import('@/types/insights').PipelineResponse>('/insights/pipeline', { params }),
