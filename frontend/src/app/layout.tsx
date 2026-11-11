@@ -15,17 +15,26 @@ const devanagari = Noto_Sans_Devanagari({
   preload: false,
 });
 
+const TITLE = 'Free AED Inspection App: Check Your AED in 3 Minutes';
 const DESCRIPTION =
-  'Check your AED is ready to save a life in 3 minutes. Photograph six things, AI reads every label, and a PDF report is emailed to you. Free, from aedsmartx by Think Health.';
+  'Free AED inspection on your phone. AI checks the readiness light, pads and battery expiry and the serial number, then emails you a PDF report.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://inspector.aedsmartx.com'),
   title: {
-    default: 'AED SmartX Inspector — Free AI AED inspection',
+    default: TITLE,
     template: '%s | AED SmartX Inspector',
   },
   description: DESCRIPTION,
   applicationName: 'AED SmartX Inspector',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
+  // Card type only: a page without its own twitter titles falls back to its
+  // og: tags, rather than inheriting the home page's.
+  twitter: { card: 'summary_large_image' },
   // The "a" from the aedsmartx wordmark, in its brand red.
   icons: {
     icon: [
@@ -35,10 +44,11 @@ export const metadata: Metadata = {
     apple: '/brand/apple-touch-icon.png',
   },
   openGraph: {
-    title: 'AED SmartX Inspector',
+    title: TITLE,
     description: DESCRIPTION,
     siteName: 'AED SmartX Inspector',
     type: 'website',
+    url: '/',
   },
 };
 

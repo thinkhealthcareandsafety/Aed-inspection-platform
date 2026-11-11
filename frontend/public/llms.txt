@@ -1,0 +1,33 @@
+# AED SmartX Inspector
+
+> A free AED (automated external defibrillator) inspection app from Think Health. On a phone, it films the AED's readiness light, reads the serial number and the pads and battery expiry dates with AI, scores the AED out of 100 and emails a PDF report. About a minute for a quick check, six for the full ten-point inspection. In English and Hindi. No install or account.
+
+It covers the Philips HeartStart FRx and HS1 (OnSite), ZOLL AED Plus and AED 3, Cardiac Science / ZOLL Powerheart G3 and G5, and Defibtech Lifeline, Lifeline AUTO, Lifeline VIEW and Lifeline ECG. Owners of other AEDs (Mindray, Schiller, HeartSine, Physio-Control LIFEPAK, Nihon Kohden) can ask the team for help from inside the app.
+
+- [Start a free AED inspection](https://inspector.aedsmartx.com/)
+
+## Inspection guides by AED model
+
+- [How to inspect a Philips HeartStart FRx](https://inspector.aedsmartx.com/aed/philips-heartstart-frx)
+- [How to inspect a Philips HeartStart HS1](https://inspector.aedsmartx.com/aed/philips-heartstart-hs1)
+- [How to inspect a ZOLL AED Plus](https://inspector.aedsmartx.com/aed/zoll-aed-plus)
+- [How to inspect a ZOLL AED 3](https://inspector.aedsmartx.com/aed/zoll-aed-3)
+- [How to inspect a Cardiac Science Powerheart G3](https://inspector.aedsmartx.com/aed/powerheart-g3)
+- [How to inspect a Cardiac Science Powerheart G5](https://inspector.aedsmartx.com/aed/powerheart-g5)
+- [How to inspect a Defibtech Lifeline](https://inspector.aedsmartx.com/aed/defibtech-lifeline)
+- [How to inspect a Defibtech Lifeline AUTO](https://inspector.aedsmartx.com/aed/defibtech-lifeline-auto)
+- [How to inspect a Defibtech Lifeline VIEW](https://inspector.aedsmartx.com/aed/defibtech-lifeline-view)
+- [How to inspect a Defibtech Lifeline ECG](https://inspector.aedsmartx.com/aed/defibtech-lifeline-ecg)
+
+## AED guides
+
+- [AED inspection checklist](https://inspector.aedsmartx.com/guides/aed-inspection-checklist): The ten things to check every month, and what a pass looks like.
+- [What your AED's status light means](https://inspector.aedsmartx.com/guides/aed-status-light): Green, red, blinking or a ✗: model by model.
+- [AED pads expiry](https://inspector.aedsmartx.com/guides/aed-pads-expiry): Where the date is printed, and when pads must be replaced.
+- [AED battery expiry](https://inspector.aedsmartx.com/guides/aed-battery-expiry): Where each battery's date is, and what it really means.
+- [How old is my AED?](https://inspector.aedsmartx.com/guides/how-old-is-my-aed): Read the year it was made from its serial number.
+
+## About
+
+- Made by Think Health (Think Healthcare and Safety), suppliers of AEDs, pads and batteries: https://thinkhealth.in, https://aedsmartx.com
+- The guides cover routine visual checks. They do not replace the AED maker's instructions or manufacturer servicing.
